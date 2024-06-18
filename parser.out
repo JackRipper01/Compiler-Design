@@ -1,0 +1,259 @@
+Created by PLY version 3.11 (http://www.dabeaz.com/ply)
+
+Unused terminals:
+
+    LPAREN
+    RPAREN
+
+Grammar
+
+Rule 0     S' -> statement
+Rule 1     statement -> expression
+Rule 2     expression -> expression PLUS expression
+Rule 3     expression -> expression MINUS expression
+Rule 4     expression -> expression TIMES expression
+Rule 5     expression -> expression DIVIDE expression
+Rule 6     expression -> NUMBER
+Rule 7     expression -> MINUS expression
+
+Terminals, with rules where they appear
+
+DIVIDE               : 5
+LPAREN               : 
+MINUS                : 3 7
+NUMBER               : 6
+PLUS                 : 2
+RPAREN               : 
+TIMES                : 4
+error                : 
+
+Nonterminals, with rules where they appear
+
+expression           : 1 2 2 3 3 4 4 5 5 7
+statement            : 0
+
+Parsing method: LALR
+
+state 0
+
+    (0) S' -> . statement
+    (1) statement -> . expression
+    (2) expression -> . expression PLUS expression
+    (3) expression -> . expression MINUS expression
+    (4) expression -> . expression TIMES expression
+    (5) expression -> . expression DIVIDE expression
+    (6) expression -> . NUMBER
+    (7) expression -> . MINUS expression
+
+    NUMBER          shift and go to state 4
+    MINUS           shift and go to state 3
+
+    statement                      shift and go to state 1
+    expression                     shift and go to state 2
+
+state 1
+
+    (0) S' -> statement .
+
+
+
+state 2
+
+    (1) statement -> expression .
+    (2) expression -> expression . PLUS expression
+    (3) expression -> expression . MINUS expression
+    (4) expression -> expression . TIMES expression
+    (5) expression -> expression . DIVIDE expression
+
+    $end            reduce using rule 1 (statement -> expression .)
+    PLUS            shift and go to state 5
+    MINUS           shift and go to state 6
+    TIMES           shift and go to state 7
+    DIVIDE          shift and go to state 8
+
+
+state 3
+
+    (7) expression -> MINUS . expression
+    (2) expression -> . expression PLUS expression
+    (3) expression -> . expression MINUS expression
+    (4) expression -> . expression TIMES expression
+    (5) expression -> . expression DIVIDE expression
+    (6) expression -> . NUMBER
+    (7) expression -> . MINUS expression
+
+    NUMBER          shift and go to state 4
+    MINUS           shift and go to state 3
+
+    expression                     shift and go to state 9
+
+state 4
+
+    (6) expression -> NUMBER .
+
+    PLUS            reduce using rule 6 (expression -> NUMBER .)
+    MINUS           reduce using rule 6 (expression -> NUMBER .)
+    TIMES           reduce using rule 6 (expression -> NUMBER .)
+    DIVIDE          reduce using rule 6 (expression -> NUMBER .)
+    $end            reduce using rule 6 (expression -> NUMBER .)
+
+
+state 5
+
+    (2) expression -> expression PLUS . expression
+    (2) expression -> . expression PLUS expression
+    (3) expression -> . expression MINUS expression
+    (4) expression -> . expression TIMES expression
+    (5) expression -> . expression DIVIDE expression
+    (6) expression -> . NUMBER
+    (7) expression -> . MINUS expression
+
+    NUMBER          shift and go to state 4
+    MINUS           shift and go to state 3
+
+    expression                     shift and go to state 10
+
+state 6
+
+    (3) expression -> expression MINUS . expression
+    (2) expression -> . expression PLUS expression
+    (3) expression -> . expression MINUS expression
+    (4) expression -> . expression TIMES expression
+    (5) expression -> . expression DIVIDE expression
+    (6) expression -> . NUMBER
+    (7) expression -> . MINUS expression
+
+    NUMBER          shift and go to state 4
+    MINUS           shift and go to state 3
+
+    expression                     shift and go to state 11
+
+state 7
+
+    (4) expression -> expression TIMES . expression
+    (2) expression -> . expression PLUS expression
+    (3) expression -> . expression MINUS expression
+    (4) expression -> . expression TIMES expression
+    (5) expression -> . expression DIVIDE expression
+    (6) expression -> . NUMBER
+    (7) expression -> . MINUS expression
+
+    NUMBER          shift and go to state 4
+    MINUS           shift and go to state 3
+
+    expression                     shift and go to state 12
+
+state 8
+
+    (5) expression -> expression DIVIDE . expression
+    (2) expression -> . expression PLUS expression
+    (3) expression -> . expression MINUS expression
+    (4) expression -> . expression TIMES expression
+    (5) expression -> . expression DIVIDE expression
+    (6) expression -> . NUMBER
+    (7) expression -> . MINUS expression
+
+    NUMBER          shift and go to state 4
+    MINUS           shift and go to state 3
+
+    expression                     shift and go to state 13
+
+state 9
+
+    (7) expression -> MINUS expression .
+    (2) expression -> expression . PLUS expression
+    (3) expression -> expression . MINUS expression
+    (4) expression -> expression . TIMES expression
+    (5) expression -> expression . DIVIDE expression
+
+    PLUS            reduce using rule 7 (expression -> MINUS expression .)
+    MINUS           reduce using rule 7 (expression -> MINUS expression .)
+    TIMES           reduce using rule 7 (expression -> MINUS expression .)
+    DIVIDE          reduce using rule 7 (expression -> MINUS expression .)
+    $end            reduce using rule 7 (expression -> MINUS expression .)
+
+  ! PLUS            [ shift and go to state 5 ]
+  ! MINUS           [ shift and go to state 6 ]
+  ! TIMES           [ shift and go to state 7 ]
+  ! DIVIDE          [ shift and go to state 8 ]
+
+
+state 10
+
+    (2) expression -> expression PLUS expression .
+    (2) expression -> expression . PLUS expression
+    (3) expression -> expression . MINUS expression
+    (4) expression -> expression . TIMES expression
+    (5) expression -> expression . DIVIDE expression
+
+    PLUS            reduce using rule 2 (expression -> expression PLUS expression .)
+    MINUS           reduce using rule 2 (expression -> expression PLUS expression .)
+    $end            reduce using rule 2 (expression -> expression PLUS expression .)
+    TIMES           shift and go to state 7
+    DIVIDE          shift and go to state 8
+
+  ! TIMES           [ reduce using rule 2 (expression -> expression PLUS expression .) ]
+  ! DIVIDE          [ reduce using rule 2 (expression -> expression PLUS expression .) ]
+  ! PLUS            [ shift and go to state 5 ]
+  ! MINUS           [ shift and go to state 6 ]
+
+
+state 11
+
+    (3) expression -> expression MINUS expression .
+    (2) expression -> expression . PLUS expression
+    (3) expression -> expression . MINUS expression
+    (4) expression -> expression . TIMES expression
+    (5) expression -> expression . DIVIDE expression
+
+    PLUS            reduce using rule 3 (expression -> expression MINUS expression .)
+    MINUS           reduce using rule 3 (expression -> expression MINUS expression .)
+    $end            reduce using rule 3 (expression -> expression MINUS expression .)
+    TIMES           shift and go to state 7
+    DIVIDE          shift and go to state 8
+
+  ! TIMES           [ reduce using rule 3 (expression -> expression MINUS expression .) ]
+  ! DIVIDE          [ reduce using rule 3 (expression -> expression MINUS expression .) ]
+  ! PLUS            [ shift and go to state 5 ]
+  ! MINUS           [ shift and go to state 6 ]
+
+
+state 12
+
+    (4) expression -> expression TIMES expression .
+    (2) expression -> expression . PLUS expression
+    (3) expression -> expression . MINUS expression
+    (4) expression -> expression . TIMES expression
+    (5) expression -> expression . DIVIDE expression
+
+    PLUS            reduce using rule 4 (expression -> expression TIMES expression .)
+    MINUS           reduce using rule 4 (expression -> expression TIMES expression .)
+    TIMES           reduce using rule 4 (expression -> expression TIMES expression .)
+    DIVIDE          reduce using rule 4 (expression -> expression TIMES expression .)
+    $end            reduce using rule 4 (expression -> expression TIMES expression .)
+
+  ! PLUS            [ shift and go to state 5 ]
+  ! MINUS           [ shift and go to state 6 ]
+  ! TIMES           [ shift and go to state 7 ]
+  ! DIVIDE          [ shift and go to state 8 ]
+
+
+state 13
+
+    (5) expression -> expression DIVIDE expression .
+    (2) expression -> expression . PLUS expression
+    (3) expression -> expression . MINUS expression
+    (4) expression -> expression . TIMES expression
+    (5) expression -> expression . DIVIDE expression
+
+    PLUS            reduce using rule 5 (expression -> expression DIVIDE expression .)
+    MINUS           reduce using rule 5 (expression -> expression DIVIDE expression .)
+    TIMES           reduce using rule 5 (expression -> expression DIVIDE expression .)
+    DIVIDE          reduce using rule 5 (expression -> expression DIVIDE expression .)
+    $end            reduce using rule 5 (expression -> expression DIVIDE expression .)
+
+  ! PLUS            [ shift and go to state 5 ]
+  ! MINUS           [ shift and go to state 6 ]
+  ! TIMES           [ shift and go to state 7 ]
+  ! DIVIDE          [ shift and go to state 8 ]
+
