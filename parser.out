@@ -11,21 +11,40 @@ Rule 5     expression -> expression PLUS expression
 Rule 6     expression -> expression MINUS expression
 Rule 7     expression -> expression TIMES expression
 Rule 8     expression -> expression DIVIDE expression
+Rule 9     expression -> PI
+Rule 10    expression -> E
+Rule 11    expression -> PRINT LPAREN expression RPAREN
+Rule 12    expression -> SQRT LPAREN expression RPAREN
+Rule 13    expression -> SIN LPAREN expression RPAREN
+Rule 14    expression -> COS LPAREN expression RPAREN
+Rule 15    expression -> EXP LPAREN expression RPAREN
+Rule 16    expression -> LOG LPAREN expression COMMA expression RPAREN
+Rule 17    expression -> RAND LPAREN RPAREN
 
 Terminals, with rules where they appear
 
+COMMA                : 16
+COS                  : 14
 DIVIDE               : 8
-LPAREN               : 4
+E                    : 10
+EXP                  : 15
+LOG                  : 16
+LPAREN               : 4 11 12 13 14 15 16 17
 MINUS                : 3 6
 NUMBER               : 2
+PI                   : 9
 PLUS                 : 5
-RPAREN               : 4
+PRINT                : 11
+RAND                 : 17
+RPAREN               : 4 11 12 13 14 15 16 17
+SIN                  : 13
+SQRT                 : 12
 TIMES                : 7
 error                : 
 
 Nonterminals, with rules where they appear
 
-expression           : 1 3 4 5 5 6 6 7 7 8 8
+expression           : 1 3 4 5 5 6 6 7 7 8 8 11 12 13 14 15 16 16
 statement            : 0
 
 Parsing method: LALR
@@ -41,10 +60,28 @@ state 0
     (6) expression -> . expression MINUS expression
     (7) expression -> . expression TIMES expression
     (8) expression -> . expression DIVIDE expression
+    (9) expression -> . PI
+    (10) expression -> . E
+    (11) expression -> . PRINT LPAREN expression RPAREN
+    (12) expression -> . SQRT LPAREN expression RPAREN
+    (13) expression -> . SIN LPAREN expression RPAREN
+    (14) expression -> . COS LPAREN expression RPAREN
+    (15) expression -> . EXP LPAREN expression RPAREN
+    (16) expression -> . LOG LPAREN expression COMMA expression RPAREN
+    (17) expression -> . RAND LPAREN RPAREN
 
     NUMBER          shift and go to state 3
     MINUS           shift and go to state 4
     LPAREN          shift and go to state 5
+    PI              shift and go to state 6
+    E               shift and go to state 7
+    PRINT           shift and go to state 8
+    SQRT            shift and go to state 9
+    SIN             shift and go to state 10
+    COS             shift and go to state 11
+    EXP             shift and go to state 12
+    LOG             shift and go to state 13
+    RAND            shift and go to state 14
 
     statement                      shift and go to state 1
     expression                     shift and go to state 2
@@ -64,10 +101,10 @@ state 2
     (8) expression -> expression . DIVIDE expression
 
     $end            reduce using rule 1 (statement -> expression .)
-    PLUS            shift and go to state 6
-    MINUS           shift and go to state 7
-    TIMES           shift and go to state 8
-    DIVIDE          shift and go to state 9
+    PLUS            shift and go to state 15
+    MINUS           shift and go to state 16
+    TIMES           shift and go to state 17
+    DIVIDE          shift and go to state 18
 
 
 state 3
@@ -80,6 +117,7 @@ state 3
     DIVIDE          reduce using rule 2 (expression -> NUMBER .)
     $end            reduce using rule 2 (expression -> NUMBER .)
     RPAREN          reduce using rule 2 (expression -> NUMBER .)
+    COMMA           reduce using rule 2 (expression -> NUMBER .)
 
 
 state 4
@@ -92,12 +130,30 @@ state 4
     (6) expression -> . expression MINUS expression
     (7) expression -> . expression TIMES expression
     (8) expression -> . expression DIVIDE expression
+    (9) expression -> . PI
+    (10) expression -> . E
+    (11) expression -> . PRINT LPAREN expression RPAREN
+    (12) expression -> . SQRT LPAREN expression RPAREN
+    (13) expression -> . SIN LPAREN expression RPAREN
+    (14) expression -> . COS LPAREN expression RPAREN
+    (15) expression -> . EXP LPAREN expression RPAREN
+    (16) expression -> . LOG LPAREN expression COMMA expression RPAREN
+    (17) expression -> . RAND LPAREN RPAREN
 
     NUMBER          shift and go to state 3
     MINUS           shift and go to state 4
     LPAREN          shift and go to state 5
+    PI              shift and go to state 6
+    E               shift and go to state 7
+    PRINT           shift and go to state 8
+    SQRT            shift and go to state 9
+    SIN             shift and go to state 10
+    COS             shift and go to state 11
+    EXP             shift and go to state 12
+    LOG             shift and go to state 13
+    RAND            shift and go to state 14
 
-    expression                     shift and go to state 10
+    expression                     shift and go to state 19
 
 state 5
 
@@ -109,14 +165,107 @@ state 5
     (6) expression -> . expression MINUS expression
     (7) expression -> . expression TIMES expression
     (8) expression -> . expression DIVIDE expression
+    (9) expression -> . PI
+    (10) expression -> . E
+    (11) expression -> . PRINT LPAREN expression RPAREN
+    (12) expression -> . SQRT LPAREN expression RPAREN
+    (13) expression -> . SIN LPAREN expression RPAREN
+    (14) expression -> . COS LPAREN expression RPAREN
+    (15) expression -> . EXP LPAREN expression RPAREN
+    (16) expression -> . LOG LPAREN expression COMMA expression RPAREN
+    (17) expression -> . RAND LPAREN RPAREN
 
     NUMBER          shift and go to state 3
     MINUS           shift and go to state 4
     LPAREN          shift and go to state 5
+    PI              shift and go to state 6
+    E               shift and go to state 7
+    PRINT           shift and go to state 8
+    SQRT            shift and go to state 9
+    SIN             shift and go to state 10
+    COS             shift and go to state 11
+    EXP             shift and go to state 12
+    LOG             shift and go to state 13
+    RAND            shift and go to state 14
 
-    expression                     shift and go to state 11
+    expression                     shift and go to state 20
 
 state 6
+
+    (9) expression -> PI .
+
+    PLUS            reduce using rule 9 (expression -> PI .)
+    MINUS           reduce using rule 9 (expression -> PI .)
+    TIMES           reduce using rule 9 (expression -> PI .)
+    DIVIDE          reduce using rule 9 (expression -> PI .)
+    $end            reduce using rule 9 (expression -> PI .)
+    RPAREN          reduce using rule 9 (expression -> PI .)
+    COMMA           reduce using rule 9 (expression -> PI .)
+
+
+state 7
+
+    (10) expression -> E .
+
+    PLUS            reduce using rule 10 (expression -> E .)
+    MINUS           reduce using rule 10 (expression -> E .)
+    TIMES           reduce using rule 10 (expression -> E .)
+    DIVIDE          reduce using rule 10 (expression -> E .)
+    $end            reduce using rule 10 (expression -> E .)
+    RPAREN          reduce using rule 10 (expression -> E .)
+    COMMA           reduce using rule 10 (expression -> E .)
+
+
+state 8
+
+    (11) expression -> PRINT . LPAREN expression RPAREN
+
+    LPAREN          shift and go to state 21
+
+
+state 9
+
+    (12) expression -> SQRT . LPAREN expression RPAREN
+
+    LPAREN          shift and go to state 22
+
+
+state 10
+
+    (13) expression -> SIN . LPAREN expression RPAREN
+
+    LPAREN          shift and go to state 23
+
+
+state 11
+
+    (14) expression -> COS . LPAREN expression RPAREN
+
+    LPAREN          shift and go to state 24
+
+
+state 12
+
+    (15) expression -> EXP . LPAREN expression RPAREN
+
+    LPAREN          shift and go to state 25
+
+
+state 13
+
+    (16) expression -> LOG . LPAREN expression COMMA expression RPAREN
+
+    LPAREN          shift and go to state 26
+
+
+state 14
+
+    (17) expression -> RAND . LPAREN RPAREN
+
+    LPAREN          shift and go to state 27
+
+
+state 15
 
     (5) expression -> expression PLUS . expression
     (2) expression -> . NUMBER
@@ -126,14 +275,32 @@ state 6
     (6) expression -> . expression MINUS expression
     (7) expression -> . expression TIMES expression
     (8) expression -> . expression DIVIDE expression
+    (9) expression -> . PI
+    (10) expression -> . E
+    (11) expression -> . PRINT LPAREN expression RPAREN
+    (12) expression -> . SQRT LPAREN expression RPAREN
+    (13) expression -> . SIN LPAREN expression RPAREN
+    (14) expression -> . COS LPAREN expression RPAREN
+    (15) expression -> . EXP LPAREN expression RPAREN
+    (16) expression -> . LOG LPAREN expression COMMA expression RPAREN
+    (17) expression -> . RAND LPAREN RPAREN
 
     NUMBER          shift and go to state 3
     MINUS           shift and go to state 4
     LPAREN          shift and go to state 5
+    PI              shift and go to state 6
+    E               shift and go to state 7
+    PRINT           shift and go to state 8
+    SQRT            shift and go to state 9
+    SIN             shift and go to state 10
+    COS             shift and go to state 11
+    EXP             shift and go to state 12
+    LOG             shift and go to state 13
+    RAND            shift and go to state 14
 
-    expression                     shift and go to state 12
+    expression                     shift and go to state 28
 
-state 7
+state 16
 
     (6) expression -> expression MINUS . expression
     (2) expression -> . NUMBER
@@ -143,14 +310,32 @@ state 7
     (6) expression -> . expression MINUS expression
     (7) expression -> . expression TIMES expression
     (8) expression -> . expression DIVIDE expression
+    (9) expression -> . PI
+    (10) expression -> . E
+    (11) expression -> . PRINT LPAREN expression RPAREN
+    (12) expression -> . SQRT LPAREN expression RPAREN
+    (13) expression -> . SIN LPAREN expression RPAREN
+    (14) expression -> . COS LPAREN expression RPAREN
+    (15) expression -> . EXP LPAREN expression RPAREN
+    (16) expression -> . LOG LPAREN expression COMMA expression RPAREN
+    (17) expression -> . RAND LPAREN RPAREN
 
     NUMBER          shift and go to state 3
     MINUS           shift and go to state 4
     LPAREN          shift and go to state 5
+    PI              shift and go to state 6
+    E               shift and go to state 7
+    PRINT           shift and go to state 8
+    SQRT            shift and go to state 9
+    SIN             shift and go to state 10
+    COS             shift and go to state 11
+    EXP             shift and go to state 12
+    LOG             shift and go to state 13
+    RAND            shift and go to state 14
 
-    expression                     shift and go to state 13
+    expression                     shift and go to state 29
 
-state 8
+state 17
 
     (7) expression -> expression TIMES . expression
     (2) expression -> . NUMBER
@@ -160,14 +345,32 @@ state 8
     (6) expression -> . expression MINUS expression
     (7) expression -> . expression TIMES expression
     (8) expression -> . expression DIVIDE expression
+    (9) expression -> . PI
+    (10) expression -> . E
+    (11) expression -> . PRINT LPAREN expression RPAREN
+    (12) expression -> . SQRT LPAREN expression RPAREN
+    (13) expression -> . SIN LPAREN expression RPAREN
+    (14) expression -> . COS LPAREN expression RPAREN
+    (15) expression -> . EXP LPAREN expression RPAREN
+    (16) expression -> . LOG LPAREN expression COMMA expression RPAREN
+    (17) expression -> . RAND LPAREN RPAREN
 
     NUMBER          shift and go to state 3
     MINUS           shift and go to state 4
     LPAREN          shift and go to state 5
+    PI              shift and go to state 6
+    E               shift and go to state 7
+    PRINT           shift and go to state 8
+    SQRT            shift and go to state 9
+    SIN             shift and go to state 10
+    COS             shift and go to state 11
+    EXP             shift and go to state 12
+    LOG             shift and go to state 13
+    RAND            shift and go to state 14
 
-    expression                     shift and go to state 14
+    expression                     shift and go to state 30
 
-state 9
+state 18
 
     (8) expression -> expression DIVIDE . expression
     (2) expression -> . NUMBER
@@ -177,14 +380,32 @@ state 9
     (6) expression -> . expression MINUS expression
     (7) expression -> . expression TIMES expression
     (8) expression -> . expression DIVIDE expression
+    (9) expression -> . PI
+    (10) expression -> . E
+    (11) expression -> . PRINT LPAREN expression RPAREN
+    (12) expression -> . SQRT LPAREN expression RPAREN
+    (13) expression -> . SIN LPAREN expression RPAREN
+    (14) expression -> . COS LPAREN expression RPAREN
+    (15) expression -> . EXP LPAREN expression RPAREN
+    (16) expression -> . LOG LPAREN expression COMMA expression RPAREN
+    (17) expression -> . RAND LPAREN RPAREN
 
     NUMBER          shift and go to state 3
     MINUS           shift and go to state 4
     LPAREN          shift and go to state 5
+    PI              shift and go to state 6
+    E               shift and go to state 7
+    PRINT           shift and go to state 8
+    SQRT            shift and go to state 9
+    SIN             shift and go to state 10
+    COS             shift and go to state 11
+    EXP             shift and go to state 12
+    LOG             shift and go to state 13
+    RAND            shift and go to state 14
 
-    expression                     shift and go to state 15
+    expression                     shift and go to state 31
 
-state 10
+state 19
 
     (3) expression -> MINUS expression .
     (5) expression -> expression . PLUS expression
@@ -198,14 +419,15 @@ state 10
     DIVIDE          reduce using rule 3 (expression -> MINUS expression .)
     $end            reduce using rule 3 (expression -> MINUS expression .)
     RPAREN          reduce using rule 3 (expression -> MINUS expression .)
+    COMMA           reduce using rule 3 (expression -> MINUS expression .)
 
-  ! PLUS            [ shift and go to state 6 ]
-  ! MINUS           [ shift and go to state 7 ]
-  ! TIMES           [ shift and go to state 8 ]
-  ! DIVIDE          [ shift and go to state 9 ]
+  ! PLUS            [ shift and go to state 15 ]
+  ! MINUS           [ shift and go to state 16 ]
+  ! TIMES           [ shift and go to state 17 ]
+  ! DIVIDE          [ shift and go to state 18 ]
 
 
-state 11
+state 20
 
     (4) expression -> LPAREN expression . RPAREN
     (5) expression -> expression . PLUS expression
@@ -213,14 +435,231 @@ state 11
     (7) expression -> expression . TIMES expression
     (8) expression -> expression . DIVIDE expression
 
-    RPAREN          shift and go to state 16
-    PLUS            shift and go to state 6
-    MINUS           shift and go to state 7
-    TIMES           shift and go to state 8
-    DIVIDE          shift and go to state 9
+    RPAREN          shift and go to state 32
+    PLUS            shift and go to state 15
+    MINUS           shift and go to state 16
+    TIMES           shift and go to state 17
+    DIVIDE          shift and go to state 18
 
 
-state 12
+state 21
+
+    (11) expression -> PRINT LPAREN . expression RPAREN
+    (2) expression -> . NUMBER
+    (3) expression -> . MINUS expression
+    (4) expression -> . LPAREN expression RPAREN
+    (5) expression -> . expression PLUS expression
+    (6) expression -> . expression MINUS expression
+    (7) expression -> . expression TIMES expression
+    (8) expression -> . expression DIVIDE expression
+    (9) expression -> . PI
+    (10) expression -> . E
+    (11) expression -> . PRINT LPAREN expression RPAREN
+    (12) expression -> . SQRT LPAREN expression RPAREN
+    (13) expression -> . SIN LPAREN expression RPAREN
+    (14) expression -> . COS LPAREN expression RPAREN
+    (15) expression -> . EXP LPAREN expression RPAREN
+    (16) expression -> . LOG LPAREN expression COMMA expression RPAREN
+    (17) expression -> . RAND LPAREN RPAREN
+
+    NUMBER          shift and go to state 3
+    MINUS           shift and go to state 4
+    LPAREN          shift and go to state 5
+    PI              shift and go to state 6
+    E               shift and go to state 7
+    PRINT           shift and go to state 8
+    SQRT            shift and go to state 9
+    SIN             shift and go to state 10
+    COS             shift and go to state 11
+    EXP             shift and go to state 12
+    LOG             shift and go to state 13
+    RAND            shift and go to state 14
+
+    expression                     shift and go to state 33
+
+state 22
+
+    (12) expression -> SQRT LPAREN . expression RPAREN
+    (2) expression -> . NUMBER
+    (3) expression -> . MINUS expression
+    (4) expression -> . LPAREN expression RPAREN
+    (5) expression -> . expression PLUS expression
+    (6) expression -> . expression MINUS expression
+    (7) expression -> . expression TIMES expression
+    (8) expression -> . expression DIVIDE expression
+    (9) expression -> . PI
+    (10) expression -> . E
+    (11) expression -> . PRINT LPAREN expression RPAREN
+    (12) expression -> . SQRT LPAREN expression RPAREN
+    (13) expression -> . SIN LPAREN expression RPAREN
+    (14) expression -> . COS LPAREN expression RPAREN
+    (15) expression -> . EXP LPAREN expression RPAREN
+    (16) expression -> . LOG LPAREN expression COMMA expression RPAREN
+    (17) expression -> . RAND LPAREN RPAREN
+
+    NUMBER          shift and go to state 3
+    MINUS           shift and go to state 4
+    LPAREN          shift and go to state 5
+    PI              shift and go to state 6
+    E               shift and go to state 7
+    PRINT           shift and go to state 8
+    SQRT            shift and go to state 9
+    SIN             shift and go to state 10
+    COS             shift and go to state 11
+    EXP             shift and go to state 12
+    LOG             shift and go to state 13
+    RAND            shift and go to state 14
+
+    expression                     shift and go to state 34
+
+state 23
+
+    (13) expression -> SIN LPAREN . expression RPAREN
+    (2) expression -> . NUMBER
+    (3) expression -> . MINUS expression
+    (4) expression -> . LPAREN expression RPAREN
+    (5) expression -> . expression PLUS expression
+    (6) expression -> . expression MINUS expression
+    (7) expression -> . expression TIMES expression
+    (8) expression -> . expression DIVIDE expression
+    (9) expression -> . PI
+    (10) expression -> . E
+    (11) expression -> . PRINT LPAREN expression RPAREN
+    (12) expression -> . SQRT LPAREN expression RPAREN
+    (13) expression -> . SIN LPAREN expression RPAREN
+    (14) expression -> . COS LPAREN expression RPAREN
+    (15) expression -> . EXP LPAREN expression RPAREN
+    (16) expression -> . LOG LPAREN expression COMMA expression RPAREN
+    (17) expression -> . RAND LPAREN RPAREN
+
+    NUMBER          shift and go to state 3
+    MINUS           shift and go to state 4
+    LPAREN          shift and go to state 5
+    PI              shift and go to state 6
+    E               shift and go to state 7
+    PRINT           shift and go to state 8
+    SQRT            shift and go to state 9
+    SIN             shift and go to state 10
+    COS             shift and go to state 11
+    EXP             shift and go to state 12
+    LOG             shift and go to state 13
+    RAND            shift and go to state 14
+
+    expression                     shift and go to state 35
+
+state 24
+
+    (14) expression -> COS LPAREN . expression RPAREN
+    (2) expression -> . NUMBER
+    (3) expression -> . MINUS expression
+    (4) expression -> . LPAREN expression RPAREN
+    (5) expression -> . expression PLUS expression
+    (6) expression -> . expression MINUS expression
+    (7) expression -> . expression TIMES expression
+    (8) expression -> . expression DIVIDE expression
+    (9) expression -> . PI
+    (10) expression -> . E
+    (11) expression -> . PRINT LPAREN expression RPAREN
+    (12) expression -> . SQRT LPAREN expression RPAREN
+    (13) expression -> . SIN LPAREN expression RPAREN
+    (14) expression -> . COS LPAREN expression RPAREN
+    (15) expression -> . EXP LPAREN expression RPAREN
+    (16) expression -> . LOG LPAREN expression COMMA expression RPAREN
+    (17) expression -> . RAND LPAREN RPAREN
+
+    NUMBER          shift and go to state 3
+    MINUS           shift and go to state 4
+    LPAREN          shift and go to state 5
+    PI              shift and go to state 6
+    E               shift and go to state 7
+    PRINT           shift and go to state 8
+    SQRT            shift and go to state 9
+    SIN             shift and go to state 10
+    COS             shift and go to state 11
+    EXP             shift and go to state 12
+    LOG             shift and go to state 13
+    RAND            shift and go to state 14
+
+    expression                     shift and go to state 36
+
+state 25
+
+    (15) expression -> EXP LPAREN . expression RPAREN
+    (2) expression -> . NUMBER
+    (3) expression -> . MINUS expression
+    (4) expression -> . LPAREN expression RPAREN
+    (5) expression -> . expression PLUS expression
+    (6) expression -> . expression MINUS expression
+    (7) expression -> . expression TIMES expression
+    (8) expression -> . expression DIVIDE expression
+    (9) expression -> . PI
+    (10) expression -> . E
+    (11) expression -> . PRINT LPAREN expression RPAREN
+    (12) expression -> . SQRT LPAREN expression RPAREN
+    (13) expression -> . SIN LPAREN expression RPAREN
+    (14) expression -> . COS LPAREN expression RPAREN
+    (15) expression -> . EXP LPAREN expression RPAREN
+    (16) expression -> . LOG LPAREN expression COMMA expression RPAREN
+    (17) expression -> . RAND LPAREN RPAREN
+
+    NUMBER          shift and go to state 3
+    MINUS           shift and go to state 4
+    LPAREN          shift and go to state 5
+    PI              shift and go to state 6
+    E               shift and go to state 7
+    PRINT           shift and go to state 8
+    SQRT            shift and go to state 9
+    SIN             shift and go to state 10
+    COS             shift and go to state 11
+    EXP             shift and go to state 12
+    LOG             shift and go to state 13
+    RAND            shift and go to state 14
+
+    expression                     shift and go to state 37
+
+state 26
+
+    (16) expression -> LOG LPAREN . expression COMMA expression RPAREN
+    (2) expression -> . NUMBER
+    (3) expression -> . MINUS expression
+    (4) expression -> . LPAREN expression RPAREN
+    (5) expression -> . expression PLUS expression
+    (6) expression -> . expression MINUS expression
+    (7) expression -> . expression TIMES expression
+    (8) expression -> . expression DIVIDE expression
+    (9) expression -> . PI
+    (10) expression -> . E
+    (11) expression -> . PRINT LPAREN expression RPAREN
+    (12) expression -> . SQRT LPAREN expression RPAREN
+    (13) expression -> . SIN LPAREN expression RPAREN
+    (14) expression -> . COS LPAREN expression RPAREN
+    (15) expression -> . EXP LPAREN expression RPAREN
+    (16) expression -> . LOG LPAREN expression COMMA expression RPAREN
+    (17) expression -> . RAND LPAREN RPAREN
+
+    NUMBER          shift and go to state 3
+    MINUS           shift and go to state 4
+    LPAREN          shift and go to state 5
+    PI              shift and go to state 6
+    E               shift and go to state 7
+    PRINT           shift and go to state 8
+    SQRT            shift and go to state 9
+    SIN             shift and go to state 10
+    COS             shift and go to state 11
+    EXP             shift and go to state 12
+    LOG             shift and go to state 13
+    RAND            shift and go to state 14
+
+    expression                     shift and go to state 38
+
+state 27
+
+    (17) expression -> RAND LPAREN . RPAREN
+
+    RPAREN          shift and go to state 39
+
+
+state 28
 
     (5) expression -> expression PLUS expression .
     (5) expression -> expression . PLUS expression
@@ -232,16 +671,17 @@ state 12
     MINUS           reduce using rule 5 (expression -> expression PLUS expression .)
     $end            reduce using rule 5 (expression -> expression PLUS expression .)
     RPAREN          reduce using rule 5 (expression -> expression PLUS expression .)
-    TIMES           shift and go to state 8
-    DIVIDE          shift and go to state 9
+    COMMA           reduce using rule 5 (expression -> expression PLUS expression .)
+    TIMES           shift and go to state 17
+    DIVIDE          shift and go to state 18
 
   ! TIMES           [ reduce using rule 5 (expression -> expression PLUS expression .) ]
   ! DIVIDE          [ reduce using rule 5 (expression -> expression PLUS expression .) ]
-  ! PLUS            [ shift and go to state 6 ]
-  ! MINUS           [ shift and go to state 7 ]
+  ! PLUS            [ shift and go to state 15 ]
+  ! MINUS           [ shift and go to state 16 ]
 
 
-state 13
+state 29
 
     (6) expression -> expression MINUS expression .
     (5) expression -> expression . PLUS expression
@@ -253,16 +693,17 @@ state 13
     MINUS           reduce using rule 6 (expression -> expression MINUS expression .)
     $end            reduce using rule 6 (expression -> expression MINUS expression .)
     RPAREN          reduce using rule 6 (expression -> expression MINUS expression .)
-    TIMES           shift and go to state 8
-    DIVIDE          shift and go to state 9
+    COMMA           reduce using rule 6 (expression -> expression MINUS expression .)
+    TIMES           shift and go to state 17
+    DIVIDE          shift and go to state 18
 
   ! TIMES           [ reduce using rule 6 (expression -> expression MINUS expression .) ]
   ! DIVIDE          [ reduce using rule 6 (expression -> expression MINUS expression .) ]
-  ! PLUS            [ shift and go to state 6 ]
-  ! MINUS           [ shift and go to state 7 ]
+  ! PLUS            [ shift and go to state 15 ]
+  ! MINUS           [ shift and go to state 16 ]
 
 
-state 14
+state 30
 
     (7) expression -> expression TIMES expression .
     (5) expression -> expression . PLUS expression
@@ -276,14 +717,15 @@ state 14
     DIVIDE          reduce using rule 7 (expression -> expression TIMES expression .)
     $end            reduce using rule 7 (expression -> expression TIMES expression .)
     RPAREN          reduce using rule 7 (expression -> expression TIMES expression .)
+    COMMA           reduce using rule 7 (expression -> expression TIMES expression .)
 
-  ! PLUS            [ shift and go to state 6 ]
-  ! MINUS           [ shift and go to state 7 ]
-  ! TIMES           [ shift and go to state 8 ]
-  ! DIVIDE          [ shift and go to state 9 ]
+  ! PLUS            [ shift and go to state 15 ]
+  ! MINUS           [ shift and go to state 16 ]
+  ! TIMES           [ shift and go to state 17 ]
+  ! DIVIDE          [ shift and go to state 18 ]
 
 
-state 15
+state 31
 
     (8) expression -> expression DIVIDE expression .
     (5) expression -> expression . PLUS expression
@@ -297,14 +739,15 @@ state 15
     DIVIDE          reduce using rule 8 (expression -> expression DIVIDE expression .)
     $end            reduce using rule 8 (expression -> expression DIVIDE expression .)
     RPAREN          reduce using rule 8 (expression -> expression DIVIDE expression .)
+    COMMA           reduce using rule 8 (expression -> expression DIVIDE expression .)
 
-  ! PLUS            [ shift and go to state 6 ]
-  ! MINUS           [ shift and go to state 7 ]
-  ! TIMES           [ shift and go to state 8 ]
-  ! DIVIDE          [ shift and go to state 9 ]
+  ! PLUS            [ shift and go to state 15 ]
+  ! MINUS           [ shift and go to state 16 ]
+  ! TIMES           [ shift and go to state 17 ]
+  ! DIVIDE          [ shift and go to state 18 ]
 
 
-state 16
+state 32
 
     (4) expression -> LPAREN expression RPAREN .
 
@@ -314,4 +757,236 @@ state 16
     DIVIDE          reduce using rule 4 (expression -> LPAREN expression RPAREN .)
     $end            reduce using rule 4 (expression -> LPAREN expression RPAREN .)
     RPAREN          reduce using rule 4 (expression -> LPAREN expression RPAREN .)
+    COMMA           reduce using rule 4 (expression -> LPAREN expression RPAREN .)
+
+
+state 33
+
+    (11) expression -> PRINT LPAREN expression . RPAREN
+    (5) expression -> expression . PLUS expression
+    (6) expression -> expression . MINUS expression
+    (7) expression -> expression . TIMES expression
+    (8) expression -> expression . DIVIDE expression
+
+    RPAREN          shift and go to state 40
+    PLUS            shift and go to state 15
+    MINUS           shift and go to state 16
+    TIMES           shift and go to state 17
+    DIVIDE          shift and go to state 18
+
+
+state 34
+
+    (12) expression -> SQRT LPAREN expression . RPAREN
+    (5) expression -> expression . PLUS expression
+    (6) expression -> expression . MINUS expression
+    (7) expression -> expression . TIMES expression
+    (8) expression -> expression . DIVIDE expression
+
+    RPAREN          shift and go to state 41
+    PLUS            shift and go to state 15
+    MINUS           shift and go to state 16
+    TIMES           shift and go to state 17
+    DIVIDE          shift and go to state 18
+
+
+state 35
+
+    (13) expression -> SIN LPAREN expression . RPAREN
+    (5) expression -> expression . PLUS expression
+    (6) expression -> expression . MINUS expression
+    (7) expression -> expression . TIMES expression
+    (8) expression -> expression . DIVIDE expression
+
+    RPAREN          shift and go to state 42
+    PLUS            shift and go to state 15
+    MINUS           shift and go to state 16
+    TIMES           shift and go to state 17
+    DIVIDE          shift and go to state 18
+
+
+state 36
+
+    (14) expression -> COS LPAREN expression . RPAREN
+    (5) expression -> expression . PLUS expression
+    (6) expression -> expression . MINUS expression
+    (7) expression -> expression . TIMES expression
+    (8) expression -> expression . DIVIDE expression
+
+    RPAREN          shift and go to state 43
+    PLUS            shift and go to state 15
+    MINUS           shift and go to state 16
+    TIMES           shift and go to state 17
+    DIVIDE          shift and go to state 18
+
+
+state 37
+
+    (15) expression -> EXP LPAREN expression . RPAREN
+    (5) expression -> expression . PLUS expression
+    (6) expression -> expression . MINUS expression
+    (7) expression -> expression . TIMES expression
+    (8) expression -> expression . DIVIDE expression
+
+    RPAREN          shift and go to state 44
+    PLUS            shift and go to state 15
+    MINUS           shift and go to state 16
+    TIMES           shift and go to state 17
+    DIVIDE          shift and go to state 18
+
+
+state 38
+
+    (16) expression -> LOG LPAREN expression . COMMA expression RPAREN
+    (5) expression -> expression . PLUS expression
+    (6) expression -> expression . MINUS expression
+    (7) expression -> expression . TIMES expression
+    (8) expression -> expression . DIVIDE expression
+
+    COMMA           shift and go to state 45
+    PLUS            shift and go to state 15
+    MINUS           shift and go to state 16
+    TIMES           shift and go to state 17
+    DIVIDE          shift and go to state 18
+
+
+state 39
+
+    (17) expression -> RAND LPAREN RPAREN .
+
+    PLUS            reduce using rule 17 (expression -> RAND LPAREN RPAREN .)
+    MINUS           reduce using rule 17 (expression -> RAND LPAREN RPAREN .)
+    TIMES           reduce using rule 17 (expression -> RAND LPAREN RPAREN .)
+    DIVIDE          reduce using rule 17 (expression -> RAND LPAREN RPAREN .)
+    $end            reduce using rule 17 (expression -> RAND LPAREN RPAREN .)
+    RPAREN          reduce using rule 17 (expression -> RAND LPAREN RPAREN .)
+    COMMA           reduce using rule 17 (expression -> RAND LPAREN RPAREN .)
+
+
+state 40
+
+    (11) expression -> PRINT LPAREN expression RPAREN .
+
+    PLUS            reduce using rule 11 (expression -> PRINT LPAREN expression RPAREN .)
+    MINUS           reduce using rule 11 (expression -> PRINT LPAREN expression RPAREN .)
+    TIMES           reduce using rule 11 (expression -> PRINT LPAREN expression RPAREN .)
+    DIVIDE          reduce using rule 11 (expression -> PRINT LPAREN expression RPAREN .)
+    $end            reduce using rule 11 (expression -> PRINT LPAREN expression RPAREN .)
+    RPAREN          reduce using rule 11 (expression -> PRINT LPAREN expression RPAREN .)
+    COMMA           reduce using rule 11 (expression -> PRINT LPAREN expression RPAREN .)
+
+
+state 41
+
+    (12) expression -> SQRT LPAREN expression RPAREN .
+
+    PLUS            reduce using rule 12 (expression -> SQRT LPAREN expression RPAREN .)
+    MINUS           reduce using rule 12 (expression -> SQRT LPAREN expression RPAREN .)
+    TIMES           reduce using rule 12 (expression -> SQRT LPAREN expression RPAREN .)
+    DIVIDE          reduce using rule 12 (expression -> SQRT LPAREN expression RPAREN .)
+    $end            reduce using rule 12 (expression -> SQRT LPAREN expression RPAREN .)
+    RPAREN          reduce using rule 12 (expression -> SQRT LPAREN expression RPAREN .)
+    COMMA           reduce using rule 12 (expression -> SQRT LPAREN expression RPAREN .)
+
+
+state 42
+
+    (13) expression -> SIN LPAREN expression RPAREN .
+
+    PLUS            reduce using rule 13 (expression -> SIN LPAREN expression RPAREN .)
+    MINUS           reduce using rule 13 (expression -> SIN LPAREN expression RPAREN .)
+    TIMES           reduce using rule 13 (expression -> SIN LPAREN expression RPAREN .)
+    DIVIDE          reduce using rule 13 (expression -> SIN LPAREN expression RPAREN .)
+    $end            reduce using rule 13 (expression -> SIN LPAREN expression RPAREN .)
+    RPAREN          reduce using rule 13 (expression -> SIN LPAREN expression RPAREN .)
+    COMMA           reduce using rule 13 (expression -> SIN LPAREN expression RPAREN .)
+
+
+state 43
+
+    (14) expression -> COS LPAREN expression RPAREN .
+
+    PLUS            reduce using rule 14 (expression -> COS LPAREN expression RPAREN .)
+    MINUS           reduce using rule 14 (expression -> COS LPAREN expression RPAREN .)
+    TIMES           reduce using rule 14 (expression -> COS LPAREN expression RPAREN .)
+    DIVIDE          reduce using rule 14 (expression -> COS LPAREN expression RPAREN .)
+    $end            reduce using rule 14 (expression -> COS LPAREN expression RPAREN .)
+    RPAREN          reduce using rule 14 (expression -> COS LPAREN expression RPAREN .)
+    COMMA           reduce using rule 14 (expression -> COS LPAREN expression RPAREN .)
+
+
+state 44
+
+    (15) expression -> EXP LPAREN expression RPAREN .
+
+    PLUS            reduce using rule 15 (expression -> EXP LPAREN expression RPAREN .)
+    MINUS           reduce using rule 15 (expression -> EXP LPAREN expression RPAREN .)
+    TIMES           reduce using rule 15 (expression -> EXP LPAREN expression RPAREN .)
+    DIVIDE          reduce using rule 15 (expression -> EXP LPAREN expression RPAREN .)
+    $end            reduce using rule 15 (expression -> EXP LPAREN expression RPAREN .)
+    RPAREN          reduce using rule 15 (expression -> EXP LPAREN expression RPAREN .)
+    COMMA           reduce using rule 15 (expression -> EXP LPAREN expression RPAREN .)
+
+
+state 45
+
+    (16) expression -> LOG LPAREN expression COMMA . expression RPAREN
+    (2) expression -> . NUMBER
+    (3) expression -> . MINUS expression
+    (4) expression -> . LPAREN expression RPAREN
+    (5) expression -> . expression PLUS expression
+    (6) expression -> . expression MINUS expression
+    (7) expression -> . expression TIMES expression
+    (8) expression -> . expression DIVIDE expression
+    (9) expression -> . PI
+    (10) expression -> . E
+    (11) expression -> . PRINT LPAREN expression RPAREN
+    (12) expression -> . SQRT LPAREN expression RPAREN
+    (13) expression -> . SIN LPAREN expression RPAREN
+    (14) expression -> . COS LPAREN expression RPAREN
+    (15) expression -> . EXP LPAREN expression RPAREN
+    (16) expression -> . LOG LPAREN expression COMMA expression RPAREN
+    (17) expression -> . RAND LPAREN RPAREN
+
+    NUMBER          shift and go to state 3
+    MINUS           shift and go to state 4
+    LPAREN          shift and go to state 5
+    PI              shift and go to state 6
+    E               shift and go to state 7
+    PRINT           shift and go to state 8
+    SQRT            shift and go to state 9
+    SIN             shift and go to state 10
+    COS             shift and go to state 11
+    EXP             shift and go to state 12
+    LOG             shift and go to state 13
+    RAND            shift and go to state 14
+
+    expression                     shift and go to state 46
+
+state 46
+
+    (16) expression -> LOG LPAREN expression COMMA expression . RPAREN
+    (5) expression -> expression . PLUS expression
+    (6) expression -> expression . MINUS expression
+    (7) expression -> expression . TIMES expression
+    (8) expression -> expression . DIVIDE expression
+
+    RPAREN          shift and go to state 47
+    PLUS            shift and go to state 15
+    MINUS           shift and go to state 16
+    TIMES           shift and go to state 17
+    DIVIDE          shift and go to state 18
+
+
+state 47
+
+    (16) expression -> LOG LPAREN expression COMMA expression RPAREN .
+
+    PLUS            reduce using rule 16 (expression -> LOG LPAREN expression COMMA expression RPAREN .)
+    MINUS           reduce using rule 16 (expression -> LOG LPAREN expression COMMA expression RPAREN .)
+    TIMES           reduce using rule 16 (expression -> LOG LPAREN expression COMMA expression RPAREN .)
+    DIVIDE          reduce using rule 16 (expression -> LOG LPAREN expression COMMA expression RPAREN .)
+    $end            reduce using rule 16 (expression -> LOG LPAREN expression COMMA expression RPAREN .)
+    RPAREN          reduce using rule 16 (expression -> LOG LPAREN expression COMMA expression RPAREN .)
+    COMMA           reduce using rule 16 (expression -> LOG LPAREN expression COMMA expression RPAREN .)
 

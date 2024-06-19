@@ -6,9 +6,9 @@ _tabversion = '3.10'
 
 _lr_method = 'LALR'
 
-_lr_signature = 'leftPLUSMINUSleftTIMESDIVIDErightLPARENRPARENnonassocUMINUSDIVIDE LPAREN MINUS NUMBER PLUS RPAREN TIMESstatement : expressionexpression : NUMBERexpression : MINUS expression %prec UMINUSexpression : LPAREN expression RPARENexpression : expression PLUS expression\n    | expression MINUS expression\n    | expression TIMES expression\n    | expression DIVIDE expression'
+_lr_signature = 'leftPLUSMINUSleftTIMESDIVIDErightLPARENRPARENnonassocUMINUSCOMMA COS DIVIDE E EXP LOG LPAREN MINUS NUMBER PI PLUS PRINT RAND RPAREN SIN SQRT TIMESstatement : expressionexpression : NUMBERexpression : MINUS expression %prec UMINUSexpression : LPAREN expression RPARENexpression : expression PLUS expression\n    | expression MINUS expression\n    | expression TIMES expression\n    | expression DIVIDE expressionexpression : PIexpression : Eexpression : PRINT LPAREN expression RPARENexpression : SQRT LPAREN expression RPARENexpression : SIN LPAREN expression RPARENexpression : COS LPAREN expression RPARENexpression : EXP LPAREN expression RPARENexpression : LOG LPAREN expression COMMA expression RPARENexpression : RAND LPAREN RPAREN'
     
-_lr_action_items = {'NUMBER':([0,4,5,6,7,8,9,],[3,3,3,3,3,3,3,]),'MINUS':([0,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,],[4,7,-2,4,4,4,4,4,4,-3,7,-5,-6,-7,-8,-4,]),'LPAREN':([0,4,5,6,7,8,9,],[5,5,5,5,5,5,5,]),'$end':([1,2,3,10,12,13,14,15,16,],[0,-1,-2,-3,-5,-6,-7,-8,-4,]),'PLUS':([2,3,10,11,12,13,14,15,16,],[6,-2,-3,6,-5,-6,-7,-8,-4,]),'TIMES':([2,3,10,11,12,13,14,15,16,],[8,-2,-3,8,8,8,-7,-8,-4,]),'DIVIDE':([2,3,10,11,12,13,14,15,16,],[9,-2,-3,9,9,9,-7,-8,-4,]),'RPAREN':([3,10,11,12,13,14,15,16,],[-2,-3,16,-5,-6,-7,-8,-4,]),}
+_lr_action_items = {'NUMBER':([0,4,5,15,16,17,18,21,22,23,24,25,26,45,],[3,3,3,3,3,3,3,3,3,3,3,3,3,3,]),'MINUS':([0,2,3,4,5,6,7,15,16,17,18,19,20,21,22,23,24,25,26,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,],[4,16,-2,4,4,-9,-10,4,4,4,4,-3,16,4,4,4,4,4,4,-5,-6,-7,-8,-4,16,16,16,16,16,16,-17,-11,-12,-13,-14,-15,4,16,-16,]),'LPAREN':([0,4,5,8,9,10,11,12,13,14,15,16,17,18,21,22,23,24,25,26,45,],[5,5,5,21,22,23,24,25,26,27,5,5,5,5,5,5,5,5,5,5,5,]),'PI':([0,4,5,15,16,17,18,21,22,23,24,25,26,45,],[6,6,6,6,6,6,6,6,6,6,6,6,6,6,]),'E':([0,4,5,15,16,17,18,21,22,23,24,25,26,45,],[7,7,7,7,7,7,7,7,7,7,7,7,7,7,]),'PRINT':([0,4,5,15,16,17,18,21,22,23,24,25,26,45,],[8,8,8,8,8,8,8,8,8,8,8,8,8,8,]),'SQRT':([0,4,5,15,16,17,18,21,22,23,24,25,26,45,],[9,9,9,9,9,9,9,9,9,9,9,9,9,9,]),'SIN':([0,4,5,15,16,17,18,21,22,23,24,25,26,45,],[10,10,10,10,10,10,10,10,10,10,10,10,10,10,]),'COS':([0,4,5,15,16,17,18,21,22,23,24,25,26,45,],[11,11,11,11,11,11,11,11,11,11,11,11,11,11,]),'EXP':([0,4,5,15,16,17,18,21,22,23,24,25,26,45,],[12,12,12,12,12,12,12,12,12,12,12,12,12,12,]),'LOG':([0,4,5,15,16,17,18,21,22,23,24,25,26,45,],[13,13,13,13,13,13,13,13,13,13,13,13,13,13,]),'RAND':([0,4,5,15,16,17,18,21,22,23,24,25,26,45,],[14,14,14,14,14,14,14,14,14,14,14,14,14,14,]),'$end':([1,2,3,6,7,19,28,29,30,31,32,39,40,41,42,43,44,47,],[0,-1,-2,-9,-10,-3,-5,-6,-7,-8,-4,-17,-11,-12,-13,-14,-15,-16,]),'PLUS':([2,3,6,7,19,20,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,46,47,],[15,-2,-9,-10,-3,15,-5,-6,-7,-8,-4,15,15,15,15,15,15,-17,-11,-12,-13,-14,-15,15,-16,]),'TIMES':([2,3,6,7,19,20,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,46,47,],[17,-2,-9,-10,-3,17,17,17,-7,-8,-4,17,17,17,17,17,17,-17,-11,-12,-13,-14,-15,17,-16,]),'DIVIDE':([2,3,6,7,19,20,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,46,47,],[18,-2,-9,-10,-3,18,18,18,-7,-8,-4,18,18,18,18,18,18,-17,-11,-12,-13,-14,-15,18,-16,]),'RPAREN':([3,6,7,19,20,27,28,29,30,31,32,33,34,35,36,37,39,40,41,42,43,44,46,47,],[-2,-9,-10,-3,32,39,-5,-6,-7,-8,-4,40,41,42,43,44,-17,-11,-12,-13,-14,-15,47,-16,]),'COMMA':([3,6,7,19,28,29,30,31,32,38,39,40,41,42,43,44,47,],[-2,-9,-10,-3,-5,-6,-7,-8,-4,45,-17,-11,-12,-13,-14,-15,-16,]),}
 
 _lr_action = {}
 for _k, _v in _lr_action_items.items():
@@ -17,7 +17,7 @@ for _k, _v in _lr_action_items.items():
       _lr_action[_x][_k] = _y
 del _lr_action_items
 
-_lr_goto_items = {'statement':([0,],[1,]),'expression':([0,4,5,6,7,8,9,],[2,10,11,12,13,14,15,]),}
+_lr_goto_items = {'statement':([0,],[1,]),'expression':([0,4,5,15,16,17,18,21,22,23,24,25,26,45,],[2,19,20,28,29,30,31,33,34,35,36,37,38,46,]),}
 
 _lr_goto = {}
 for _k, _v in _lr_goto_items.items():
@@ -27,12 +27,21 @@ for _k, _v in _lr_goto_items.items():
 del _lr_goto_items
 _lr_productions = [
   ("S' -> statement","S'",1,None,None,None),
-  ('statement -> expression','statement',1,'p_statement_expr','ast_inventing.py',141),
-  ('expression -> NUMBER','expression',1,'p_expression_number','ast_inventing.py',146),
-  ('expression -> MINUS expression','expression',2,'p_expression_uminus','ast_inventing.py',159),
-  ('expression -> LPAREN expression RPAREN','expression',3,'p_expression_group','ast_inventing.py',164),
-  ('expression -> expression PLUS expression','expression',3,'p_expression_binop','ast_inventing.py',170),
-  ('expression -> expression MINUS expression','expression',3,'p_expression_binop','ast_inventing.py',171),
-  ('expression -> expression TIMES expression','expression',3,'p_expression_binop','ast_inventing.py',172),
-  ('expression -> expression DIVIDE expression','expression',3,'p_expression_binop','ast_inventing.py',173),
+  ('statement -> expression','statement',1,'p_statement_expr','ast_inventing.py',313),
+  ('expression -> NUMBER','expression',1,'p_expression_number','ast_inventing.py',318),
+  ('expression -> MINUS expression','expression',2,'p_expression_uminus','ast_inventing.py',324),
+  ('expression -> LPAREN expression RPAREN','expression',3,'p_expression_group','ast_inventing.py',329),
+  ('expression -> expression PLUS expression','expression',3,'p_expression_binop','ast_inventing.py',335),
+  ('expression -> expression MINUS expression','expression',3,'p_expression_binop','ast_inventing.py',336),
+  ('expression -> expression TIMES expression','expression',3,'p_expression_binop','ast_inventing.py',337),
+  ('expression -> expression DIVIDE expression','expression',3,'p_expression_binop','ast_inventing.py',338),
+  ('expression -> PI','expression',1,'p_expression_pi','ast_inventing.py',343),
+  ('expression -> E','expression',1,'p_expression_e','ast_inventing.py',348),
+  ('expression -> PRINT LPAREN expression RPAREN','expression',4,'p_expression_print','ast_inventing.py',354),
+  ('expression -> SQRT LPAREN expression RPAREN','expression',4,'p_expression_sqrt','ast_inventing.py',359),
+  ('expression -> SIN LPAREN expression RPAREN','expression',4,'p_expression_sin','ast_inventing.py',364),
+  ('expression -> COS LPAREN expression RPAREN','expression',4,'p_expression_cos','ast_inventing.py',369),
+  ('expression -> EXP LPAREN expression RPAREN','expression',4,'p_expression_exp','ast_inventing.py',374),
+  ('expression -> LOG LPAREN expression COMMA expression RPAREN','expression',6,'p_expression_log','ast_inventing.py',379),
+  ('expression -> RAND LPAREN RPAREN','expression',3,'p_expression_rand','ast_inventing.py',384),
 ]
