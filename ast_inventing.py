@@ -5,6 +5,8 @@
 # ------------------------------------------------------------
 import ply
 import ply.lex as lex
+import math
+import random
 
 # List of token names.   This is always required
 tokens = (
@@ -51,23 +53,6 @@ def t_error(t):
 
 # Build the lexer
 lexer = lex.lex()
-
-import ply.yacc as yacc
-
-# precedence rules for the arithmetic operators
-precedence = (
-    ("left", "PLUS", "MINUS"),
-    ("left", "TIMES", "DIVIDE"),
-    ("nonassoc", "UMINUS"),
-)
-
-# dictionary of names (for storing variables)
-names = {}
-
-
-def p_statement_expr(p):
-    "statement : expression"
-    p[0] = p[1]
 
 
 class Node:
@@ -117,24 +102,90 @@ class BinOp(Node):
         elif self.op == "*":
             return self.left.eval() * self.right.eval()
         elif self.op == "/":
-            return self.left.eval() / self.right.eval()
+            right = self.right.eval()
+            if right == 0:
+                raise ZeroDivisionError("division by zero")
+            return self.left.eval() / right
 
 
 class Num(Node):
     def __init__(self, value):
-        self.value = value
+        if isinstance(value, (int, float)):
+            self.value = float(value)
+        else:
+            self.value = value
 
     def check(self):
         # Check that the value is a number
-        if not isinstance(self.value, (int, float)):
+        if not isinstance(self.value, (float)):
             raise TypeError(f"Invalid number: {self.value}")
 
     def infer_type(self):
         # The type of a number is 'num'
-        return "num"
+        return "number"
 
     def eval(self):
         return self.value
+
+
+class UnaryOp(Node):
+    def __init__(self, op, operand):
+        self.op = op
+        self.operand = operand
+
+    def check(self):
+        # Check the operand
+        self.operand.check()
+
+        # Check the operator
+        if self.op != "-":
+            raise TypeError(f"Invalid operator: {self.op}")
+
+    def infer_type(self):
+        # Infer the type of the operand
+        operand_type = self.operand.infer_type()
+
+        # The type of a unary operation is the type of its operand
+        return operand_type
+
+    def eval(self):
+        if self.op == "-":
+            return -self.operand.eval()
+
+
+import ply.yacc as yacc
+
+# precedence rules for the arithmetic operators
+precedence = (
+    ("left", "PLUS", "MINUS"),
+    ("left", "TIMES", "DIVIDE"),
+    ("right", "LPAREN", "RPAREN"),
+    ("nonassoc", "UMINUS"),
+)
+
+# dictionary of names (for storing variables)
+names = {}
+
+
+def p_statement_expr(p):
+    "statement : expression"
+    p[0] = p[1]
+
+
+def p_expression_number(p):
+    "expression : NUMBER"
+    p[0] = Num(p[1])
+
+
+# Define the UMINUS symbol in your grammar
+def p_expression_uminus(p):
+    "expression : MINUS expression %prec UMINUS"
+    p[0] = UnaryOp(op=p[1], operand=p[2])
+
+
+def p_expression_group(p):
+    "expression : LPAREN expression RPAREN"
+    p[0] = p[2]
 
 
 # Modify your parser rules to generate AST nodes
@@ -146,22 +197,11 @@ def p_expression_binop(p):
     p[0] = BinOp(left=p[1], op=p[2], right=p[3])
 
 
-def p_expression_number(p):
-    "expression : NUMBER"
-    p[0] = Num(p[1])
-
-
 def p_error(p):
     if p:
         print(f"Syntax error at {p.value}")
     else:
         print("Syntax error at EOF")
-
-
-# Define the UMINUS symbol in your grammar
-def p_expression_uminus(p):
-    "expression : MINUS expression %prec UMINUS"
-    p[0] = -p[2]
 
 
 # Generate C code from AST
@@ -170,6 +210,8 @@ def generate_c_code(node):
         return f"({generate_c_code(node.left)} {node.op} {generate_c_code(node.right)})"
     elif isinstance(node, Num):
         return str(node.value)
+    elif isinstance(node, UnaryOp):
+        return f"{node.op}{generate_c_code(node.operand)}"
     else:
         raise TypeError(f"Unknown node {node}")
 
@@ -180,15 +222,18 @@ def write_c_code_to_file(ast, filename):
     with open(filename, "w") as f:
         f.write("#include <stdio.h>\n\n")
         f.write("int main() {\n")
-        f.write(f"    int result = {c_code};\n")
-        f.write('    printf("%d\\n", result);\n')
+        f.write(f"    float result = {c_code};\n")
+        f.write('    printf("%f\\n", result);\n')
         f.write("    return 0;\n")
         f.write("}\n")
 
 
 parser = yacc.yacc()
 # Generate AST
-ast = parser.parse("3 + 4 * 2")
+ast = parser.parse("-(3+4)*5/2")
+ast.check()
+print(ast.eval())
+ast_type = ast.infer_type()
 
 # Generate C code
 write_c_code_to_file(ast, "output.c")

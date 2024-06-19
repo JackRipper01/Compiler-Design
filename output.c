@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 int main() {
-    int result = (3 + (4 * 2));
-    printf("%d\n", result);
+    float result = ((-(3.0 + 4.0) * 5.0) / 2.0);
+    printf("%f\n", result);
     return 0;
 }
