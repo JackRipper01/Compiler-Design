@@ -1,8 +1,7 @@
 from ply import lex
 from ply.lex import TOKEN
-import math
-
 import tokenize
+
 OurDecNumber = tokenize.Decnumber + tokenize.maybe(tokenize.Exponent)
 OurNumber = tokenize.group(tokenize.Pointfloat, OurDecNumber)
 
@@ -27,7 +26,7 @@ tokens = tuple(tokens) + (
 		'COLON','COMMA', 'SEMI',
 		'OR','AND',
 		
-		'EQUAL','DOT',
+		'EQUAL','DOT', 'INLINE',
 		
 		"NUMBER",
 		'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'POWER', 'MOD',
@@ -50,6 +49,7 @@ t_LESS  = r'<'
 t_GREATER = r'>'
 
 t_EQUAL = r'='
+t_INLINE = r'=>'
 
 t_COLON = r':'
 t_COMMA = r','

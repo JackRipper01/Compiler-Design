@@ -37,3 +37,15 @@ while True:
 	print(tok)
 	if not tok: break
 
+print("\n\TYPE TEST\n")
+code = """type Person(firstname, lastname) {
+    firstname = firstname;
+    lastname = lastname;
+
+    name() => self.firstname @@ self.lastname;
+}"""
+lexer.hulk_lexer.input(code)
+while True:
+	tok = lexer.hulk_lexer.token()
+	print(tok)
+	if not tok: break
