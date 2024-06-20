@@ -1,17 +1,15 @@
-# calclex.py
-#
-# tokenizer for a simple expression evaluator for
-# numbers and +,-,*,/
-# ------------------------------------------------------------
+# Lexer####################################################################
 from typing import Self
 import ply
 import ply.lex as lex
 import math
 import random
 
+# constants
 PI = math.pi
 E = math.e
-# List of token names.   This is always required
+
+# List of token names.
 tokens = (
     "NUMBER",
     "PLUS",
@@ -32,7 +30,7 @@ tokens = (
     "COMMA",
 )
 
-# Regular expression rules for simple tokens
+# Regular expression rules
 t_PLUS = r"\+"
 t_MINUS = r"-"
 t_TIMES = r"\*"
@@ -50,6 +48,9 @@ t_RAND = r"rand"
 t_COMMA = r","
 t_PRINT = r"print"
 
+# A string containing ignored characters (spaces and tabs)
+t_ignore = " \t"
+
 
 # A regular expression rule with some action code
 def t_NUMBER(t):
@@ -64,10 +65,6 @@ def t_newline(t):
     t.lexer.lineno += len(t.value)
 
 
-# A string containing ignored characters (spaces and tabs)
-t_ignore = " \t"
-
-
 # Error handling rule
 def t_error(t):
     print("Illegal character '%s'" % t.value[0])
@@ -77,7 +74,13 @@ def t_error(t):
 # Build the lexer
 lexer = lex.lex()
 
+###############################################################################################
+###############################################################################################
 
+# Parser########################################################################################
+
+
+# base class
 class Node:
 
     def check(self):
@@ -90,6 +93,7 @@ class Node:
         pass
 
 
+# Operations Classes (binary, unary,etc)
 class BinOp(Node):
     def __init__(self, left, op, right):
         self.left = left
@@ -140,26 +144,6 @@ class BinOp(Node):
             return self.left.eval() / right
 
 
-class Num(Node):
-    def __init__(self, value):
-        if isinstance(value, (int, float)):
-            self.value = float(value)
-        else:
-            self.value = value
-
-    def check(self):
-        # Check that the value is a number
-        if not isinstance(self.value, (float)):
-            raise TypeError(f"Invalid number: {self.value}")
-
-    def infer_type(self):
-        # The type of a number is 'num'
-        return "number"
-
-    def eval(self):
-        return self.value
-
-
 class UnaryOp(Node):
     def __init__(self, op, operand):
         self.op = op
@@ -189,22 +173,28 @@ class UnaryOp(Node):
             return -self.operand.eval()
 
 
-class Print(
-    Node
-):  # most be modified to work with all literals, now only works with numbers, missing strings and booleans
+# number class
+class Num(Node):
     def __init__(self, value):
-        self.value = value
+        if isinstance(value, (int, float)):
+            self.value = float(value)
+        else:
+            self.value = value
 
     def check(self):
-        self.value.check()
+        # Check that the value is a number
+        if not isinstance(self.value, (float)):
+            raise TypeError(f"Invalid number: {self.value}")
 
     def infer_type(self):
-        return "void"
+        # The type of a number is 'num'
+        return "number"
 
     def eval(self):
-        print(self.value.eval())
+        return self.value
 
 
+# constants classes
 class Pi(Node):
     def check(self):
         pass
@@ -225,6 +215,23 @@ class E(Node):
 
     def eval(self):
         return E
+
+
+# built-in functions classes
+class Print(
+    Node
+):  # most be modified to work with all literals, now only works with numbers, missing strings and booleans
+    def __init__(self, value):
+        self.value = value
+
+    def check(self):
+        self.value.check()
+
+    def infer_type(self):
+        return "void"
+
+    def eval(self):
+        print(self.value.eval())
 
 
 class Sqrt(Node):
@@ -342,20 +349,10 @@ precedence = (
 names = {}
 
 
+# defining the grammatical
 def p_statement_expr(p):
     "statement : expression"
     p[0] = p[1]
-
-
-def p_expression_number(p):
-    "expression : NUMBER"
-    p[0] = Num(p[1])
-
-
-# Define the UMINUS symbol in your grammar
-def p_expression_uminus(p):
-    "expression : MINUS expression %prec UMINUS"
-    p[0] = UnaryOp(op=p[1], operand=p[2])
 
 
 def p_expression_group(p):
@@ -363,7 +360,6 @@ def p_expression_group(p):
     p[0] = p[2]
 
 
-# Modify your parser rules to generate AST nodes
 def p_expression_binop(p):
     """expression : expression PLUS expression
     | expression MINUS expression
@@ -372,6 +368,17 @@ def p_expression_binop(p):
     p[0] = BinOp(left=p[1], op=p[2], right=p[3])
 
 
+def p_expression_uminus(p):
+    "expression : MINUS expression %prec UMINUS"  # no se que significa el %prec UMINUS ese,recomiendo ignorarlo hasta q se parta algo
+    p[0] = UnaryOp(op=p[1], operand=p[2])
+
+
+def p_expression_number(p):
+    "expression : NUMBER"
+    p[0] = Num(p[1])
+
+
+# constants
 def p_expression_pi(p):
     "expression : PI"
     p[0] = Pi()
@@ -448,16 +455,14 @@ def generate_c_code(node):
     elif isinstance(node, Exp):
         return f"exp({generate_c_code(node.value)})"
     elif isinstance(node, Log):
-        return (
-            f"(log({generate_c_code(node.base)}) / log({generate_c_code(node.value)}))"
-        )
+        return f"(log({generate_c_code(node.base)}) / log({generate_c_code(node.value)}))"  # logaritmo se hace asi pq C no admite log de a en base b
     elif isinstance(node, Rand):
         return "((double) rand() / (RAND_MAX))"
     else:
         raise TypeError(f"Unknown node {node}")
 
 
-# Write C code to file
+# create output.c file with the code transformed
 def write_c_code_to_file(ast, filename):
     c_code = generate_c_code(ast)
     with open(filename, "w") as f:
@@ -471,11 +476,17 @@ def write_c_code_to_file(ast, filename):
 
 
 parser = yacc.yacc()
+
 # Generate AST
-ast = parser.parse("print(rand())")
+hulk_code = "print(rand())"
+
+ast = parser.parse(hulk_code)
+# semantic and type check
 ast.check()
+
+# evaluate the AST in python code before generating the c code
 ast.eval()
-ast_type = ast.infer_type()
+
 
 # Generate C code
 write_c_code_to_file(ast, "output.c")
