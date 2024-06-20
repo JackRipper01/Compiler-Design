@@ -10,10 +10,10 @@ log = math.log
 
 #print(sin(2 * PI) * 2 + 3 * PI / log(64, 4))
 
-import lexer
+from lexer import HulkLexer
 
-
-print("\nMIXED TEST\n")
+print("\nTEST I\n")
+HL = HulkLexer()
 code = """let a = 42, let mod = a % 3 in
     print(
         if (mod == 0) "Magic"
@@ -21,31 +21,39 @@ code = """let a = 42, let mod = a % 3 in
         else "Dumb"
     );
 """
-lexer.hulk_lexer.input(code)
-while True:
-	tok = lexer.hulk_lexer.token()
-	print(tok)
-	if not tok: break
+HL.input(code)
 
-print("\n\PRINT TEST\n")
-code = """print(
-	rand()+23.23-1e-12-
-    cos(PI+E) @@ "EL APSASAS PATIO DE MI CASA")"""
-lexer.hulk_lexer.input(code)
-while True:
-	tok = lexer.hulk_lexer.token()
-	print(tok)
-	if not tok: break
+print("CODE")
+print(code)
 
-print("\n\TYPE TEST\n")
+while True:
+	tok = HL.token()
+	print(tok)
+	if tok.type=='EOFM': break
+
+print("\nTEST II\n")
+HL = HulkLexer()
 code = """type Person(firstname, lastname) {
     firstname = firstname;
     lastname = lastname;
 
     name() => self.firstname @@ self.lastname;
-}"""
-lexer.hulk_lexer.input(code)
+}
+
+
+type Knight inherits Person {
+    name() => "Sir" @@ base();
+}
+
+let p = new Knight("Phil", "Collins") in
+    print(p.name()); // prints 'Sir Phil Collins'
+"""
+HL.input(code)
+
+print("CODE")
+print(code)
+
 while True:
-	tok = lexer.hulk_lexer.token()
+	tok = HL.token()
 	print(tok)
-	if not tok: break
+	if tok.type=='EOFM': break

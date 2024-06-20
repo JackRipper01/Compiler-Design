@@ -38,7 +38,9 @@ tokens = tuple(tokens) + (
 		
 		'STRING',
 		'CONCAT', 'DCONCAT',
-		'NAME'
+		'NAME', 
+		
+		'EOFM'
 	)
 
 t_EQEQUAL = r'=='
@@ -48,8 +50,8 @@ t_GREATEREQUAL = r'>='
 t_LESS  = r'<'
 t_GREATER = r'>'
 
-t_EQUAL = r'='
 t_INLINE = r'=>'
+t_EQUAL = r'='
 
 t_COLON = r':'
 t_COMMA = r','
@@ -95,6 +97,10 @@ def t_RSQB(t):
 	t.lexer.parenthesisCount-=1
 	return t
 
+def t_comment(t):
+	r"[ ]*//[^\n]*"
+	pass
+
 @TOKEN(OurNumber)
 def t_NUMBER(t):
     return t
@@ -120,5 +126,35 @@ def t_error(t):
 
 t_ignore = " \t"
 
-hulk_lexer = lex.lex()
-hulk_lexer.parenthesisCount = 0
+def AddEOFM(lexer):
+	token_stream = iter(lexer.token, None)
+	tok = None
+	for tok in token_stream:
+		yield tok
+	
+	lineno = 1
+	if tok is not None:
+		lineno = tok.lineno
+	tok = lex.LexToken()
+	tok.type = 'EOFM'
+	tok.value = None
+	tok.lineno = lineno
+	tok.lexpos = -100
+	yield tok
+
+class HulkLexer:
+	def __init__(self):
+		self.lexer = lex.lex()
+		self.token_stream = None
+	
+	def input(self, code):
+		self.lexer.parenthesisCount = 0
+		code+="\n"
+		self.lexer.input(code)
+		self.token_stream = AddEOFM(self.lexer)
+	
+	def token(self):
+		try:
+			return next(self.token_stream)
+		except StopIteration:
+			return None
