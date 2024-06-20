@@ -1,18 +1,16 @@
 from ply import lex
 from ply.lex import TOKEN
-
 import tokenize
-OurNumber = tokenize.group(tokenize.Pointfloat, tokenize.Decnumber)
 
-def group(*choices): return '(' + '|'.join(choices) + ')'
-def any(*choices): return group(*choices) + '*'
-def maybe(*choices): return group(*choices) + '?'
+OurDecNumber = tokenize.Decnumber + tokenize.maybe(tokenize.Exponent)
+OurNumber = tokenize.group(tokenize.Pointfloat, OurDecNumber)
 
 errorList=[]
 tokens = []
 keywordlist = [
 		'print', 'sqrt', 'sin', 'cos', 'exp', 'log', 'rand', 'function', 'let', 'in', 'if', 'elif', 'else',
-		'true', 'false', 'while', 'for', 'range', 'type', 'new', 'inherits', 'is', 'as', 'protocol', 'extends'
+		'true', 'false', 'while', 'for', 'range', 'type', 'new', 'inherits', 'is', 'as', 'protocol', 'extends',
+		'PI', 'E'
 		]
 
 RESERVED = {}
@@ -28,7 +26,7 @@ tokens = tuple(tokens) + (
 		'COLON','COMMA', 'SEMI',
 		'OR','AND',
 		
-		'EQUAL','DOT',
+		'EQUAL','DOT', 'INLINE',
 		
 		"NUMBER",
 		'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'POWER', 'MOD',
@@ -40,7 +38,9 @@ tokens = tuple(tokens) + (
 		
 		'STRING',
 		'CONCAT', 'DCONCAT',
-		'NAME'
+		'NAME', 
+		
+		'EOFM'
 	)
 
 t_EQEQUAL = r'=='
@@ -50,6 +50,7 @@ t_GREATEREQUAL = r'>='
 t_LESS  = r'<'
 t_GREATER = r'>'
 
+t_INLINE = r'=>'
 t_EQUAL = r'='
 
 t_COLON = r':'
@@ -96,6 +97,10 @@ def t_RSQB(t):
 	t.lexer.parenthesisCount-=1
 	return t
 
+def t_comment(t):
+	r"[ ]*//[^\n]*"
+	pass
+
 @TOKEN(OurNumber)
 def t_NUMBER(t):
     return t
@@ -107,10 +112,7 @@ def t_STRING(t):
 def t_newline(t):
     r'\n+'
     t.lexer.lineno += len(t.value)
-    t.type = "NEWLINE"
-    if(t.lexer.parenthesisCount == 0):
-    	return t
-	
+
 def t_NAME(t):
 	r"[a-zA-Z_][a-zA-Z0-9_]*"
 	t.type = RESERVED.get(t.value, "NAME")
@@ -124,18 +126,35 @@ def t_error(t):
 
 t_ignore = " \t"
 
-lexer = lex.lex()
-lexer.parenthesisCount = 0
-code = """let a = 42, let mod = a % 3 in
-    print(
-        if (mod == 0) "Magic"
-        elif (mod % 3 == 1) "Woke"
-        else "Dumb"
-    );
+def AddEOFM(lexer):
+	token_stream = iter(lexer.token, None)
+	tok = None
+	for tok in token_stream:
+		yield tok
+	
+	lineno = 1
+	if tok is not None:
+		lineno = tok.lineno
+	tok = lex.LexToken()
+	tok.type = 'EOFM'
+	tok.value = None
+	tok.lineno = lineno
+	tok.lexpos = -100
+	yield tok
 
-"""
-print(lexer.input(code))
-while True:
-	tok = lexer.token()
-	print(tok)
-	if not tok: break
+class HulkLexer:
+	def __init__(self):
+		self.lexer = lex.lex()
+		self.token_stream = None
+	
+	def input(self, code):
+		self.lexer.parenthesisCount = 0
+		code+="\n"
+		self.lexer.input(code)
+		self.token_stream = AddEOFM(self.lexer)
+	
+	def token(self):
+		try:
+			return next(self.token_stream)
+		except StopIteration:
+			return None
