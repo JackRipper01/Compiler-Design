@@ -27,10 +27,10 @@ while True:
 	print(tok)
 	if not tok: break
 
-print("\n\nARITHMETIC TEST\n")
+print("\n\PRINT TEST\n")
 code = """print(
 	rand()+23.23-1e-12-
-    cos(PI+E))"""
+    cos(PI+E) @@ "EL APSASAS PATIO DE MI CASA")"""
 lexer.hulk_lexer.input(code)
 while True:
 	tok = lexer.hulk_lexer.token()

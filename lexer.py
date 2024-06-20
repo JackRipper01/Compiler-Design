@@ -106,9 +106,7 @@ def t_STRING(t):
 def t_newline(t):
     r'\n+'
     t.lexer.lineno += len(t.value)
-    t.type = "NEWLINE"   
-    return t
-	
+
 def t_NAME(t):
 	r"[a-zA-Z_][a-zA-Z0-9_]*"
 	t.type = RESERVED.get(t.value, "NAME")
