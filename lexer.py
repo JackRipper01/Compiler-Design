@@ -113,7 +113,7 @@ def t_newline(t):
 	
 def t_NAME(t):
 	r"[a-zA-Z_][a-zA-Z0-9_]*"
-	t.type = RESERVED.get(t.value, "ID")
+	t.type = RESERVED.get(t.value, "NAME")
 	return t
 
 def t_error(t):
@@ -125,3 +125,17 @@ def t_error(t):
 t_ignore = " \t"
 
 lexer = lex.lex()
+lexer.parenthesisCount = 0
+code = """let a = 42, let mod = a % 3 in
+    print(
+        if (mod == 0) "Magic"
+        elif (mod % 3 == 1) "Woke"
+        else "Dumb"
+    );
+
+"""
+print(lexer.input(code))
+while True:
+	tok = lexer.token()
+	print(tok)
+	if not tok: break
