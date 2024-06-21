@@ -138,28 +138,35 @@ class BinOp(Node):
 
     def check(
         self,
-    ):  # most be modified to works with all binary operators, now only works with '+', '-', '*', '/'
+    ):
         # Check the operands
         self.left.check()
         self.right.check()
 
         # Check the operator
-        if self.op not in ["+", "-", "*", "/", "^", "**"]:
+        if self.op not in ["+", "-", "*", "/", "^", "**", "@"]:
             raise TypeError(f"Invalid operator: {self.op}")
 
         # Infer the types of the operands
         left_type = self.left.infer_type()
         right_type = self.right.infer_type()
 
-        # Check that the types are compatible
-        if left_type != right_type:
-            raise TypeError(f"Type mismatch: {left_type} {self.op} {right_type}")
-
         # Check that the types are valid for the operation
-        if left_type != "number":
-            raise TypeError(f"Invalid type for operation: {left_type}")
+        if self.op in ["+", "-", "*", "/"]:
+            if left_type != "number" or right_type != "number":
+                raise TypeError(f"Invalid type for operation: {left_type}")
+        if self.op in ["^", "**"]:
+            if (
+                left_type != "string"
+                and left_type != "number"
+                or right_type != "number"
+                and right_type != "string"
+            ):
+                raise TypeError(f"Invalid type for operation: {left_type}")
 
-    def infer_type(self):
+    def infer_type(
+        self,
+    ):  # posible error en la inferencia de tipos al checkear un solo miembro
         # Infer the types of the operands
         left_type = self.left.infer_type()
 
@@ -182,6 +189,13 @@ class BinOp(Node):
             if self.left.eval() < 0 and self.right.eval() != int(self.right.eval()):
                 raise ValueError("negative number raised to a non-integer power")
             return self.left.eval() ** self.right.eval()
+        elif self.op == "@":
+            # Evaluate both operands
+            left_eval = self.left.eval()
+            right_eval = self.right.eval()
+
+            # Convert operands to strings if necessary and concatenate
+            return str(left_eval) + str(right_eval)
 
 
 class UnaryOp(Node):
@@ -246,6 +260,30 @@ class Num(Node):
     def infer_type(self):
         # The type of a number is 'num'
         return "number"
+
+    def eval(self):
+        return self.value
+
+
+class StringLiteral(Node):
+    def __init__(self, value):
+        super().__init__()
+        # eliminate the ' ' from value
+        if value[0] == "'" or value[0] == '"':
+            value = value[1:-1]
+        self.value = value
+
+    def __str__(self):
+        return str(self.value)
+
+    def graphviz(self, parent_name):
+        self.graph.node(parent_name, label=str(self.value))
+
+    def check(self):
+        pass
+
+    def infer_type(self):
+        return "string"
 
     def eval(self):
         return self.value
@@ -486,7 +524,7 @@ import ply.yacc as yacc
 precedence = (
     ("left", "PLUS", "MINUS"),
     ("left", "TIMES", "DIVIDE"),
-    ("right", "POWER","POWERSTARSTAR"),
+    ("right", "POWER", "POWERSTARSTAR"),
     ("right", "LPAREN", "RPAREN"),
     ("nonassoc", "UMINUS"),
 )
@@ -509,8 +547,10 @@ def p_expression_binop(p):
     | expression TIMES expression
     | expression DIVIDE expression
     | expression POWER expression
-    | expression POWERSTARSTAR expression"""
+    | expression POWERSTARSTAR expression
+    | expression CONCAT expression"""
     p[0] = BinOp(left=p[1], op=p[2], right=p[3])
+
 
 def p_expression_uminus(p):
     "expression : MINUS expression %prec UMINUS"  # no se que significa el %prec UMINUS ese,recomiendo ignorarlo hasta q se parta algo
@@ -520,6 +560,11 @@ def p_expression_uminus(p):
 def p_expression_number(p):
     "expression : NUMBER"
     p[0] = Num(p[1])
+
+
+def p_expression_string(p):
+    "expression : STRING"
+    p[0] = StringLiteral(p[1])
 
 
 # constants
@@ -585,20 +630,22 @@ def p_error(p):
 parser = yacc.yacc()
 
 # Generate AST
-hulk_code = "print()"
+hulk_code = "print('Hello World!' @ sqrt(2)@cos(PI/2)@exp(1)@log(10, 100)@rand())"
 ast = parser.parse(hulk_code)
-ast.eval()
+
 # # semantic and type check
-# ast.check()
+ast.check()
 
 # # evaluate the AST in python code before generating the c code
-# ast.eval()
+ast.eval()
 
 
 # Generate C code from AST
 def generate_c_code(node):
-    if isinstance(node, BinOp):
+    if isinstance(node, BinOp) and node.op not in ["^", "**"]:
         return f"({generate_c_code(node.left)} {node.op} {generate_c_code(node.right)})"
+    elif isinstance(node, BinOp) and node.op in ["^", "**"]:
+        return f"pow({generate_c_code(node.left)}, {generate_c_code(node.right)})"
     elif isinstance(node, Num):
         return str(node.value)
     elif isinstance(node, UnaryOp):
@@ -639,7 +686,7 @@ def write_c_code_to_file(ast, filename):
 
 
 # Generate C code
-write_c_code_to_file(ast, "output.c")
+# write_c_code_to_file(ast, "output.c")
 
 
 # ast.graphviz("root")
