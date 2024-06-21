@@ -26,7 +26,7 @@ tokens = tuple(tokens) + (
 		'COLON','COMMA', 'SEMI',
 		'OR','AND',
 		
-		'EQUAL','DOT', 'INLINE',
+		'EQUAL', 'ASSDESTROYER', 'DOT', 'INLINE',
 		
 		"NUMBER",
 		'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'POWER', 'MOD',
@@ -52,6 +52,7 @@ t_GREATER = r'>'
 
 t_INLINE = r'=>'
 t_EQUAL = r'='
+t_ASSDESTROYER = r':='
 
 t_COLON = r':'
 t_COMMA = r','
@@ -125,36 +126,3 @@ def t_error(t):
     t.lexer.skip(1)
 
 t_ignore = " \t"
-
-def AddEOFM(lexer):
-	token_stream = iter(lexer.token, None)
-	tok = None
-	for tok in token_stream:
-		yield tok
-	
-	lineno = 1
-	if tok is not None:
-		lineno = tok.lineno
-	tok = lex.LexToken()
-	tok.type = 'EOFM'
-	tok.value = None
-	tok.lineno = lineno
-	tok.lexpos = -100
-	yield tok
-
-class HulkLexer:
-	def __init__(self):
-		self.lexer = lex.lex()
-		self.token_stream = None
-	
-	def input(self, code):
-		self.lexer.parenthesisCount = 0
-		code+="\n"
-		self.lexer.input(code)
-		self.token_stream = AddEOFM(self.lexer)
-	
-	def token(self):
-		try:
-			return next(self.token_stream)
-		except StopIteration:
-			return None
