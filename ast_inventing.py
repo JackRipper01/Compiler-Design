@@ -1,13 +1,18 @@
 # Lexer####################################################################
 from typing import Self
-import ply
-import ply.lex as lex
+
 import math
 import random
 
 # constants
 PI = math.pi
 E = math.e
+
+
+import ply
+import ply.lex as lex
+
+# region old lexer called lex
 
 # List of token names.
 tokens = (
@@ -71,17 +76,33 @@ def t_error(t):
     t.lexer.skip(1)
 
 
-# Build the lexer
-lexer = lex.lex()
+# endregion
 
+# new lexer
+from lexer import HulkLexer
+from lexer import tokens
+
+# Build the lexer
+HL = HulkLexer()
+
+# lexer = lex.lex() old lexer
 ###############################################################################################
 ###############################################################################################
 
 # Parser########################################################################################
 
+from graphviz import Digraph
 
-# base class
+
+# region classes##################################
 class Node:
+
+    def __init__(self):
+        self.graph = Digraph("AST", node_attr={"shape": "box"})
+        self.id = ""
+
+    def graphviz(self, parent_name):
+        pass
 
     def check(self):
         pass
@@ -95,10 +116,25 @@ class Node:
 
 # Operations Classes (binary, unary,etc)
 class BinOp(Node):
+
     def __init__(self, left, op, right):
+        super().__init__()
         self.left = left
         self.op = op
         self.right = right
+
+    def __str__(self):
+        return f"BinOp({self.op}, {self.left}, {self.right})"
+
+    def graphviz(self, parent_name):
+        left_name = f"{parent_name}_left"
+        right_name = f"{parent_name}_right"
+        self.graph.node(left_name, label=str(self.left))
+        self.graph.node(right_name, label=str(self.right))
+        self.graph.edge(parent_name, left_name, label=self.op)
+        self.graph.edge(parent_name, right_name, label=self.op)
+        self.left.graphviz(left_name)
+        self.right.graphviz(right_name)
 
     def check(
         self,
@@ -108,7 +144,7 @@ class BinOp(Node):
         self.right.check()
 
         # Check the operator
-        if self.op not in ["+", "-", "*", "/"]:
+        if self.op not in ["+", "-", "*", "/", "^", "**"]:
             raise TypeError(f"Invalid operator: {self.op}")
 
         # Infer the types of the operands
@@ -142,12 +178,26 @@ class BinOp(Node):
             if right == 0:
                 raise ZeroDivisionError("division by zero")
             return self.left.eval() / right
+        elif self.op == "^" or self.op == "**":
+            if self.left.eval() < 0 and self.right.eval() != int(self.right.eval()):
+                raise ValueError("negative number raised to a non-integer power")
+            return self.left.eval() ** self.right.eval()
 
 
 class UnaryOp(Node):
     def __init__(self, op, operand):
+        super().__init__()
         self.op = op
         self.operand = operand
+
+    def __str__(self):
+        return f"UnaryOp({self.op}, {self.operand})"
+
+    def graphviz(self, parent_name):
+        operand_name = f"{parent_name}_operand"
+        self.graph.node(operand_name, label=str(self.operand))
+        self.graph.edge(parent_name, operand_name, label=self.op)
+        self.operand.graphviz(operand_name)
 
     def check(
         self,
@@ -176,10 +226,17 @@ class UnaryOp(Node):
 # number class
 class Num(Node):
     def __init__(self, value):
+        super().__init__()
         if isinstance(value, (int, float)):
             self.value = float(value)
         else:
             self.value = value
+
+    def __str__(self):
+        return str(self.value)
+
+    def graphviz(self, parent_name):
+        self.graph.node(parent_name, label=str(self.value))
 
     def check(self):
         # Check that the value is a number
@@ -196,6 +253,13 @@ class Num(Node):
 
 # constants classes
 class Pi(Node):
+
+    def __str__(self):
+        return "Pi"
+
+    def graphviz(self, parent_name):
+        self.graph.node(parent_name, label="Pi")
+
     def check(self):
         pass
 
@@ -207,6 +271,13 @@ class Pi(Node):
 
 
 class E(Node):
+
+    def __str__(self):
+        return "E"
+
+    def graphviz(self, parent_name):
+        self.graph.node(parent_name, label="E")
+
     def check(self):
         pass
 
@@ -217,12 +288,23 @@ class E(Node):
         return E
 
 
-# built-in functions classes
+# endregion
+# region built-in functions classes########################
 class Print(
     Node
 ):  # most be modified to work with all literals, now only works with numbers, missing strings and booleans
     def __init__(self, value):
+        super().__init__()
         self.value = value
+
+    def __str__(self):
+        return f"Print({self.value})"
+
+    def graphviz(self, parent_name):
+        value_name = f"{parent_name}_value"
+        self.graph.node(value_name, label=str(self.value))
+        self.graph.edge(parent_name, value_name, label="print")
+        self.value.graphviz(value_name)
 
     def check(self):
         self.value.check()
@@ -236,7 +318,17 @@ class Print(
 
 class Sqrt(Node):
     def __init__(self, value):
+        super().__init__()
         self.value = value
+
+    def __str__(self):
+        return f"Sqrt({self.value})"
+
+    def graphviz(self, parent_name):
+        value_name = f"{parent_name}_value"
+        self.graph.node(value_name, label=str(self.value))
+        self.graph.edge(parent_name, value_name, label="sqrt")
+        self.value.graphviz(value_name)
 
     def check(self):
         self.value.check()
@@ -254,7 +346,17 @@ class Sqrt(Node):
 
 class Sin(Node):
     def __init__(self, value):
+        super().__init__()
         self.value = value
+
+    def __str__(self):
+        return f"Sin({self.value})"
+
+    def graphviz(self, parent_name):
+        value_name = f"{parent_name}_value"
+        self.graph.node(value_name, label=str(self.value))
+        self.graph.edge(parent_name, value_name, label="sin")
+        self.value.graphviz(value_name)
 
     def check(self):
         self.value.check()
@@ -270,7 +372,17 @@ class Sin(Node):
 
 class Cos(Node):
     def __init__(self, value):
+        super().__init__()
         self.value = value
+
+    def __str__(self):
+        return f"Cos({self.value})"
+
+    def graphviz(self, parent_name):
+        value_name = f"{parent_name}_value"
+        self.graph.node(value_name, label=str(self.value))
+        self.graph.edge(parent_name, value_name, label="cos")
+        self.value.graphviz(value_name)
 
     def check(self):
         self.value.check()
@@ -286,7 +398,17 @@ class Cos(Node):
 
 class Exp(Node):
     def __init__(self, value):
+        super().__init__()
         self.value = value
+
+    def __str__(self):
+        return f"Exp({self.value})"
+
+    def graphviz(self, parent_name):
+        value_name = f"{parent_name}_value"
+        self.graph.node(value_name, label=str(self.value))
+        self.graph.edge(parent_name, value_name, label="exp")
+        self.value.graphviz(value_name)
 
     def check(self):
         self.value.check()
@@ -302,8 +424,22 @@ class Exp(Node):
 
 class Log(Node):
     def __init__(self, value, base):
+        super().__init__()
         self.base = base
         self.value = value
+
+    def __str__(self):
+        return f"Log({self.base}, {self.value})"
+
+    def graphviz(self, parent_name):
+        base_name = f"{parent_name}_base"
+        value_name = f"{parent_name}_value"
+        self.graph.node(base_name, label=str(self.base))
+        self.graph.node(value_name, label=str(self.value))
+        self.graph.edge(parent_name, base_name, label="log")
+        self.graph.edge(parent_name, value_name, label="log")
+        self.base.graphviz(base_name)
+        self.value.graphviz(value_name)
 
     def check(self):
         self.base.check()
@@ -325,6 +461,13 @@ class Log(Node):
 
 
 class Rand(Node):
+
+    def __str__(self):
+        return "Rand"
+
+    def graphviz(self, parent_name):
+        self.graph.node(parent_name, label="Rand")
+
     def check(self):
         pass
 
@@ -335,21 +478,21 @@ class Rand(Node):
         return random.uniform(0, 1)
 
 
+# endregion
+
 import ply.yacc as yacc
 
 # precedence rules for the arithmetic operators
 precedence = (
     ("left", "PLUS", "MINUS"),
     ("left", "TIMES", "DIVIDE"),
+    ("right", "POWER","POWERSTARSTAR"),
     ("right", "LPAREN", "RPAREN"),
     ("nonassoc", "UMINUS"),
 )
 
-# dictionary of names (for storing variables)
-names = {}
 
-
-# defining the grammatical
+# region Defining the Grammatical##########################
 def p_statement_expr(p):
     "statement : expression"
     p[0] = p[1]
@@ -364,9 +507,10 @@ def p_expression_binop(p):
     """expression : expression PLUS expression
     | expression MINUS expression
     | expression TIMES expression
-    | expression DIVIDE expression"""
+    | expression DIVIDE expression
+    | expression POWER expression
+    | expression POWERSTARSTAR expression"""
     p[0] = BinOp(left=p[1], op=p[2], right=p[3])
-
 
 def p_expression_uminus(p):
     "expression : MINUS expression %prec UMINUS"  # no se que significa el %prec UMINUS ese,recomiendo ignorarlo hasta q se parta algo
@@ -389,7 +533,7 @@ def p_expression_e(p):
     p[0] = E()
 
 
-# Built-in functions
+# region Built-in functions
 def p_expression_print(p):
     "expression : PRINT LPAREN expression RPAREN"
     p[0] = Print(p[3])
@@ -425,11 +569,30 @@ def p_expression_rand(p):
     p[0] = Rand()
 
 
+# endregion
+
+
 def p_error(p):
     if p:
         print(f"Syntax error at {p.value}")
     else:
         print("Syntax error at EOF")
+
+
+# endregion
+
+
+parser = yacc.yacc()
+
+# Generate AST
+hulk_code = "print()"
+ast = parser.parse(hulk_code)
+ast.eval()
+# # semantic and type check
+# ast.check()
+
+# # evaluate the AST in python code before generating the c code
+# ast.eval()
 
 
 # Generate C code from AST
@@ -457,7 +620,7 @@ def generate_c_code(node):
     elif isinstance(node, Log):
         return f"(log({generate_c_code(node.base)}) / log({generate_c_code(node.value)}))"  # logaritmo se hace asi pq C no admite log de a en base b
     elif isinstance(node, Rand):
-        return "((double) rand() / (RAND_MAX))"
+        return "((float) rand() / (RAND_MAX))"
     else:
         raise TypeError(f"Unknown node {node}")
 
@@ -475,18 +638,9 @@ def write_c_code_to_file(ast, filename):
         f.write("}\n")
 
 
-parser = yacc.yacc()
-
-# Generate AST
-hulk_code = "print(rand())"
-
-ast = parser.parse(hulk_code)
-# semantic and type check
-ast.check()
-
-# evaluate the AST in python code before generating the c code
-ast.eval()
-
-
 # Generate C code
 write_c_code_to_file(ast, "output.c")
+
+
+# ast.graphviz("root")
+# # ast.graph.view()
