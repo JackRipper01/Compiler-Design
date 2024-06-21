@@ -40,6 +40,17 @@ def p_let(p):
 	"""expression : LET assign_values IN expression
 	"""
 
+def p_assign_values(p):
+	"""assign_values : NAME EQUAL expression rem_assignments
+	"""
+
+def p_rem_assignments(p):
+	"""rem_assignments : COMMA NAME EQUAL expression rem_assignments
+	"""
+	
+def p_rem_assignments_empty(p):
+	"""rem_assignments : empty
+	"""
 
 
 
