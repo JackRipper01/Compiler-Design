@@ -74,10 +74,10 @@ class Node:
     def eval(self):
         pass
 
-class Program(Node):
-    def __init__(self, exp):
-        self.main_exp=exp
-        add_slf(self, 'PROGRAM')
+# class Program(Node):
+#     def __init__(self, exp):
+#         self.main_exp=exp
+#         add_slf(self, 'PROGRAM')
 
 class ExpressionBlock(Node):
     def __init__(self, exps):
@@ -223,7 +223,7 @@ class Pi(Node):
 
 class E(Node):
     def __init__(self):
-        add_slf(self,'PI')
+        add_slf(self,'E')
 
     def check(self):
         pass
@@ -384,8 +384,7 @@ def p_empty(p):
 
 def p_program(p):
     "program : hl_expression"
-    p[0] = Program(p[1])
-    p[1].parent = p[0]
+    p[0] = p[1]
 
 
 def p_hl_expression(p):
@@ -550,20 +549,23 @@ def p_error(p):
 # Generate AST
 parser = yacc.yacc(start="program")
 
-hulk_code = """{let a=5, b=6 in {print(rand()-5*3+2);
+hulk_code = """let a = print(sin(10)) in {let a=5, b=6 in {print(rand()-5*3+2);
                             rand();}
                 {print(rand()-5*3+2);
                             rand();} 
                             2*23+123;
                 {let x=2 in let a=7 in print(1+5);
                  print(let asd=4 in {rand();}); }
-                {{{print(sin((PI*(((1/2)))+PI)));}}} };"""
+                {{{print(sin((PI*(((1/2)))+PI)));}}}{{{}}} };"""
+# hulk_code = "print(PI-E);"
 
 AST = parser.parse(hulk_code)
 
 def create_AST_graph(dict: dict):
     dot = graphviz.Digraph("AST")
     for key in dict.keys():
+        if not key.parent:
+            dict[key]+=" ( </> )"
         dot.node(str(key), dict[key])
     for key in dict.keys():
         if key.parent:
