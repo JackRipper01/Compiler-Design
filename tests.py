@@ -208,6 +208,9 @@ class Num(Node):
 
 # constants classes
 class Pi(Node):
+    def __init__(self):
+        add_slf(self,'PI')
+
     def check(self):
         pass
 
@@ -219,6 +222,9 @@ class Pi(Node):
 
 
 class E(Node):
+    def __init__(self):
+        add_slf(self,'PI')
+
     def check(self):
         pass
 
@@ -549,7 +555,9 @@ hulk_code = """{let a=5, b=6 in {print(rand()-5*3+2);
                 {print(rand()-5*3+2);
                             rand();} 
                             2*23+123;
-                {let x=2 in let a=7 in print(1+5); }};"""
+                {let x=2 in let a=7 in print(1+5);
+                 print(let asd=4 in {rand();}); }
+                {{{print(sin((PI*(((1/2)))+PI)));}}} };"""
 
 AST = parser.parse(hulk_code)
 
