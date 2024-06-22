@@ -1,7 +1,11 @@
-import hulk_ast
 import hulk_lexer
 from hulk_lexer import lex, tokens
 from ply import yacc
+
+# AST
+
+
+# GRAMMAR
 
 lexer = hulk_lexer.lex.lex(module=hulk_lexer)
 lexer.parenthesisCount = 0
@@ -47,7 +51,7 @@ def p_assign_values(p):
 def p_rem_assignments(p):
 	"""rem_assignments : COMMA NAME EQUAL expression rem_assignments
 	"""
-	
+
 def p_rem_assignments_empty(p):
 	"""rem_assignments : empty
 	"""
