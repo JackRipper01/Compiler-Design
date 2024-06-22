@@ -54,11 +54,14 @@ def p_expression_binop(p):
     | expression POWERSTARSTAR expression
     | expression CONCAT expression"""
     p[0] = nc.BinOp(left=p[1], op=p[2], right=p[3])
+    p[1].parent = p[0]
+    p[3].parent = p[0]
 
 
 def p_expression_uminus(p):
     "expression : MINUS expression %prec UMINUS"  # no se que significa el %prec UMINUS ese,recomiendo ignorarlo hasta q se parta algo
     p[0] = nc.UnaryOp(op=p[1], operand=p[2])
+    p[2].parent = p[0]
 
 
 def p_expression_number(p):
@@ -86,31 +89,38 @@ def p_expression_e(p):
 def p_expression_print(p):
     "expression : PRINT LPAREN expression RPAREN"
     p[0] = nc.Print(p[3])
+    p[3].parent = p[0]
 
 
 def p_expression_sqrt(p):
     "expression : SQRT LPAREN expression RPAREN"
     p[0] = nc.Sqrt(p[3])
+    p[3].parent = p[0]
 
 
 def p_expression_sin(p):
     "expression : SIN LPAREN expression RPAREN"
     p[0] = nc.Sin(p[3])
+    p[3].parent = p[0]
 
 
 def p_expression_cos(p):
     "expression : COS LPAREN expression RPAREN"
     p[0] = nc.Cos(p[3])
+    p[3].parent = p[0]
 
 
 def p_expression_exp(p):
     "expression : EXP LPAREN expression RPAREN"
     p[0] = nc.Exp(p[3])
+    p[3].parent = p[0]
 
 
 def p_expression_log(p):
     "expression : LOG LPAREN expression COMMA expression RPAREN"
     p[0] = nc.Log(p[3], p[5])
+    p[3].parent = p[0]
+    p[5].parent = p[0]
 
 
 def p_expression_rand(p):
@@ -134,7 +144,7 @@ def p_error(p):
 parser = yacc.yacc()
 
 # Generate AST
-hulk_code = "print('Hello World!' @ 'candela')"
+hulk_code = "print(2 + 4)"
 ast = parser.parse(hulk_code)
 
 # # semantic and type check

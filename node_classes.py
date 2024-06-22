@@ -7,17 +7,36 @@ import random
 PI = math.pi
 E = math.e
 
-from graphviz import Digraph
+import graphviz
 
 # region classes##################################
+
+
+# LLEVAREMOS UN PARENT POR DEFECTO
+nodes = {}
+
+def add_slf(slf, nm):
+    nodes[slf] = nm
+
+
+def create_AST_graph(dict: dict):
+    dot = graphviz.Digraph("AST")
+    for key in dict.keys():
+        if not key.parent:
+            dict[key] += " ( </> )"
+        dot.node(str(key), dict[key])
+    for key in dict.keys():
+        if key.parent:
+            dot.edge(str(key.parent), str(key))
+    dot.render(directory="output")
+
+
 class Node:
+    id = ""
+    parent = None
 
     def __init__(self):
-        self.graph = Digraph("AST", node_attr={"shape": "box"})
-        self.id = ""
-
-    def graphviz(self, parent_name):
-        pass
+        add_slf(self, "")
 
     def check(self):
         pass
@@ -29,27 +48,49 @@ class Node:
         pass
 
 
+# class Program(Node):
+#     def __init__(self, exp):
+#         self.main_exp=exp
+#         add_slf(self, 'PROGRAM')
+
+
+class ExpressionBlock(Node):
+    def __init__(self, exps):
+        add_slf(self, "EXP_BLOCK")
+        self.exp_list = exps
+
+
+class Let(Node):
+    def __init__(self, assign, body):
+        add_slf(self, "LET")
+        self.assign = assign
+        self.body = body
+
+
+class Assign(Node):
+    def __init__(self, name, value):
+        add_slf(self, "ASSIGN")
+        self.name = name
+        self.value = value
+
+
+class ID(Node):
+    def __init__(self, name):
+        add_slf(self, name)
+        self.name = name
+
+
 # Operations Classes (binary, unary,etc)
 class BinOp(Node):
 
     def __init__(self, left, op, right):
-        super().__init__()
+        add_slf(self, str(op))
         self.left = left
         self.op = op
         self.right = right
 
     def __str__(self):
         return f"BinOp({self.op}, {self.left}, {self.right})"
-
-    def graphviz(self, parent_name):
-        left_name = f"{parent_name}_left"
-        right_name = f"{parent_name}_right"
-        self.graph.node(left_name, label=str(self.left))
-        self.graph.node(right_name, label=str(self.right))
-        self.graph.edge(parent_name, left_name, label=self.op)
-        self.graph.edge(parent_name, right_name, label=self.op)
-        self.left.graphviz(left_name)
-        self.right.graphviz(right_name)
 
     def check(
         self,
@@ -115,18 +156,12 @@ class BinOp(Node):
 
 class UnaryOp(Node):
     def __init__(self, op, operand):
-        super().__init__()
+        add_slf(self, str(op))
         self.op = op
         self.operand = operand
 
     def __str__(self):
         return f"UnaryOp({self.op}, {self.operand})"
-
-    def graphviz(self, parent_name):
-        operand_name = f"{parent_name}_operand"
-        self.graph.node(operand_name, label=str(self.operand))
-        self.graph.edge(parent_name, operand_name, label=self.op)
-        self.operand.graphviz(operand_name)
 
     def check(
         self,
@@ -155,7 +190,7 @@ class UnaryOp(Node):
 # number class
 class Num(Node):
     def __init__(self, value):
-        super().__init__()
+        add_slf(self, str(value))
         if isinstance(value, (int, float)):
             self.value = float(value)
         else:
@@ -163,9 +198,6 @@ class Num(Node):
 
     def __str__(self):
         return str(self.value)
-
-    def graphviz(self, parent_name):
-        self.graph.node(parent_name, label=str(self.value))
 
     def check(self):
         # Check that the value is a number
@@ -191,9 +223,6 @@ class StringLiteral(Node):
     def __str__(self):
         return str(self.value)
 
-    def graphviz(self, parent_name):
-        self.graph.node(parent_name, label=str(self.value))
-
     def check(self):
         pass
 
@@ -207,11 +236,11 @@ class StringLiteral(Node):
 # constants classes
 class Pi(Node):
 
+    def __init__(self):
+        add_slf(self, "PI")
+
     def __str__(self):
         return "Pi"
-
-    def graphviz(self, parent_name):
-        self.graph.node(parent_name, label="Pi")
 
     def check(self):
         pass
@@ -225,11 +254,11 @@ class Pi(Node):
 
 class E(Node):
 
+    def __init__(self):
+        add_slf(self, "E")
+
     def __str__(self):
         return "E"
-
-    def graphviz(self, parent_name):
-        self.graph.node(parent_name, label="E")
 
     def check(self):
         pass
@@ -247,17 +276,11 @@ class Print(
     Node
 ):  # most be modified to work with all literals, now only works with numbers, missing strings and booleans
     def __init__(self, value):
-        super().__init__()
+        add_slf(self, "PRINT")
         self.value = value
 
     def __str__(self):
         return f"Print({self.value})"
-
-    def graphviz(self, parent_name):
-        value_name = f"{parent_name}_value"
-        self.graph.node(value_name, label=str(self.value))
-        self.graph.edge(parent_name, value_name, label="print")
-        self.value.graphviz(value_name)
 
     def check(self):
         self.value.check()
@@ -271,17 +294,11 @@ class Print(
 
 class Sqrt(Node):
     def __init__(self, value):
-        super().__init__()
+        add_slf(self, "SQRT")
         self.value = value
 
     def __str__(self):
         return f"Sqrt({self.value})"
-
-    def graphviz(self, parent_name):
-        value_name = f"{parent_name}_value"
-        self.graph.node(value_name, label=str(self.value))
-        self.graph.edge(parent_name, value_name, label="sqrt")
-        self.value.graphviz(value_name)
 
     def check(self):
         self.value.check()
@@ -299,17 +316,11 @@ class Sqrt(Node):
 
 class Sin(Node):
     def __init__(self, value):
-        super().__init__()
+        add_slf(self, "SIN")
         self.value = value
 
     def __str__(self):
         return f"Sin({self.value})"
-
-    def graphviz(self, parent_name):
-        value_name = f"{parent_name}_value"
-        self.graph.node(value_name, label=str(self.value))
-        self.graph.edge(parent_name, value_name, label="sin")
-        self.value.graphviz(value_name)
 
     def check(self):
         self.value.check()
@@ -325,17 +336,11 @@ class Sin(Node):
 
 class Cos(Node):
     def __init__(self, value):
-        super().__init__()
+        add_slf(self, "COS")
         self.value = value
 
     def __str__(self):
         return f"Cos({self.value})"
-
-    def graphviz(self, parent_name):
-        value_name = f"{parent_name}_value"
-        self.graph.node(value_name, label=str(self.value))
-        self.graph.edge(parent_name, value_name, label="cos")
-        self.value.graphviz(value_name)
 
     def check(self):
         self.value.check()
@@ -351,17 +356,11 @@ class Cos(Node):
 
 class Exp(Node):
     def __init__(self, value):
-        super().__init__()
+        add_slf(self, "EXP")
         self.value = value
 
     def __str__(self):
         return f"Exp({self.value})"
-
-    def graphviz(self, parent_name):
-        value_name = f"{parent_name}_value"
-        self.graph.node(value_name, label=str(self.value))
-        self.graph.edge(parent_name, value_name, label="exp")
-        self.value.graphviz(value_name)
 
     def check(self):
         self.value.check()
@@ -377,22 +376,12 @@ class Exp(Node):
 
 class Log(Node):
     def __init__(self, value, base):
-        super().__init__()
+        add_slf(self, "LOG")
         self.base = base
         self.value = value
 
     def __str__(self):
         return f"Log({self.base}, {self.value})"
-
-    def graphviz(self, parent_name):
-        base_name = f"{parent_name}_base"
-        value_name = f"{parent_name}_value"
-        self.graph.node(base_name, label=str(self.base))
-        self.graph.node(value_name, label=str(self.value))
-        self.graph.edge(parent_name, base_name, label="log")
-        self.graph.edge(parent_name, value_name, label="log")
-        self.base.graphviz(base_name)
-        self.value.graphviz(value_name)
 
     def check(self):
         self.base.check()
@@ -415,11 +404,11 @@ class Log(Node):
 
 class Rand(Node):
 
+    def __init__(self):
+        add_slf(self, "RAND")
+
     def __str__(self):
         return "Rand"
-
-    def graphviz(self, parent_name):
-        self.graph.node(parent_name, label="Rand")
 
     def check(self):
         pass
