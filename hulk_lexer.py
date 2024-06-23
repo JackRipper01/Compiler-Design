@@ -29,7 +29,7 @@ tokens = tuple(tokens) + (
 		'EQUAL', 'ASSDESTROYER', 'DOT', 'INLINE',
 		
 		"NUMBER",
-		'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'POWER', 'MOD',
+		'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'POWER','POWERSTARSTAR', 'MOD',
 
 	    'LPAREN', 'RPAREN',
 	    'LBRACE', 'RBRACE',
@@ -64,6 +64,7 @@ t_TIMES  = r'\*'
 t_DIVIDE = r'/'
 t_MOD = r'%'
 t_POWER = r'\^'
+t_POWERSTARSTAR = r'\*\*'
 
 t_OR  = r'\|'
 t_AND = r'&'

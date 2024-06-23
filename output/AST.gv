@@ -1,0 +1,9 @@
+digraph AST {
+	3.0 [label=3.0]
+	9.0 [label=9.0]
+	"BinOp(**, 3.0, 9.0)" [label="**"]
+	"Print(BinOp(**, 3.0, 9.0))" [label="PRINT ( </> )"]
+	"BinOp(**, 3.0, 9.0)" -> 3.0
+	"BinOp(**, 3.0, 9.0)" -> 9.0
+	"Print(BinOp(**, 3.0, 9.0))" -> "BinOp(**, 3.0, 9.0)"
+}
