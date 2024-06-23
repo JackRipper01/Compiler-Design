@@ -47,6 +47,8 @@ if do_test_lexer:
         );
     """)
 
+    test_lexer("2+23+3^2**3")
+
 # TESTING CURRENT STATE (experiments)
 PI = math.pi
 E = math.e

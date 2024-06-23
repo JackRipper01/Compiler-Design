@@ -63,7 +63,7 @@ t_MINUS = r'-'
 t_TIMES  = r'\*'
 t_DIVIDE = r'/'
 t_MOD = r'%'
-t_POWER = r'\^'
+t_POWER = r'\^|\*\*'
 
 t_OR  = r'\|'
 t_AND = r'&'
