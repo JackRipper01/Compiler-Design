@@ -1,3 +1,4 @@
+import re
 from typing import Self
 import math
 import random
@@ -58,6 +59,9 @@ class Node:
         pass
 
     def eval(self):
+        pass
+
+    def build(self):
         pass
 
 
@@ -174,6 +178,16 @@ class BinOp(Node):
             # Convert operands to strings if necessary and concatenate
             return str(left_eval) + str(right_eval)
 
+    def build(self):
+        if self.op in ["+", "-", "*", "/"]:
+            return f"({self.left.build()} {self.op} {self.right.build()})"
+        elif self.op in ["^", "**"]:
+            return f"pow({self.left.build()}, {self.right.build()})"
+        elif self.op == "@":
+            return f"(concatenate_strings({self.left.build()}, {self.right.build()}))"
+        else:
+            raise TypeError(f"Unknown operator {self.op}")
+
 
 class UnaryOp(Node):
     def __init__(self, op, operand):
@@ -207,6 +221,12 @@ class UnaryOp(Node):
         if self.op == "-":
             return -self.operand.eval()
 
+    def build(self):
+        if self.op == "-":
+            return f"(-{self.operand.build()})"
+        else:
+            raise TypeError(f"Unknown unary operator {self.op}")
+
 
 # number class
 class Num(Node):
@@ -232,6 +252,9 @@ class Num(Node):
     def eval(self):
         return self.value
 
+    def build(self):
+        return str(self.value)
+
 
 class StringLiteral(Node):
     def __init__(self, value):
@@ -253,6 +276,9 @@ class StringLiteral(Node):
     def eval(self):
         return self.value
 
+    def build(self):
+        return f'"{self.value}"'
+
 
 # constants classes
 class Pi(Node):
@@ -272,6 +298,9 @@ class Pi(Node):
     def eval(self):
         return PI
 
+    def build(self):
+        return "M_PI"
+
 
 class E(Node):
 
@@ -289,6 +318,9 @@ class E(Node):
 
     def eval(self):
         return E
+
+    def build(self):
+        return "M_E"
 
 
 # endregion
@@ -312,6 +344,15 @@ class Print(
     def eval(self):
         print(self.value.eval())
 
+    def build(self):
+        valueType = self.value.infer_type()
+        if valueType == "number":
+            return f'printf("%f\\n", {self.value.build()});'
+        elif valueType == "string":
+            return f'printf("%s\\n", {self.value.build()});'
+        else:
+            raise TypeError(f"Unsupported type for Print: {valueType}")
+
 
 class Sqrt(Node):
     def __init__(self, value):
@@ -334,6 +375,9 @@ class Sqrt(Node):
     def eval(self):
         return math.sqrt(self.value.eval())
 
+    def build(self):
+        return f"sqrt({self.value.build()})"
+
 
 class Sin(Node):
     def __init__(self, value):
@@ -353,6 +397,9 @@ class Sin(Node):
 
     def eval(self):
         return math.sin(self.value.eval())
+
+    def build(self):
+        return f"sin({self.value.build()})"
 
 
 class Cos(Node):
@@ -374,6 +421,9 @@ class Cos(Node):
     def eval(self):
         return math.cos(self.value.eval())
 
+    def build(self):
+        return f"cos({self.value.build()})"
+
 
 class Exp(Node):
     def __init__(self, value):
@@ -393,6 +443,9 @@ class Exp(Node):
 
     def eval(self):
         return math.exp(self.value.eval())
+
+    def build(self):
+        return f"exp({self.value.build()})"
 
 
 class Log(Node):
@@ -415,12 +468,25 @@ class Log(Node):
             raise TypeError(
                 f"Invalid type for operation in argument of log: {self.value.infer_type()}"
             )
+        if not (self.base.value > 0 and self.base.value != 1):
+            raise ValueError(
+                "Logarithm base must be greater than 0 and not equal to 1."
+            )
+        if self.value.value <= 0:
+            raise ValueError("Logarithm argument must be greater than 0.")
 
     def infer_type(self):
         return "number"
 
     def eval(self):
         return math.log(self.base.eval(), self.value.eval())
+
+    def build(self):
+        # Assuming base is a constant number for simplicity, otherwise, log(x) / log(base) can be used.
+        if isinstance(self.base, Num) and self.base.value == math.e:
+            return f"log({self.value.build()})"
+        else:
+            return f"(log({self.value.build()}) / log({self.base.build()}))"
 
 
 class Rand(Node):
@@ -440,6 +506,10 @@ class Rand(Node):
     def eval(self):
         return random.uniform(0, 1)
 
+    def build(self):
+        # Using rand() from stdlib.h, scaled to 0-1 range
+        return f"((float)rand() / (float)RAND_MAX)"
+
 
 # endregion
 
@@ -450,7 +520,7 @@ import ply.yacc as yacc
 precedence = (
     ("left", "PLUS", "MINUS"),
     ("left", "TIMES", "DIVIDE"),
-    ("right", "POWER","POWERSTARSTAR"),
+    ("right", "POWER", "POWERSTARSTAR"),
     ("right", "LPAREN", "RPAREN"),
     ("nonassoc", "UMINUS"),
 )
@@ -464,6 +534,7 @@ def p_empty(p):
 
 def p_program(p):
     "program : hl_expression"
+    print("Program")
     p[0] = p[1]
 
 
@@ -471,23 +542,27 @@ def p_hl_expression(p):
     """hl_expression : expression SEMI
     | expression_block
     """
+    print("hl_expression")
     p[0] = p[1]
 
 
 def p_expression_tbl(p):
     """expression : expression_block"""
+    print("expression_tbl")
     p[0] = p[1]
 
 
 def p_expression_block(p):
     "expression_block : LBRACE expression_block_list RBRACE"
+    print("Expression Block")
     p[0] = ExpressionBlock(p[2])
     for i in p[2]:
         i.parent = p[0]
 
 
-def p_expression_block_list(p):
+def p_expression_block_list(p):  # wtfffffffffffffff
     "expression_block_list : hl_expression expression_block_list"
+    print("expression_block_list")
     p[0] = []
     p[0].append(p[1])
     p[0] = p[0] + p[2]
@@ -500,6 +575,7 @@ def p_expression_block_list_empty(p):
 
 def p_hl_let(p):
     """hl_expression : LET assign_values IN hl_expression"""
+    print("Let in hl_expression")
     p[0] = Let(p[2], p[4])
     for i in p[2]:
         i.parent = p[0]
@@ -508,6 +584,7 @@ def p_hl_let(p):
 
 def p_let(p):
     """expression : LET assign_values IN expression"""
+    print("Let in expression")
     p[0] = Let(p[2], p[4])
     for i in p[2]:
         i.parent = p[0]
@@ -516,6 +593,7 @@ def p_let(p):
 
 def p_assign_values(p):
     """assign_values : NAME EQUAL expression rem_assignments"""
+    print("assign_values")
     p[0] = []
     id = ID(p[1])
     assign = Assign(id, p[3])
@@ -527,6 +605,7 @@ def p_assign_values(p):
 
 def p_rem_assignments(p):
     "rem_assignments : COMMA NAME EQUAL expression rem_assignments"
+    print("rem_assignments")
     p[0] = []
     id = ID(p[2])
     assign = Assign(id, p[4])
@@ -590,6 +669,7 @@ def p_expression_e(p):
 # region Built-in functions
 def p_expression_print(p):
     "expression : PRINT LPAREN expression RPAREN"
+    print("Print")
     p[0] = Print(p[3])
     p[3].parent = p[0]
 
@@ -657,59 +737,64 @@ def p_error(p):
 
 # AST = parser.parse(hulk_code)
 # endregion
+
 parser = yacc.yacc(start="program")
 
 # Generate AST
-hulk_code = """print(3**9);"""
+hulk_code = """print(4+4 @ "Holaa");"""
 ast = parser.parse(hulk_code)
 
 # # semantic and type check
-ast.check()
+# ast.check()
 
 # # evaluate the AST in python code before generating the c code
-ast.eval()
+# ast.eval()
 
-create_AST_graph(nodes)
+# create_AST_graph(nodes)
 
 
 # region Generate C code from AST########################################################
+# def generate_c_code(node):
+#     if isinstance(node, BinOp) and node.op in ["+", "-", "*", "/"]:
+#         return f"({generate_c_code(node.left)} {node.op} {generate_c_code(node.right)})"
+#     elif isinstance(node, BinOp) and node.op in ["^", "**"]:
+#         return f"pow({generate_c_code(node.left)}, {generate_c_code(node.right)})"
+#     elif isinstance(node, BinOp) and node.op == "@":
+#         # Handle the '@' operation for concatenation
+#         left_code = generate_c_code(node.left)
+#         right_code = generate_c_code(node.right)
+#         # Assuming all operands are converted to strings
+#         return f"(concatenate_strings({left_code}, {right_code}))"
+#     elif isinstance(node, Num):
+#         return str(node.value)
+#     elif isinstance(node, StringLiteral):
+#         return f'"{node.value}"'
+#     elif isinstance(node, UnaryOp):
+#         return f"{node.op}{generate_c_code(node.operand)}"
+#     elif isinstance(node, Print):
+#         return f'printf("%f\\n", {generate_c_code(node.value)})'
+#     elif isinstance(node, Pi):
+#         return "M_PI"
+#     elif isinstance(node, E):
+#         return "M_E"
+#     elif isinstance(node, Sqrt):
+#         return f"sqrt({generate_c_code(node.value)})"
+#     elif isinstance(node, Sin):
+#         return f"sin({generate_c_code(node.value)})"
+#     elif isinstance(node, Cos):
+#         return f"cos({generate_c_code(node.value)})"
+#     elif isinstance(node, Exp):
+#         return f"exp({generate_c_code(node.value)})"
+#     elif isinstance(node, Log):
+#         return f"(log({generate_c_code(node.base)}) / log({generate_c_code(node.value)}))"  # logaritmo se hace asi pq C no admite log de a en base b
+#     elif isinstance(node, Rand):
+#         return "((float) rand() / (RAND_MAX))"
+#     else:
+#         raise TypeError(f"Unknown node {node}")
+# endregion
+# region Generate C code from ast
 def generate_c_code(node):
-    if isinstance(node, BinOp) and node.op in ["+", "-", "*", "/"]:
-        return f"({generate_c_code(node.left)} {node.op} {generate_c_code(node.right)})"
-    elif isinstance(node, BinOp) and node.op in ["^", "**"]:
-        return f"pow({generate_c_code(node.left)}, {generate_c_code(node.right)})"
-    elif isinstance(node, BinOp) and node.op == "@":
-        # Handle the '@' operation for concatenation
-        left_code = generate_c_code(node.left)
-        right_code = generate_c_code(node.right)
-        # Assuming all operands are converted to strings
-        return f"(strcat({left_code}, {right_code}))"
-    elif isinstance(node, Num):
-        return str(node.value)
-    elif isinstance(node, StringLiteral):
-        return f'"{node.value}"'
-    elif isinstance(node, UnaryOp):
-        return f"{node.op}{generate_c_code(node.operand)}"
-    elif isinstance(node, Print):
-        return f'printf("%f\\n", {generate_c_code(node.value)})'
-    elif isinstance(node, Pi):
-        return "M_PI"
-    elif isinstance(node, E):
-        return "M_E"
-    elif isinstance(node, Sqrt):
-        return f"sqrt({generate_c_code(node.value)})"
-    elif isinstance(node, Sin):
-        return f"sin({generate_c_code(node.value)})"
-    elif isinstance(node, Cos):
-        return f"cos({generate_c_code(node.value)})"
-    elif isinstance(node, Exp):
-        return f"exp({generate_c_code(node.value)})"
-    elif isinstance(node, Log):
-        return f"(log({generate_c_code(node.base)}) / log({generate_c_code(node.value)}))"  # logaritmo se hace asi pq C no admite log de a en base b
-    elif isinstance(node, Rand):
-        return "((float) rand() / (RAND_MAX))"
-    else:
-        raise TypeError(f"Unknown node {node}")
+    return node.build()
 
 
 # create output.c file with the code transformed
@@ -720,7 +805,25 @@ def write_c_code_to_file(ast, filename):
         f.write("#include <math.h>\n")
         f.write("#include <stdlib.h>\n")
         f.write("#include <string.h>\n\n")
+        f.write(
+            """char* concatenate_strings(const char* str1, const char* str2) {
+    // Calculate the length needed for the concatenated string
+    int length = strlen(str1) + strlen(str2) + 1; // +1 for the null terminator
 
+    // Allocate memory for the concatenated string
+    char* result = (char*)malloc(length * sizeof(char));
+    if (result == NULL) {
+        printf("Memory allocation failed");
+        exit(1); // Exit if memory allocation fails
+    }
+
+    // Copy the first string and concatenate the second string
+    strcpy(result, str1);
+    strcat(result, str2);
+
+    return result;
+}\n\n"""
+        )
         f.write("int main() {\n")
         f.write(f"    {c_code};\n")
         f.write("    return 0;\n")
