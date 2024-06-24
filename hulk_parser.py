@@ -631,7 +631,6 @@ def p_expression_binop(p):
     | expression TIMES expression
     | expression DIVIDE expression
     | expression POWER expression
-    | expression POWERSTARSTAR expression
     | expression CONCAT expression"""
     p[0] = BinOp(left=p[1], op=p[2], right=p[3])
     p[1].parent = p[0]
