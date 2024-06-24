@@ -25,7 +25,7 @@ tokens = tuple(tokens) + (
 		'LESS', 'GREATER',
 
 		'COLON','COMMA', 'SEMI',
-		'OR','AND',
+		'NOT', 'OR','AND',
 		
 		'EQUAL', 'ASSDESTROYER', 'DOT', 'INLINE',
 		
@@ -68,6 +68,7 @@ t_POWER = r'\^|\*\*'
 
 t_OR  = r'\|'
 t_AND = r'&'
+t_NOT = r'!'
 
 t_DOT  = r'\.'
 

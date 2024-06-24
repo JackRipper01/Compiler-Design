@@ -570,7 +570,9 @@ def p_expression_binop(p):
 
 
 def p_expression_uminus(p):
-    "expression : MINUS expression %prec UMINUS"  # no se que significa el %prec UMINUS ese,recomiendo ignorarlo hasta q se parta algo
+    """expression : MINUS expression %prec UMINUS
+                | NOT expression
+    """  # no se que significa el %prec UMINUS ese,recomiendo ignorarlo hasta q se parta algo
     p[0] = UnaryOp(op=p[1], operand=p[2])
     p[2].parent = p[0]
 
