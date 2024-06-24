@@ -31,8 +31,8 @@ class Node:
 
     def eval(self):
         pass
-def create_AST_graph(dict: dict):
-    dot = graphviz.Digraph("AST")
+def create_AST_graph(dict: dict, graph_name):
+    dot = graphviz.Digraph(graph_name)
     for key in dict.keys():
         if not key.parent:
             dict[key]+=" ( </> )"
@@ -57,7 +57,7 @@ class FunctionList(Node):
 
 class FunctionDef(Node):
     def __init__(self, func_id, params, body):
-        add_slf(self,"FUNC")
+        add_slf(self,"FUNC_DEF")
         self.func_id = func_id
         self.params = params
         self.body = body
@@ -660,20 +660,35 @@ parser = yacc.yacc(start="program")
 
 # add r prefix so it takes the line escape, not necessary to add any step when reading a file
 
-AST = parser.parse(r"""function asd (a,x) {
+ex_code = r"""
+                   function asd (a,x) {
                     print(a+x);
                    }
+                   function asd (a,x) => {
+                    print(a+x);
+                   }
+                   function asd (a,x) => {
+                    print(a+x);
+                   };
+                   function asdf (a,x) => print(a+x);
                    let a = print(sin(10)) in {let a=5, b=6 in {print(rand()-5*3+2);
                             rand();}
                 {print(rand()-5*3+2);
                             rand();} 
                             2*23+123;
                 {let x=2 in let a:int=7 in print(1+5);
-                 print(let asd=4 in {rand();}); }
-                {{{print(sin((PI*(((1/2)))+PI * x + f() - asd(x,y) )));}}}{{{}}} print('asd'@ "PRINT aaaa \"  "); };""")
+                 print(let asd=4 in {rand();}); AAAAAAA();}
+                {{{print(sin((PI*(((1/2)))+PI * x + f() - asd(x,y) )));}}}{{{}}} print('asd'@ "PRINT aaaa \"  "); };"""
+
+AST = parser.parse(
+r"""function a(b,c) => print(b+c);
+function siuuu: number (x,y,z) {print(x);print(y);print(z);}
+let a = 1 in let b: number = a+3 in print (siuuu(a+b,a,a(b,a)));
+"""
+)
 
 if len(sErrorList)==0:
-    create_AST_graph(nodes)
+    create_AST_graph(nodes, "AST")
 else:
     print("\nPARSING FINISHED WITH ERRORS:")
     for i in sErrorList:
