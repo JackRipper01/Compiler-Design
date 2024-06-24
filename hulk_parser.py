@@ -406,25 +406,18 @@ def p_namedef(p):
     p[0] = ID(p[1], p[2])
 
 def p_program(p):
-    "program : function_list hl_expression"
+    "program : functions hl_expression"
     p[0] = Program(p[1],p[2])
     p[2].parent = p[0]
-    if p[1]:
-        p[1].parent = p[0]
-
-def p_function_list(p):
-    "function_list : function_list_items"
-    if len(p[1])>0:
-        p[0] = FunctionList(p[1])
-        for i in p[1]:
-            i.parent = p[0]
-
+    for i in p[1]:
+        i.parent = p[0]
+        
 def p_function_list_items(p):
-    "function_list_items : function_def function_list_items"
+    "functions : function_def functions"
     p[0] = [p[1]]+p[2]
 
 def p_function_list_items_empty(p):
-    "function_list_items : empty"
+    "functions : empty"
     p[0]=[]
 
 def p_exp_func_call(p):
@@ -683,7 +676,10 @@ ex_code = r"""
 AST = parser.parse(
 r"""function a(b,c) => print(b+c);
 function siuuu: number (x,y,z) {print(x);print(y);print(z);}
-let a = 1 in let b: number = a+3 in print (siuuu(a+b,a,a(b,a)));
+{
+    let a = 1 in let b: number = a+3 in print (siuuu(a+b,a,a(b,a)));
+    print("asdasd");
+}
 """
 )
 

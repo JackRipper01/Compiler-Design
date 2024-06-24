@@ -49,7 +49,7 @@ if do_test_lexer:
 
     test_lexer("2+23+3^2**3")
     
-test_lexer(r"""
+    test_lexer(r"""
                    function asd:int (a:inr,x:asd) {
                     print(a+x)
                    }
