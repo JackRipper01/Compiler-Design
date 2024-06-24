@@ -4,7 +4,8 @@ import tokenize
 
 OurDecNumber = tokenize.Decnumber + tokenize.maybe(tokenize.Exponent)
 OurNumber = tokenize.group(tokenize.Pointfloat, OurDecNumber)
-
+OurString = tokenize.group(r"'[^\n'\\]*(?:\\.[^\n'\\]*)*'",
+               r'"[^\n"\\]*(?:\\.[^\n"\\]*)*"')
 errorList=[]
 tokens = []
 keywordlist = [
@@ -106,9 +107,9 @@ def t_comment(t):
 def t_NUMBER(t):
     return t
 
+@TOKEN(OurString)
 def t_STRING(t):
-	r'(\"(\\.|[^\"\n]|(\\\n))*\") | (\'(\\.|[^\'\n]|(\\\n))*\')'
-	return t
+    return t
 
 def t_newline(t):
     r'\n+'
