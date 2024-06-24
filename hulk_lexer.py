@@ -4,7 +4,8 @@ import tokenize
 
 OurDecNumber = tokenize.Decnumber + tokenize.maybe(tokenize.Exponent)
 OurNumber = tokenize.group(tokenize.Pointfloat, OurDecNumber)
-
+OurString = tokenize.group(r"'[^\n'\\]*(?:\\.[^\n'\\]*)*'",
+               r'"[^\n"\\]*(?:\\.[^\n"\\]*)*"')
 errorList=[]
 tokens = []
 keywordlist = [
@@ -24,12 +25,12 @@ tokens = tuple(tokens) + (
 		'LESS', 'GREATER',
 
 		'COLON','COMMA', 'SEMI',
-		'OR','AND',
+		'NOT', 'OR','AND',
 		
 		'EQUAL', 'ASSDESTROYER', 'DOT', 'INLINE',
 		
 		"NUMBER",
-		'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'POWER','POWERSTARSTAR', 'MOD',
+		'PLUS', 'MINUS', 'TIMES', 'DIVIDE', 'POWER', 'MOD',
 
 	    'LPAREN', 'RPAREN',
 	    'LBRACE', 'RBRACE',
@@ -63,11 +64,11 @@ t_MINUS = r'-'
 t_TIMES  = r'\*'
 t_DIVIDE = r'/'
 t_MOD = r'%'
-t_POWER = r'\^'
-t_POWERSTARSTAR = r'\*\*'
+t_POWER = r'\^|\*\*'
 
 t_OR  = r'\|'
 t_AND = r'&'
+t_NOT = r'!'
 
 t_DOT  = r'\.'
 
@@ -105,12 +106,11 @@ def t_comment(t):
 
 @TOKEN(OurNumber)
 def t_NUMBER(t):
-    t.value = float(t.value)
     return t
 
+@TOKEN(OurString)
 def t_STRING(t):
-	r'(\"(\\.|[^\"\n]|(\\\n))*\") | (\'(\\.|[^\'\n]|(\\\n))*\')'
-	return t
+    return t
 
 def t_newline(t):
     r'\n+'
