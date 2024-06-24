@@ -161,3 +161,5 @@ cython_debug/
 parsetab.py
 parser.out
 *.hlk
+out.c
+out.exe
