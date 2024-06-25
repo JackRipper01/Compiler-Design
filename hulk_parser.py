@@ -1,27 +1,20 @@
-import re
-from typing import Self
-import math
+import hulk_lexer
+from hulk_lexer import lex, tokens
+from ply import yacc
 import random
+import math
+import graphviz
 
+
+sErrorList = []
 # constants
 PI = math.pi
 E = math.e
 
-# lexer
-import hulk_lexer
-from hulk_lexer import tokens
 
 # Build the lexer
 lexer = hulk_lexer.lex.lex(module=hulk_lexer)
 lexer.parenthesisCount = 0
-
-###############################################################################################
-###############################################################################################
-
-# Node Classes
-###################################################################################
-
-import graphviz
 
 # region classes##################################
 
@@ -33,8 +26,8 @@ def add_slf(slf, nm):
     nodes[slf] = nm
 
 
-def create_AST_graph(dict: dict):
-    dot = graphviz.Digraph("AST")
+def create_AST_graph(dict: dict, graph_name):
+    dot = graphviz.Digraph(graph_name)
     for key in dict.keys():
         if not key.parent:
             dict[key] += " ( </> )"
@@ -65,10 +58,38 @@ class Node:
         pass
 
 
-# class Program(Node):
-#     def __init__(self, exp):
-#         self.main_exp=exp
-#         add_slf(self, 'PROGRAM')
+class Program(Node):
+    def __init__(self, functions, global_expression):
+        add_slf(self, "")
+        self.functions = functions
+        self.global_exp = global_expression
+
+
+class FunctionList(Node):
+    def __init__(self, functions_list):
+        add_slf(self, "FUNCTIONS")
+        self.function_list = functions_list
+
+
+class FunctionDef(Node):
+    def __init__(self, func_id, params, body):
+        add_slf(self, "FUNC_DEF")
+        self.func_id = func_id
+        self.params = params
+        self.body = body
+
+
+class FunctionCall(Node):
+    def __init__(self, func_id, params):
+        add_slf(self, "FUNC_CALL")
+        self.func_id = func_id
+        self.params = params
+
+
+class Params(Node):
+    def __init__(self, param_list):
+        add_slf(self, "params")
+        self.param_list = param_list
 
 
 class ExpressionBlock(Node):
@@ -92,33 +113,41 @@ class Assign(Node):
 
 
 class ID(Node):
-    def __init__(self, name):
-        add_slf(self, name)
-        self.name = name
+    def __init__(self, name, opt_type):
+        if opt_type == "":
+            add_slf(self, "var " + name)
+        else:
+            add_slf(self, opt_type + " " + name)
 
-        self.name=name
+        self.name = name
         self.opt_type = opt_type
+
 
 class If(Node):
     def __init__(self, cond_expr):
         add_slf(self, "IF")
         self.cond_expr = cond_expr
 
+
 class Case(Node):
     def __init__(self, condition, body, branch):
-        add_slf(self, "IF "+ branch)
+        add_slf(self, "IF " + branch)
         self.condition = condition
         self.body = body
+
 
 class TrueLiteral(Node):
     def __init__(self):
         add_slf(self, "TRUE")
 
+
 class FalseLiteral(Node):
     def __init__(self):
         add_slf(self, "FALSE")
 
-#region JTR AST
+
+# region JTR AST
+
 
 # Operations Classes (binary, unary,etc)
 class BinOp(Node):
@@ -555,40 +584,144 @@ def p_empty(p):
     pass
 
 
+def p_opt_type(p):
+    "opt_type : COLON NAME"
+    p[0] = p[2]
+
+
+def p_opt_type_e(p):
+    "opt_type : empty"
+    p[0] = ""
+
+
+def p_namedef(p):
+    "namedef : NAME opt_type"
+    p[0] = ID(p[1], p[2])
+
+
 def p_program(p):
-    "program : hl_expression"
-    print("Program")
+    "program : functions hl_expression"
+    p[0] = Program(p[1], p[2])
+    p[2].parent = p[0]
+    for i in p[1]:
+        i.parent = p[0]
+
+
+def p_function_list_items(p):
+    "functions : function_def functions"
+    p[0] = [p[1]] + p[2]
+
+
+def p_function_list_items_empty(p):
+    "functions : empty"
+    p[0] = []
+
+
+def p_exp_func_call(p):
+    "expression : func_call"
     p[0] = p[1]
+
+
+def p_func_call(p):
+    "func_call : NAME LPAREN cs_exps RPAREN"
+    id = ID(p[1], "")
+    p[0] = FunctionCall(id, p[3])
+    id.parent = p[0]
+    p[3].parent = p[0]
+
+
+def p_cs_exps(p):
+    "cs_exps : cs_exps_list"
+    p[0] = Params(p[1])
+    for i in p[1]:
+        i.parent = p[0]
+
+
+def p_cs_exps_list(p):
+    "cs_exps_list : expression cs_exps_list_rem"
+    p[0] = [p[1]] + p[2]
+
+
+def p_cs_exps_list_e(p):
+    "cs_exps_list : empty"
+    p[0] = []
+
+
+def p_cs_exps_list_rem(p):
+    "cs_exps_list_rem : COMMA expression cs_exps_list_rem"
+    p[0] = [p[2]] + p[3]
+
+
+def p_cs_exps_list_rem_e(p):
+    "cs_exps_list_rem : empty"
+    p[0] = []
+
+
+def p_function_def(p):
+    "function_def : FUNCTION namedef LPAREN func_params RPAREN INLINE hl_expression"
+    p[0] = FunctionDef(p[2], p[4], p[7])
+    p[2].parent = p[0]
+    p[4].parent = p[0]
+    p[7].parent = p[0]
+
+
+def p_function_def_fullform(p):
+    "function_def : FUNCTION namedef LPAREN func_params RPAREN expression_block"
+    p[0] = FunctionDef(p[2], p[4], p[6])
+    p[2].parent = p[0]
+    p[4].parent = p[0]
+    p[6].parent = p[0]
+
+
+def p_func_params(p):
+    "func_params : func_params_list"
+    p[0] = Params(p[1])
+    for i in p[1]:
+        i.parent = p[0]
+
+
+def p_func_params_list(p):
+    "func_params_list : namedef func_params_list_rem"
+    p[0] = [p[1]] + p[2]
+
+
+def p_func_params_list_e(p):
+    "func_params_list : empty"
+    p[0] = []
+
+
+def p_func_params_list_rem(p):
+    "func_params_list_rem : COMMA namedef func_params_list_rem"
+    p[0] = [p[2]] + p[3]
+
+
+def p_func_params_list_rem_e(p):
+    "func_params_list_rem : empty"
+    p[0] = []
 
 
 def p_hl_expression(p):
     """hl_expression : expression SEMI
     | expression_block
     """
-    print("hl_expression")
     p[0] = p[1]
 
 
 def p_expression_tbl(p):
     """expression : expression_block"""
-    print("expression_tbl")
     p[0] = p[1]
 
 
 def p_expression_block(p):
     "expression_block : LBRACE expression_block_list RBRACE"
-    print("Expression Block")
     p[0] = ExpressionBlock(p[2])
     for i in p[2]:
         i.parent = p[0]
 
 
-def p_expression_block_list(p):  # wtfffffffffffffff
+def p_expression_block_list(p):
     "expression_block_list : hl_expression expression_block_list"
-    print("expression_block_list")
-    p[0] = []
-    p[0].append(p[1])
-    p[0] = p[0] + p[2]
+    p[0] = [p[1]] + p[2]
 
 
 def p_expression_block_list_empty(p):
@@ -598,7 +731,6 @@ def p_expression_block_list_empty(p):
 
 def p_hl_let(p):
     """hl_expression : LET assign_values IN hl_expression"""
-    print("Let in hl_expression")
     p[0] = Let(p[2], p[4])
     for i in p[2]:
         i.parent = p[0]
@@ -607,7 +739,6 @@ def p_hl_let(p):
 
 def p_let(p):
     """expression : LET assign_values IN expression"""
-    print("Let in expression")
     p[0] = Let(p[2], p[4])
     for i in p[2]:
         i.parent = p[0]
@@ -615,27 +746,20 @@ def p_let(p):
 
 
 def p_assign_values(p):
-    """assign_values : NAME EQUAL expression rem_assignments"""
-    print("assign_values")
-    p[0] = []
-    id = ID(p[1])
-    assign = Assign(id, p[3])
-    id.parent = assign
+    """assign_values : namedef EQUAL expression rem_assignments"""
+    assign = Assign(p[1], p[3])
+    p[1].parent = assign
     p[3].parent = assign
-    p[0].append(assign)
-    p[0] = p[0] + p[4]
+    p[0] = [assign] + p[4]
 
 
 def p_rem_assignments(p):
-    "rem_assignments : COMMA NAME EQUAL expression rem_assignments"
-    print("rem_assignments")
-    p[0] = []
-    id = ID(p[2])
-    assign = Assign(id, p[4])
-    id.parent = assign
+    "rem_assignments : COMMA namedef EQUAL expression rem_assignments"
+
+    assign = Assign(p[2], p[4])
+    p[2].parent = assign
     p[4].parent = assign
-    p[0].append(assign)
-    p[0] = p[0] + p[5]
+    p[0] = [assign] + p[5]
 
 
 def p_rem_assignments_empty(p):
@@ -645,7 +769,7 @@ def p_rem_assignments_empty(p):
 
 def p_if_hl(p):
     "hl_expression : IF expression expression opt_elifs ELSE hl_expression"
-    first = Case(p[2],p[3],"if")
+    first = Case(p[2], p[3], "if")
     p[2].parent = first
     p[3].parent = first
 
@@ -653,34 +777,37 @@ def p_if_hl(p):
     last = Case(else_cond, p[6], "else")
     else_cond.parent = last
     p[6].parent = last
-    
-    p[0] = If([first]+p[4]+[last])
+
+    p[0] = If([first] + p[4] + [last])
 
     for i in p[0].cond_expr:
         i.parent = p[0]
-          
+
+
 def p_if_exp(p):
     "expression : IF expression expression opt_elifs ELSE expression"
-    first = Case(p[2],p[3],"if")
+    first = Case(p[2], p[3], "if")
     p[2].parent = first
     p[3].parent = first
 
     else_cond = TrueLiteral()
-    last = Case(else_cond, p[6],"else")
+    last = Case(else_cond, p[6], "else")
     else_cond.parent = last
     p[6].parent = last
-    
-    p[0] = If([first]+p[4]+[last])
-    
+
+    p[0] = If([first] + p[4] + [last])
+
     for i in p[0].cond_expr:
         i.parent = p[0]
 
+
 def p_opt_elifs(p):
     "opt_elifs : ELIF expression expression opt_elifs"
-    elif_cond = Case(p[2],p[3],"elif")
+    elif_cond = Case(p[2], p[3], "elif")
     p[2].parent = elif_cond
     p[3].parent = elif_cond
-    p[0] = [elif_cond]+p[4]
+    p[0] = [elif_cond] + p[4]
+
 
 def p_opt_elifs_e(p):
     "opt_elifs : empty"
@@ -716,7 +843,9 @@ def p_expression_binop(p):
 
 
 def p_expression_uminus(p):
-    "expression : MINUS expression %prec UMINUS"  # no se que significa el %prec UMINUS ese,recomiendo ignorarlo hasta q se parta algo
+    """expression : MINUS expression %prec UMINUS
+    | NOT expression
+    """  # no se que significa el %prec UMINUS ese,recomiendo ignorarlo hasta q se parta algo
     p[0] = UnaryOp(op=p[1], operand=p[2])
     p[2].parent = p[0]
 
@@ -731,7 +860,11 @@ def p_expression_string(p):
     p[0] = StringLiteral(p[1])
 
 
-# constants
+def p_expression_variable(p):
+    "expression : NAME"
+    p[0] = ID(p[1], "")
+
+
 def p_expression_pi(p):
     "expression : PI"
     p[0] = Pi()
@@ -741,19 +874,19 @@ def p_expression_e(p):
     "expression : E"
     p[0] = E()
 
+
 def p_expression_true(p):
     "expression : TRUE"
     p[0] = TrueLiteral()
+
 
 def p_expression_false(p):
     "expression : FALSE"
     p[0] = FalseLiteral()
 
-# endregion
-# region Built-in functions
+
 def p_expression_print(p):
     "expression : PRINT LPAREN expression RPAREN"
-    print("Print")
     p[0] = Print(p[3])
     p[3].parent = p[0]
 
@@ -794,69 +927,51 @@ def p_expression_rand(p):
     p[0] = Rand()
 
 
-# endregion
-
-
 def p_error(p):
     if p:
         sErrorList.append(f"Syntax error at {p.value} near line: {p.lineno}")
     else:
-        print("Syntax error at EOF")
+        sErrorList.append("Syntax error at EOF")
+    print(sErrorList[-1])
 
 
-
-
-# region mauricio parser llamacion
-# parser = yacc.yacc(start="program")
-
-# hulk_code = """let a = print(sin(10)) in {let a=5, b=6 in {print(rand()-5*3+2);
-#                             rand();}
-#                 {print(rand()-5*3+2);
-#                             rand();}
-#                             2*23+123;
-#                 {let x=2 in let a=7 in print(1+5);
-#                  print(let asd=4 in {rand();}); }
-#                 {{{print(sin((PI*(((1/2)))+PI)));}}}{{{}}} };"""
-# # hulk_code = "print(PI-E);"
-
-# AST = parser.parse(hulk_code)
 # endregion
+
 
 parser = yacc.yacc(start="program")
 
 # Generate AST
-
-ex_code = r"""
-                   function asd (a,x) {
-                    print(a+x);
-                   }
-                   function asd (a,x) => {
-                    print(a+x);
-                   }
-                   function asd (a,x) => {
-                    print(a+x);
-                   };
-                   function asdf (a,x) => print(-a+x);
-                   let a = print(sin(10)) in {let a=5, b=6 in {print(rand()-5*3+2);
-                            rand();}
-                {print(rand()-5*3+2);
-                            rand();} 
-                            2*23+123;
-                {let x=2 in let a:int=7 in print(1+5);
-                 print(let asd=4 in {rand();}); AAAAAAA();}
-                {{{print(sin((PI*(((1/2)))+PI * x + f() - asd(x,y) )));}}}{{{}}} print('asd'@ "PRINT aaaa \"  "); };"""
-
-AST = parser.parse(
-r"""function a(b,c) => print(b+c);
-function siuuu: number (x,y,z) {print(x);print(y);print(z);}
-{
-    let a = 1 in let b: number = a+3 in print (siuuu(-a+b,a,a(b,a)));
-    print("asdasd");
-    if (a>2) x elif (a<1) z elif (a<1) {z+4;} elif (a<1) z else y;
-}
-"""
-)
-
+# region example of codes
+# ex_code = r"""
+#                    function asd (a,x) {
+#                     print(a+x);
+#                    }
+#                    function asd (a,x) => {
+#                     print(a+x);
+#                    }
+#                    function asd (a,x) => {
+#                     print(a+x);
+#                    };
+#                    function asdf (a,x) => print(-a+x);
+#                    let a = print(sin(10)) in {let a=5, b=6 in {print(rand()-5*3+2);
+#                             rand();}
+#                 {print(rand()-5*3+2);
+#                             rand();}
+#                             2*23+123;
+#                 {let x=2 in let a:int=7 in print(1+5);
+#                  print(let asd=4 in {rand();}); AAAAAAA();}
+#                 {{{print(sin((PI*(((1/2)))+PI * x + f() - asd(x,y) )));}}}{{{}}} print('asd'@ "PRINT aaaa \"  "); };"""
+# r"""function a(b,c) => print(b+c);
+# function siuuu: number (x,y,z) {print(x);print(y);print(z);}
+# {
+#     let a = 1 in let b: number = a+3 in print (siuuu(-a+b,a,a(b,a)));
+#     print("asdasd");
+#     if (a>2) x elif (a<1) z elif (a<1) {z+4;} elif (a<1) z else y;
+# }
+# """
+# endregion
+AST = parser.parse("""let a=5,b=7,c = 4 in print(a + b - c);""")
+create_AST_graph(nodes, "let_example")
 # create_AST_graph(nodes)
 
 
