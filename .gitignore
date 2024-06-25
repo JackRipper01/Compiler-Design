@@ -163,3 +163,4 @@ parser.out
 *.hlk
 out.c
 out.exe
+output/
