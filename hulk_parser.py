@@ -100,6 +100,25 @@ class ID(Node):
         self.name=name
         self.opt_type = opt_type
 
+class If(Node):
+    def __init__(self, cond_expr):
+        add_slf(self, "IF")
+        self.cond_expr = cond_expr
+
+class Case(Node):
+    def __init__(self, condition, body, branch):
+        add_slf(self, "IF "+ branch)
+        self.condition = condition
+        self.body = body
+
+class TrueLiteral(Node):
+    def __init__(self):
+        add_slf(self, "TRUE")
+
+class FalseLiteral(Node):
+    def __init__(self):
+        add_slf(self, "FALSE")
+
 #region JTR AST
 
 class BinOp(Node):
@@ -552,6 +571,50 @@ def p_rem_assignments_empty(p):
     "rem_assignments : empty"
     p[0]=[]
 
+def p_if_hl(p):
+    "hl_expression : IF expression expression opt_elifs ELSE hl_expression"
+    first = Case(p[2],p[3],"if")
+    p[2].parent = first
+    p[3].parent = first
+
+    else_cond = TrueLiteral()
+    last = Case(else_cond, p[6], "else")
+    else_cond.parent = last
+    p[6].parent = last
+    
+    p[0] = If([first]+p[4]+[last])
+
+    for i in p[0].cond_expr:
+        i.parent = p[0]
+          
+def p_if_exp(p):
+    "expression : IF expression expression opt_elifs ELSE expression"
+    first = Case(p[2],p[3],"if")
+    p[2].parent = first
+    p[3].parent = first
+
+    else_cond = TrueLiteral()
+    last = Case(else_cond, p[6],"else")
+    else_cond.parent = last
+    p[6].parent = last
+    
+    p[0] = If([first]+p[4]+[last])
+    
+    for i in p[0].cond_expr:
+        i.parent = p[0]
+
+def p_opt_elifs(p):
+    "opt_elifs : ELIF expression expression opt_elifs"
+    elif_cond = Case(p[2],p[3],"elif")
+    p[2].parent = elif_cond
+    p[3].parent = elif_cond
+    p[0] = [elif_cond]+p[4]
+
+def p_opt_elifs_e(p):
+    "opt_elifs : empty"
+    p[0] = []
+
+
 def p_expression_group(p):
     "expression : LPAREN expression RPAREN"
     p[0] = p[2]
@@ -562,8 +625,18 @@ def p_expression_binop(p):
     | expression TIMES expression
     | expression DIVIDE expression
     | expression POWER expression
+    | expression MOD expression
     | expression CONCAT expression
-    | expression DCONCAT expression"""
+    | expression DCONCAT expression
+    | expression AND expression
+    | expression OR expression
+    | expression EQEQUAL expression
+    | expression NOTEQUAL expression
+    | expression LESSEQUAL expression
+    | expression GREATEREQUAL expression
+    | expression LESS expression
+    | expression GREATER expression
+    """
     p[0] = BinOp(left=p[1], op=p[2], right=p[3])
     p[1].parent = p[0]
     p[3].parent = p[0]
@@ -598,6 +671,13 @@ def p_expression_e(p):
     "expression : E"
     p[0] = E()
 
+def p_expression_true(p):
+    "expression : TRUE"
+    p[0] = TrueLiteral()
+
+def p_expression_false(p):
+    "expression : FALSE"
+    p[0] = FalseLiteral()
 
 def p_expression_print(p):
     "expression : PRINT LPAREN expression RPAREN"
@@ -643,7 +723,7 @@ def p_expression_rand(p):
 
 def p_error(p):
     if p:
-        sErrorList.append(f"Syntax error at {p.value} near line: {p.lineno -1}")
+        sErrorList.append(f"Syntax error at {p.value} near line: {p.lineno}")
     else:
         sErrorList.append("Syntax error at EOF")
     print(sErrorList[-1])
@@ -665,7 +745,7 @@ ex_code = r"""
                    function asd (a,x) => {
                     print(a+x);
                    };
-                   function asdf (a,x) => print(a+x);
+                   function asdf (a,x) => print(-a+x);
                    let a = print(sin(10)) in {let a=5, b=6 in {print(rand()-5*3+2);
                             rand();}
                 {print(rand()-5*3+2);
@@ -679,8 +759,9 @@ AST = parser.parse(
 r"""function a(b,c) => print(b+c);
 function siuuu: number (x,y,z) {print(x);print(y);print(z);}
 {
-    let a = 1 in let b: number = a+3 in print (siuuu(a+b,a,a(b,a)));
+    let a = 1 in let b: number = a+3 in print (siuuu(-a+b,a,a(b,a)));
     print("asdasd");
+    if (a>2) x elif (a<1) z elif (a<1) {z+4;} elif (a<1) z else y;
 }
 """
 )
