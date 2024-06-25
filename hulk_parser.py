@@ -520,7 +520,7 @@ import ply.yacc as yacc
 precedence = (
     ("left", "PLUS", "MINUS"),
     ("left", "TIMES", "DIVIDE"),
-    ("right", "POWER", "POWERSTARSTAR"),
+    ("right", "POWER"),
     ("right", "LPAREN", "RPAREN"),
     ("nonassoc", "UMINUS"),
 )
@@ -719,7 +719,7 @@ def p_error(p):
         print("Syntax error at EOF")
 
 
-# endregion
+
 
 # region mauricio parser llamacion
 # parser = yacc.yacc(start="program")
@@ -740,7 +740,7 @@ def p_error(p):
 parser = yacc.yacc(start="program")
 
 # Generate AST
-hulk_code = """print(4+4 @ "Holaa");"""
+hulk_code = """let a = 3 , b = 5 in print( a + b);"""
 ast = parser.parse(hulk_code)
 
 # # semantic and type check
@@ -832,4 +832,4 @@ def write_c_code_to_file(ast, filename):
 # endregion
 
 # Generate C code
-write_c_code_to_file(ast, "out.c")
+# write_c_code_to_file(ast, "out.c")
