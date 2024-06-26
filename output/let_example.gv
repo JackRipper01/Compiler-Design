@@ -1,0 +1,27 @@
+digraph let_example {
+	<__main__.ID object at 0x000001EEA3CD0A10> [label="var a"]
+	5 [label=5]
+	<__main__.ID object at 0x000001EEA3CD0C50> [label="var b"]
+	7 [label=7]
+	<__main__.ID object at 0x000001EEA3CD0D90> [label="var c"]
+	4 [label=4]
+	<__main__.Assign object at 0x000001EEA3CD0C90> [label=ASSIGN]
+	<__main__.Assign object at 0x000001EEA3CD0CD0> [label=ASSIGN]
+	<__main__.Assign object at 0x000001EEA3CD0A50> [label=ASSIGN]
+	4 [label=4]
+	"Print(4)" [label=PRINT]
+	<__main__.Let object at 0x000001EEA3CD0C10> [label=LET]
+	<__main__.Program object at 0x000001EEA3C93690> [label=" ( </> )"]
+	<__main__.Assign object at 0x000001EEA3CD0A50> -> <__main__.ID object at 0x000001EEA3CD0A10>
+	<__main__.Assign object at 0x000001EEA3CD0A50> -> 5
+	<__main__.Assign object at 0x000001EEA3CD0CD0> -> <__main__.ID object at 0x000001EEA3CD0C50>
+	<__main__.Assign object at 0x000001EEA3CD0CD0> -> 7
+	<__main__.Assign object at 0x000001EEA3CD0C90> -> <__main__.ID object at 0x000001EEA3CD0D90>
+	<__main__.Assign object at 0x000001EEA3CD0C90> -> 4
+	<__main__.Let object at 0x000001EEA3CD0C10> -> <__main__.Assign object at 0x000001EEA3CD0C90>
+	<__main__.Let object at 0x000001EEA3CD0C10> -> <__main__.Assign object at 0x000001EEA3CD0CD0>
+	<__main__.Let object at 0x000001EEA3CD0C10> -> <__main__.Assign object at 0x000001EEA3CD0A50>
+	"Print(4)" -> 4
+	<__main__.Let object at 0x000001EEA3CD0C10> -> "Print(4)"
+	<__main__.Program object at 0x000001EEA3C93690> -> <__main__.Let object at 0x000001EEA3CD0C10>
+}
