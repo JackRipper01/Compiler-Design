@@ -164,3 +164,6 @@ parser.out
 out.c
 out.exe
 output/
+out.c
+output.c
+*.c
