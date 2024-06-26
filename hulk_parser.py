@@ -624,10 +624,23 @@ import ply.yacc as yacc
 
 # precedence rules for the arithmetic operators
 precedence = (
+    #("right", "PRINT","SQRT","SIN","COS","EXP","LOG","RAND"),
+    ("nonassoc", "NAME"),
+    ("right", "IN", "LET"),
+    ("right", "IF", "ELIF", "ELSE"),
+    ("nonassoc", "EQUAL"),
+    ("left", "COMMA"),
+    ("nonassoc", "INLINE"),
+    ("left", "CONCAT", "DCONCAT"),
+    ("left", "OR"),
+    ("left", "AND"),
+    ("left", "EQEQUAL","NOTEQUAL"),
+    ("left", "LESSEQUAL","GREATEREQUAL","LESS","GREATER"),
     ("left", "PLUS", "MINUS"),
-    ("left", "TIMES", "DIVIDE"),
+    ("left", "TIMES", "DIVIDE", "MOD"),
+    ("nonassoc", "NOT"),
     ("right", "POWER"),
-    ("right", "LPAREN", "RPAREN"),
+    ("right", "LPAREN", "LPAREN"),
     ("nonassoc", "UMINUS"),
 )
 
@@ -782,9 +795,25 @@ def p_expression_block_list(p):
     p[0] = [p[1]] + p[2]
 
 
-def p_expression_block_list_empty(p):
-    """expression_block_list : empty"""
-    p[0] = []
+def p_expression_block_list_e(p):
+    "expression_block_list : empty"
+    p[0]=[]
+
+
+# def p_expression_block_hl(p):
+#     "expression_block_hl : LBRACE expression_block_hl_list RBRACE"
+#     p[0] = ExpressionBlock(p[2])
+#     for i in p[2]:
+#         i.parent = p[0]
+
+
+# def p_expression_block_hl_list(p):
+#     "expression_block_hl_list : hl_expression expression_block_hl_list"
+#     p[0]=[p[1]]+p[2]
+
+# def p_expression_block_list_e(p):
+#     "expression_block_list : empty"
+#     p[0] = []
 
 
 def p_hl_let(p):
@@ -903,14 +932,42 @@ def p_expression_binop(p):
     p[1].parent = p[0]
     p[3].parent = p[0]
 
+def p_expression_binop_hl(p):
+    """hl_expression : expression PLUS hl_expression
+    | expression MINUS hl_expression
+    | expression TIMES hl_expression
+    | expression DIVIDE hl_expression
+    | expression POWER hl_expression
+    | expression MOD hl_expression
+    | expression CONCAT hl_expression
+    | expression DCONCAT hl_expression
+    | expression AND hl_expression
+    | expression OR hl_expression
+    | expression EQEQUAL hl_expression
+    | expression NOTEQUAL hl_expression
+    | expression LESSEQUAL hl_expression
+    | expression GREATEREQUAL hl_expression
+    | expression LESS hl_expression
+    | expression GREATER hl_expression
+    """
+    p[0] = BinOp(left=p[1], op=p[2], right=p[3])
+    p[1].parent = p[0]
+    p[3].parent = p[0]
 
-def p_expression_uminus(p):
+
+def p_expression_unary(p):
     """expression : MINUS expression %prec UMINUS
-    | NOT expression
-    """  # no se que significa el %prec UMINUS ese,recomiendo ignorarlo hasta q se parta algo
+                | NOT expression
+    """
     p[0] = UnaryOp(op=p[1], operand=p[2])
     p[2].parent = p[0]
 
+def p_expression_unary_hl(p):
+    """hl_expression : MINUS hl_expression %prec UMINUS
+                | NOT hl_expression
+    """
+    p[0] = UnaryOp(op=p[1], operand=p[2])
+    p[2].parent = p[0]
 
 def p_expression_number(p):
     "expression : NUMBER"
@@ -994,97 +1051,49 @@ def p_expression_rand(p):
 
 
 def p_error(p):
-    if p:
-        sErrorList.append(f"Syntax error at {p.value} near line: {p.lineno}")
-    else:
-        sErrorList.append("Syntax error at EOF")
-    print(sErrorList[-1])
-
-
+    sErrorList.append(p)
+    #print(sErrorList[-1])
 # endregion
 
 
-parser = yacc.yacc(start="program")
+# region Generate AST
+parser = yacc.yacc(start="program", method='LALR')
 
-# Generate AST
-# region example of codes
-# ex_code = r"""
-#                    function asd (a,x) {
-#                     print(a+x);
-#                    }
-#                    function asd (a,x) => {
-#                     print(a+x);
-#                    }
-#                    function asd (a,x) => {
-#                     print(a+x);
-#                    };
-#                    function asdf (a,x) => print(-a+x);
-#                    let a = print(sin(10)) in {let a=5, b=6 in {print(rand()-5*3+2);
-#                             rand();}
-#                 {print(rand()-5*3+2);
-#                             rand();}
-#                             2*23+123;
-#                 {let x=2 in let a:int=7 in print(1+5);
-#                  print(let asd=4 in {rand();}); AAAAAAA();}
-#                 {{{print(sin((PI*(((1/2)))+PI * x + f() - asd(x,y) )));}}}{{{}}} print('asd'@ "PRINT aaaa \"  "); };"""
-# r"""function a(b,c) => print(b+c);
-# function siuuu: number (x,y,z) {print(x);print(y);print(z);}
-# {
-#     let a = 1 in let b: number = a+3 in print (siuuu(-a+b,a,a(b,a)));
-#     print("asdasd");
-#     if (a>2) x elif (a<1) z elif (a<1) {z+4;} elif (a<1) z else y;
-# }
-# """
-# endregion
 my_ex_code = """function asd (a,x) {
     print(a+x);
     }{ }"""
 
 my_ex_code2 = """let a=5 in print(a+8) ;"""
-AST = parser.parse(my_ex_code2)
-create_AST_graph(nodes, "let_example")
+
 # create_AST_graph(nodes)
 
+def find_column(input, token):
+    line_start = input.rfind("\n", 0, token.lexpos) + 1
 
-# region Generate C code from AST########################################################
-# def generate_c_code(node):
-#     if isinstance(node, BinOp) and node.op in ["+", "-", "*", "/"]:
-#         return f"({generate_c_code(node.left)} {node.op} {generate_c_code(node.right)})"
-#     elif isinstance(node, BinOp) and node.op in ["^", "**"]:
-#         return f"pow({generate_c_code(node.left)}, {generate_c_code(node.right)})"
-#     elif isinstance(node, BinOp) and node.op == "@":
-#         # Handle the '@' operation for concatenation
-#         left_code = generate_c_code(node.left)
-#         right_code = generate_c_code(node.right)
-#         # Assuming all operands are converted to strings
-#         return f"(concatenate_strings({left_code}, {right_code}))"
-#     elif isinstance(node, Num):
-#         return str(node.value)
-#     elif isinstance(node, StringLiteral):
-#         return f'"{node.value}"'
-#     elif isinstance(node, UnaryOp):
-#         return f"{node.op}{generate_c_code(node.operand)}"
-#     elif isinstance(node, Print):
-#         return f'printf("%f\\n", {generate_c_code(node.value)})'
-#     elif isinstance(node, Pi):
-#         return "M_PI"
-#     elif isinstance(node, E):
-#         return "M_E"
-#     elif isinstance(node, Sqrt):
-#         return f"sqrt({generate_c_code(node.value)})"
-#     elif isinstance(node, Sin):
-#         return f"sin({generate_c_code(node.value)})"
-#     elif isinstance(node, Cos):
-#         return f"cos({generate_c_code(node.value)})"
-#     elif isinstance(node, Exp):
-#         return f"exp({generate_c_code(node.value)})"
-#     elif isinstance(node, Log):
-#         return f"(log({generate_c_code(node.base)}) / log({generate_c_code(node.value)}))"  # logaritmo se hace asi pq C no admite log de a en base b
-#     elif isinstance(node, Rand):
-#         return "((float) rand() / (RAND_MAX))"
-#     else:
-#         raise TypeError(f"Unknown node {node}")
-# endregion
+    return (token.lexpos - line_start) + 1
+
+
+def hulk_parse(code):
+
+    AST = parser.parse(code)
+
+    if len(sErrorList) == 0:
+        create_AST_graph(nodes, "AST")
+        write_c_code_to_file(AST, "out.c")
+    else:
+        print("\nPARSING FINISHED WITH ERRORS:")
+        for i in sErrorList:
+            if i:
+                print(
+                    " - ",
+                    f"Syntax error near '{i.value}' at line {i.lineno}, column {find_column(code,i)}",
+                )
+            else:
+                print("Syntax error at EOF")
+
+
+hulk_parse(r"""let x = let uu = let z = 3 in z in y in x;""")
+
 # region Generate C code from ast
 def generate_c_code(node):
     return node.build()
@@ -1126,4 +1135,3 @@ def write_c_code_to_file(ast, filename):
 # endregion
 
 # Generate C code
-write_c_code_to_file(AST, "out.c")

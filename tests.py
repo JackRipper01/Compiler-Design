@@ -8,7 +8,7 @@ import math
 import random
 import graphviz
 
-do_test_lexer=False
+do_test_lexer=True
 # Testing Lexer
 def test_lexer(code):
     lexer = hulk_lexer.lex.lex(module=hulk_lexer)
@@ -61,3 +61,4 @@ if do_test_lexer:
                 {let x=2 in let a:int=7 in print(1+5);
                  print(let asd=4 in {rand();}); }
                 {{{print(sin((PI*(((1/2)))+PI - x)));}}}{{{}}} print('asd'@ "PRINT aaaa \"  "); };""")
+    
