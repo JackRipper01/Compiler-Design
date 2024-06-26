@@ -129,14 +129,14 @@ class Let(
         pass
 
     def build(self):  # generate c code
-        return_type = "int"
+        return_type = "float"
         # params
         c_code = f"{return_type} let("
         if len(self.assign) == 1:
-            c_code += f"{self.assign[0].name.name}"
+            c_code += f"float {self.assign[0].name.name}"
         else:
             for assignment in self.assign:
-                c_code += f"int {assignment.name.name}, "
+                c_code += f"float {assignment.name.name}, "
             c_code = c_code[:-2]
         c_code += ") {\n"
 
@@ -1092,16 +1092,8 @@ def hulk_parse(code):
                 print("Syntax error at EOF")
 
 
-hulk_parse(r"""let x = let uu = let z = 3 in z in y in x;""")
-
-# region Generate C code from ast
-def generate_c_code(node):
-    return node.build()
-
-
 # create output.c file with the code transformed
 def write_c_code_to_file(ast, filename):
-    c_code = generate_c_code(ast)
     with open(filename, "w") as f:
         f.write("#include <stdio.h>\n")
         f.write("#include <math.h>\n")
@@ -1127,9 +1119,12 @@ def write_c_code_to_file(ast, filename):
 }\n\n"""
         )
         f.write("int main() {\n")
-        f.write(f"    {c_code}\n")
+        f.write(f"    {ast.build()}\n")
         f.write("    return 0;\n")
         f.write("}\n")
+
+
+hulk_parse("""let x = 5 in print(x);""")
 
 
 # endregion
