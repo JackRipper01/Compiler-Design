@@ -33,7 +33,6 @@ def create_AST_graph(dict: dict, graph_name):
         if not key.parent:
             dict[key] += " ( </> )"
         dot.node(str(key), dict[key])
-        print(dict[key])
     for key in dict.keys():
         if key.parent:
             dot.edge(str(key.parent), str(key))
@@ -130,19 +129,30 @@ class Let(
         pass
 
     def build(self):  # generate c code
-        c_code = "int let("
-        for assignment in self.assign:
-            c_code += f"int {assignment.name.name}, "
-        c_code += ")\n{\n"
+        return_type = "int"
+        # params
+        c_code = f"{return_type} let("
+        if len(self.assign) == 1:
+            c_code += f"{self.assign[0].name.name}"
+        else:
+            for assignment in self.assign:
+                c_code += f"int {assignment.name.name}, "
+            c_code = c_code[:-2]
+        c_code += ") {\n"
+
+        # body
         if self.body.build():
             c_code += "    " + self.body.build()
-        c_code += "\n}\n"
+        c_code += "\n " + "   }\n"
 
-        c_code += "let("
-        # i want to remove the last two char in the string c_code
-        for assignment in self.assign:
-            c_code += f"{assignment.value}, "
-        c_code = c_code[:-2]
+        # arguments of the call
+        c_code += "    let("
+        if len(self.assign) == 1:
+            c_code += f"{self.assign[0].value}"
+        else:
+            for assignment in self.assign:
+                c_code += f"{assignment.value}, "
+            c_code = c_code[:-2]
         c_code += ");"
         return c_code
 
@@ -163,9 +173,14 @@ class ID(Node):
             add_slf(self, "var " + name)
         else:
             add_slf(self, opt_type + " " + name)
-
         self.name = name
         self.opt_type = opt_type
+
+    def infer_type(self):
+        return self.opt_type
+
+    def build(self):
+        return self.name
 
 
 class If(Node):
@@ -226,12 +241,7 @@ class BinOp(Node):
             if left_type != "number" or right_type != "number":
                 raise TypeError(f"Invalid type for operation: {left_type}")
         if self.op in ["^", "**"]:
-            if (
-                left_type != "string"
-                and left_type != "number"
-                or right_type != "number"
-                and right_type != "string"
-            ):
+            if left_type != "number" or right_type != "number":
                 raise TypeError(f"Invalid type for operation: {left_type}")
         if self.op == "@":
             if (
@@ -442,13 +452,12 @@ class Print(
         print(self.value.eval())
 
     def build(self):
-        valueType = self.value.infer_type()
-        if valueType == "number":
-            return f'printf("%f\\n", {self.value.build()});'
-        elif valueType == "string":
+        if self.value.infer_type() == "string":
             return f'printf("%s\\n", {self.value.build()});'
+        elif self.value.infer_type() == "number":
+            return f'printf("%f\\n", {self.value.build()});'
         else:
-            raise TypeError(f"Unsupported type for Print: {valueType}")
+            return f'printf("%f\\n", {self.value.build()});'
 
 
 class Sqrt(Node):
@@ -652,6 +661,7 @@ def p_program(p):
         i.parent = p[0]
 
 
+# region function grammatical
 def p_function_list_items(p):
     "functions : function_def functions"
     p[0] = [p[1]] + p[2]
@@ -745,6 +755,9 @@ def p_func_params_list_rem_e(p):
     p[0] = []
 
 
+# endregion
+
+
 def p_hl_expression(p):
     """hl_expression : expression SEMI
     | expression_block
@@ -812,6 +825,7 @@ def p_rem_assignments_empty(p):
     p[0] = []
 
 
+# region if grammatical
 def p_if_hl(p):
     "hl_expression : IF expression expression opt_elifs ELSE hl_expression"
     first = Case(p[2], p[3], "if")
@@ -857,6 +871,9 @@ def p_opt_elifs(p):
 def p_opt_elifs_e(p):
     "opt_elifs : empty"
     p[0] = []
+
+
+# endregion
 
 
 def p_expression_group(p):
@@ -930,6 +947,7 @@ def p_expression_false(p):
     p[0] = FalseLiteral()
 
 
+# region built-in funct grammatical
 def p_expression_print(p):
     "expression : PRINT LPAREN expression RPAREN"
     p[0] = Print(p[3])
@@ -970,6 +988,9 @@ def p_expression_log(p):
 def p_expression_rand(p):
     "expression : RAND LPAREN RPAREN"
     p[0] = Rand()
+
+
+# endregion
 
 
 def p_error(p):
@@ -1018,7 +1039,8 @@ parser = yacc.yacc(start="program")
 my_ex_code = """function asd (a,x) {
     print(a+x);
     }{ }"""
-my_ex_code2 = """let a=5,b=7,c = 4 in print(4) ;"""
+
+my_ex_code2 = """let a=5 in print(a+8) ;"""
 AST = parser.parse(my_ex_code2)
 create_AST_graph(nodes, "let_example")
 # create_AST_graph(nodes)
