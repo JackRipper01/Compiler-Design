@@ -1,3 +1,4 @@
+from ast import arg
 import hulk_lexer
 from hulk_lexer import lex, tokens
 from ply import yacc
@@ -32,6 +33,7 @@ def create_AST_graph(dict: dict, graph_name):
         if not key.parent:
             dict[key] += " ( </> )"
         dot.node(str(key), dict[key])
+        print(dict[key])
     for key in dict.keys():
         if key.parent:
             dot.edge(str(key.parent), str(key))
@@ -63,6 +65,15 @@ class Program(Node):
         add_slf(self, "")
         self.functions = functions
         self.global_exp = global_expression
+
+    def build(self):
+        if self.functions:
+            functions_code = ""
+            for function in self.functions:
+                functions_code += function.build()
+            return functions_code + self.global_exp.build()
+        else:
+            return self.global_exp.build()
 
 
 class FunctionList(Node):
@@ -97,19 +108,53 @@ class ExpressionBlock(Node):
         add_slf(self, "EXP_BLOCK")
         self.exp_list = exps
 
+    def build(self):
+        code = ""
+        for exp in self.exp_list:
+            code += exp.build() + "\n"
+        return code
 
-class Let(Node):
+
+class Let(
+    Node
+):  # example: "let a = 4 , b = 5 in print(a + b);"" assign.name=var a, assign.value=4 etc etc
     def __init__(self, assign, body):
         add_slf(self, "LET")
         self.assign = assign
         self.body = body
 
+    def check(self):
+        pass
 
-class Assign(Node):
+    def infer_type(self):
+        pass
+
+    def build(self):  # generate c code
+        c_code = "int let("
+        for assignment in self.assign:
+            c_code += f"int {assignment.name.name}, "
+        c_code += ")\n{\n"
+        if self.body.build():
+            c_code += "    " + self.body.build()
+        c_code += "\n}\n"
+
+        c_code += "let("
+        # i want to remove the last two char in the string c_code
+        for assignment in self.assign:
+            c_code += f"{assignment.value}, "
+        c_code = c_code[:-2]
+        c_code += ");"
+        return c_code
+
+
+class Assign(Node):  # example: name = var a ,value = 4
     def __init__(self, name, value):
         add_slf(self, "ASSIGN")
         self.name = name
         self.value = value
+
+    def check(self):
+        pass
 
 
 class ID(Node):
@@ -970,7 +1015,11 @@ parser = yacc.yacc(start="program")
 # }
 # """
 # endregion
-AST = parser.parse("""let a=5,b=7,c = 4 in print(a + b - c);""")
+my_ex_code = """function asd (a,x) {
+    print(a+x);
+    }{ }"""
+my_ex_code2 = """let a=5,b=7,c = 4 in print(4) ;"""
+AST = parser.parse(my_ex_code2)
 create_AST_graph(nodes, "let_example")
 # create_AST_graph(nodes)
 
@@ -1047,7 +1096,7 @@ def write_c_code_to_file(ast, filename):
 }\n\n"""
         )
         f.write("int main() {\n")
-        f.write(f"    {c_code};\n")
+        f.write(f"    {c_code}\n")
         f.write("    return 0;\n")
         f.write("}\n")
 
@@ -1055,4 +1104,4 @@ def write_c_code_to_file(ast, filename):
 # endregion
 
 # Generate C code
-# write_c_code_to_file(ast, "out.c")
+write_c_code_to_file(AST, "out.c")
