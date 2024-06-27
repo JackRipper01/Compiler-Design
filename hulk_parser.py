@@ -45,9 +45,10 @@ def create_AST_graph(dict: dict, graph_name):
 # CLASS HIERARCHY
 
 class Program(Node):
-    def __init__(self, functions, global_expression):
+    def __init__(self, functions_types, global_expression):
         add_slf(self, '')
-        self.functions = functions
+        self.functions = filter(lambda x: type(x) is FunctionDef, functions_types)
+        self.types = filter(lambda x: type(x) is TypeDef, functions_types)
         self.global_exp=global_expression
 
 class FunctionList(Node):
@@ -111,6 +112,10 @@ class Case(Node):
         self.condition = condition
         self.body = body
 
+class While(Node):
+    def __init__(self, condition, body):    
+        add_slf(self, "WHILE")
+
 class TrueLiteral(Node):
     def __init__(self):
         add_slf(self, "TRUE")
@@ -118,6 +123,14 @@ class TrueLiteral(Node):
 class FalseLiteral(Node):
     def __init__(self):
         add_slf(self, "FALSE")
+
+class TypeDef(Node):
+    def __init__(self, id,  params, members):
+        add_slf(self, "TYPE_DEF")
+        self.id = id
+        self.variables = filter(lambda x :type(x) is Assign,members)
+        self.functions = filter(lambda x :type(x) is FunctionDef, members)
+        self.params = params
 
 #region JTR AST
 
@@ -404,6 +417,7 @@ precedence = (
     ("nonassoc", "NAME"),
     ("right", "IN", "LET"),
     ("right", "IF", "ELIF", "ELSE"),
+    ("right", "WHILE"),
     ("nonassoc", "EQUAL"),
     ("left", "COMMA"),
     ("nonassoc", "INLINE"),
@@ -417,6 +431,7 @@ precedence = (
     ("nonassoc", "NOT"),
     ("right", "POWER"),
     ("right", "LPAREN", "LPAREN"),
+    ("right", "LBRACE", "RBRACE"),
     ("nonassoc", "UMINUS"),
 )
 
@@ -438,19 +453,25 @@ def p_namedef(p):
     p[0] = ID(p[1], p[2])
 
 def p_program(p):
-    "program : functions hl_expression"
-    p[0] = Program(p[1],p[2])
+    "program : functions_and_types hl_expression"
+    p[0] = Program(p[1], p[2])
     p[2].parent = p[0]
     for i in p[1]:
         i.parent = p[0]
         
-def p_function_list_items(p):
-    "functions : function_def functions"
+def p_functionx_type_list_items(p):
+    "functions_and_types : function_def functions_and_types"
     p[0] = [p[1]]+p[2]
 
-def p_function_list_items_empty(p):
-    "functions : empty"
+def p_function_typex_list_items(p):
+    "functions_and_types : type_def functions_and_types"
+    p[0] = [p[1]]+p[2]
+
+def p_function_type_list_items_empty(p):
+    "functions_and_types : empty"
     p[0]=[]
+
+
 
 def p_exp_func_call(p):
     "expression : func_call"
@@ -487,18 +508,20 @@ def p_cs_exps_list_rem_e(p):
     p[0] = []
 
 def p_function_def(p):
-    "function_def : FUNCTION namedef LPAREN func_params RPAREN INLINE hl_expression"
-    p[0] = FunctionDef(p[2],p[4],p[7])
-    p[2].parent = p[0]
+    "function_def : FUNCTION NAME LPAREN func_params RPAREN opt_type INLINE hl_expression"
+    id = ID(p[2],p[6])
+    p[0] = FunctionDef(id,p[4],p[8])
+    id.parent = p[0]
     p[4].parent = p[0]
-    p[7].parent = p[0]
+    p[8].parent = p[0]
 
 def p_function_def_fullform(p):
-    "function_def : FUNCTION namedef LPAREN func_params RPAREN expression_block"
-    p[0] = FunctionDef(p[2],p[4],p[6])
-    p[2].parent = p[0]
+    "function_def : FUNCTION NAME LPAREN func_params RPAREN opt_type expression_block opt_semi"
+    id = ID(p[2],p[6])
+    p[0] = FunctionDef(id,p[4],p[7])
+    id.parent = p[0]
     p[4].parent = p[0]
-    p[6].parent = p[0]
+    p[7].parent = p[0]
 
 def p_func_params(p):
     "func_params : func_params_list"
@@ -522,9 +545,96 @@ def p_func_params_list_rem_e(p):
     "func_params_list_rem : empty"
     p[0] = []
 
+def p_type_def(p):
+    "type_def : TYPE NAME opt_type_params LBRACE type_members RBRACE"
+    params = Params(p[3])
+    for i in p[3]:
+        i.parent = params
+
+    id = ID(p[2], p[2])
+
+    p[0] = TypeDef(id, params, p[5])
+    for i in p[5]:
+        i.parent = p[0]
+    params.parent = p[0]
+    id.parent = p[0]
+    
+def p_opt_type_params(p):
+    "opt_type_params : LPAREN typedef_params RPAREN"
+    p[0] = p[2]
+
+def p_opt_type_params_e(p):
+    "opt_type_params : empty"
+    p[0] = []
+
+def p_typedef_params(p):
+    "typedef_params : namedef typedef_params_rem"
+    p[0] = [p[1]]+p[2]
+
+def p_typedef_params_e(p):
+    "typedef_params : empty"
+    p[0] = []
+
+def p_typedef_params_rem(p):
+    "typedef_params_rem : COMMA namedef typedef_params_rem"
+    p[0] = [p[2]] + p[3]
+
+def p_typedef_params_rem_e(p):
+    "typedef_params_rem : empty"
+    p[0] = []
+
+def p_type_members(p):
+    "type_members : type_member type_members"
+    p[0] = [p[1]]+p[2]
+
+def p_type_members_e(p):
+    "type_members : empty"
+    p[0] = []
+    
+def p_member_func(p):
+    "type_member : member_func"
+    p[0] = p[1]
+
+def p_member_function_def(p):
+    "member_func : NAME LPAREN func_params RPAREN opt_type INLINE hl_expression"
+    id = ID(p[1],p[5])
+    p[0] = FunctionDef(id,p[3],p[7])
+    id.parent = p[0]
+    p[3].parent = p[0]
+    p[7].parent = p[0]
+
+def p_member_function_def_fullform(p):
+    "member_func : NAME LPAREN func_params RPAREN opt_type expression_block opt_semi"
+    id = ID(p[1],p[5])
+    p[0] = FunctionDef(id,p[3],p[6])
+    id.parent = p[0]
+    p[3].parent = p[0]
+    p[6].parent = p[0]
+
+def p_member_var(p):
+    "type_member : member_var"
+    p[0] = p[1]
+
+def p_member_var_dec(p):
+    "member_var : namedef EQUAL hl_expression"
+    p[0] = Assign(p[1], p[3])
+    p[1].parent = p[0]
+    p[3].parent = p[0]
+
+
+
+
+
+
+
+
+
+
+
 def p_hl_expression(p):
     """hl_expression : expression SEMI
 					| expression_block
+                    
 	"""
     p[0] = p[1]
 
@@ -549,7 +659,7 @@ def p_expression_block_list_e(p):
 
 
 # def p_expression_block_hl(p):
-#     "expression_block_hl : LBRACE expression_block_hl_list RBRACE"
+#     """expression_block_hl : LBRACE expression_block_list RBRACE"""
 #     p[0] = ExpressionBlock(p[2])
 #     for i in p[2]:
 #         i.parent = p[0]
@@ -600,7 +710,7 @@ def p_rem_assignments_empty(p):
     p[0]=[]
 
 def p_if_hl(p):
-    "hl_expression : IF expression expression opt_elifs ELSE hl_expression"
+    "hl_expression : IF expression_parenthized expression opt_elifs ELSE hl_expression"
     first = Case(p[2],p[3],"if")
     p[2].parent = first
     p[3].parent = first
@@ -616,7 +726,7 @@ def p_if_hl(p):
         i.parent = p[0]
           
 def p_if_exp(p):
-    "expression : IF expression expression opt_elifs ELSE expression"
+    "expression : IF expression_parenthized expression opt_elifs ELSE expression"
     first = Case(p[2],p[3],"if")
     p[2].parent = first
     p[3].parent = first
@@ -632,7 +742,7 @@ def p_if_exp(p):
         i.parent = p[0]
 
 def p_opt_elifs(p):
-    "opt_elifs : ELIF expression expression opt_elifs"
+    "opt_elifs : ELIF expression_parenthized expression opt_elifs"
     elif_cond = Case(p[2],p[3],"elif")
     p[2].parent = elif_cond
     p[3].parent = elif_cond
@@ -642,9 +752,29 @@ def p_opt_elifs_e(p):
     "opt_elifs : empty"
     p[0] = []
 
+def p_opt_semi(p):
+    """opt_semi : SEMI
+                | empty"""
+
+
+def p_while_hl(p):
+    "hl_expression : WHILE expression_parenthized hl_expression"
+    p[0] = While(p[2], p[3])
+    p[2].parent = p[0]
+    p[3].parent = p[0]
+
+def p_while(p):
+    "expression : WHILE expression_parenthized expression"
+    p[0] = While(p[2], p[3])
+    p[2].parent = p[0]
+    p[3].parent = p[0]
 
 def p_expression_group(p):
-    "expression : LPAREN expression RPAREN"
+    "expression : expression_parenthized"
+    p[0] = p[1]
+
+def p_expression_parenthized(p):
+    "expression_parenthized : LPAREN expression RPAREN"
     p[0] = p[2]
 
 def p_expression_binop(p):
@@ -784,38 +914,6 @@ def p_error(p):
 #endregion
 
 #region Generate AST
-parser = yacc.yacc(start="program", method='LALR')
-
-# add r prefix so it takes the line escape, not necessary to add any step when reading a file
-
-
-cdd = r"""function a(b,c) => print(b+c);
-function siuuu: number (x,y,z) {print(x);print(y);print(z);}
-{
-    let a = 1 in let b: number = a+3 in print (siuuu(-a+b,a,a(b,a)));
-    print("asdasd");
-    if (a>2) x elif (a<1) z elif (a<1) {z+4;} elif (a<1) z else y;
-}
-"""
-
-ex_code = r"""function asd (a,x) {
-                    print(a+x);
-                   }
-                   function asd (a,x) => {
-                    print(a+x);
-                   }
-                   function asd (a,x) => {
-                    print(a+x);
-                   };
-                   function asdf (a,x) => print(a+x);
-                   let a = print(sin(10)) in {let a=5, b=6 in {print(rand()-5*3+2);
-                            rand();}
-                {print(rand()-5*3+2);
-                            rand();} 
-                            2*23+123;
-                {let x=2 in let a:int=7 in print(1+5);
-                 print(let asd=4 in {rand();}); AAAAAAA();}
-                {{{print(sin((PI*(((1/2)))+PI * x + f() - asd(x,y) )));}}}{{{}}} print('asd'@ "PRINT aaaa \"  "); };"""
 
 def find_column(input, token):
     line_start = input.rfind('\n', 0, token.lexpos) + 1
@@ -824,10 +922,13 @@ def find_column(input, token):
 
 def hulk_parse(code):
 
+    parser = yacc.yacc(start="program", method='LALR')
+
     AST = parser.parse(code)
 
     if len(sErrorList)==0:
         create_AST_graph(nodes, "AST")
+        return AST
     else:
         print("\nPARSING FINISHED WITH ERRORS:")
         for i in sErrorList:
@@ -835,7 +936,26 @@ def hulk_parse(code):
                 print(" - ", f"Syntax error near '{i.value}' at line {i.lineno}, column {find_column(code,i)}")
             else:
                 print("Syntax error at EOF")
+        return None
 
-hulk_parse(r"""let x = let uu = let z = 3 in z in y in x;""")
+if __name__=="__main__":
+
+    hulk_parse(r"""type Point {
+    x = 0;
+    y = 0;
+
+    getX() => x;
+    getY() => y;
+
+    setX(x) => x;
+    setY(y) => y;
+}
+{{{{{{let a = 42 in
+    if (a % 2 == 0) {
+        print(a);
+        print("Even");
+    }
+    else print("Odd");}}}}}}
+""")
 #endregion
 #xd
