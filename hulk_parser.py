@@ -60,6 +60,8 @@ class Node:
 
 
 class Program(Node):
+    function_names = set()  # Class variable to keep track of function names
+
     def __init__(self, functions, global_expression):
         add_slf(self, "")
         self.functions = functions
@@ -74,6 +76,16 @@ class Program(Node):
         else:
             return self.global_exp.build()
 
+    @classmethod
+    def add_function_name(cls, name):
+        if name in cls.function_names:
+            raise ValueError(f"Function {name} is already defined.")
+        cls.function_names.add(name)
+
+    @classmethod
+    def function_name_exists(cls, name):
+        return name in cls.function_names
+
 
 class FunctionList(Node):
     def __init__(self, functions_list):
@@ -87,6 +99,10 @@ class FunctionDef(Node):
         self.func_id = func_id
         self.params = params
         self.body = body
+        # Check if the function name already exists
+        if Program.function_name_exists(self.func_id):
+            raise ValueError(f"Function {self.func_id} is already defined.")
+        Program.add_function_name(self.func_id)  # Add the function name to the tracker
 
 
 class FunctionCall(Node):
@@ -114,10 +130,20 @@ class ExpressionBlock(Node):
         return code
 
 
-class Let(
-    Node
-):  # example: "let a = 4 , b = 5 in print(a + b);"" assign.name=var a, assign.value=4 etc etc
+class Let(Node):
+    instance_count = 0  # Class variable to keep track of the number of instances
+
     def __init__(self, assign, body):
+        Let.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = (
+            Let.instance_count
+        )  # Assign the current count to this instance
+        # Construct the function name
+        func_name = f"let_{self.instance_id}"
+        # Check if the function name already exists
+        if Program.function_name_exists(func_name):
+            raise ValueError(f"Function {func_name} is already defined.")
+        Program.add_function_name(func_name)  # Add the function name to the tracker
         add_slf(self, "LET")
         self.assign = assign
         self.body = body
@@ -130,8 +156,8 @@ class Let(
 
     def build(self):  # generate c code
         return_type = "float"
-        # params
-        c_code = f"{return_type} let("
+        # Use instance_id to create a unique function name
+        c_code = f"{return_type} let_{self.instance_id}("
         if len(self.assign) == 1:
             c_code += f"float {self.assign[0].name.name}"
         else:
@@ -141,12 +167,13 @@ class Let(
         c_code += ") {\n"
 
         # body
-        if self.body.build():
-            c_code += "    " + self.body.build()
+        body_code = self.body.build()
+        if body_code:
+            c_code += "    " + body_code
         c_code += "\n " + "   }\n"
 
         # arguments of the call
-        c_code += "    let("
+        c_code += f"    let_{self.instance_id}("
         if len(self.assign) == 1:
             c_code += f"{self.assign[0].value}"
         else:
@@ -435,7 +462,17 @@ class E(Node):
 class Print(
     Node
 ):  # most be modified to work with all literals, now only works with numbers, missing strings and booleans
+    instance_count = 0  # Class variable to keep track of the number of instances
+
     def __init__(self, value):
+        Print.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Print.instance_count
+        # Construct the function name
+        func_name = f"print_{self.instance_id}"
+        # Check if the function name already exists
+        if Program.function_name_exists(func_name):
+            raise ValueError(f"Function {func_name} is already defined.")
+        Program.add_function_name(func_name)  # Add the function name to the tracker
         add_slf(self, "PRINT")
         self.value = value
 
@@ -453,11 +490,27 @@ class Print(
 
     def build(self):
         if self.value.infer_type() == "string":
-            return f'printf("%s\\n", {self.value.build()});'
+            code = f"""char* print_{self.instance_id}(char* printable) {{
+            printf("%s\\n", printable);
+            return printeable;
+    }}
+    return print_{self.instance_id}({self.value.build()});"""
+            return code
+
         elif self.value.infer_type() == "number":
-            return f'printf("%f\\n", {self.value.build()});'
+            code = f"""float print_{self.instance_id}(float printeable) {{
+            printf("%f\\n", printeable);
+            return printeable;
+    }}
+    return print_{self.instance_id}({self.value.build()});"""
+            return code
         else:
-            return f'printf("%f\\n", {self.value.build()});'
+            code = f"""float print_{self.instance_id}(float printeable) {{
+            printf("%f\\n", printeable);
+            return printeable;
+    }}
+    return print_{self.instance_id}({self.value.build()});"""
+            return code
 
 
 class Sqrt(Node):
@@ -624,7 +677,7 @@ import ply.yacc as yacc
 
 # precedence rules for the arithmetic operators
 precedence = (
-    #("right", "PRINT","SQRT","SIN","COS","EXP","LOG","RAND"),
+    # ("right", "PRINT","SQRT","SIN","COS","EXP","LOG","RAND"),
     ("nonassoc", "NAME"),
     ("right", "IN", "LET"),
     ("right", "IF", "ELIF", "ELSE"),
@@ -634,8 +687,8 @@ precedence = (
     ("left", "CONCAT", "DCONCAT"),
     ("left", "OR"),
     ("left", "AND"),
-    ("left", "EQEQUAL","NOTEQUAL"),
-    ("left", "LESSEQUAL","GREATEREQUAL","LESS","GREATER"),
+    ("left", "EQEQUAL", "NOTEQUAL"),
+    ("left", "LESSEQUAL", "GREATEREQUAL", "LESS", "GREATER"),
     ("left", "PLUS", "MINUS"),
     ("left", "TIMES", "DIVIDE", "MOD"),
     ("nonassoc", "NOT"),
@@ -797,7 +850,7 @@ def p_expression_block_list(p):
 
 def p_expression_block_list_e(p):
     "expression_block_list : empty"
-    p[0]=[]
+    p[0] = []
 
 
 # def p_expression_block_hl(p):
@@ -910,6 +963,7 @@ def p_expression_group(p):
     p[0] = p[2]
 
 
+# region operations
 def p_expression_binop(p):
     """expression : expression PLUS expression
     | expression MINUS expression
@@ -931,6 +985,7 @@ def p_expression_binop(p):
     p[0] = BinOp(left=p[1], op=p[2], right=p[3])
     p[1].parent = p[0]
     p[3].parent = p[0]
+
 
 def p_expression_binop_hl(p):
     """hl_expression : expression PLUS hl_expression
@@ -957,17 +1012,19 @@ def p_expression_binop_hl(p):
 
 def p_expression_unary(p):
     """expression : MINUS expression %prec UMINUS
-                | NOT expression
+    | NOT expression
     """
     p[0] = UnaryOp(op=p[1], operand=p[2])
     p[2].parent = p[0]
 
+
 def p_expression_unary_hl(p):
     """hl_expression : MINUS hl_expression %prec UMINUS
-                | NOT hl_expression
+    | NOT hl_expression
     """
     p[0] = UnaryOp(op=p[1], operand=p[2])
     p[2].parent = p[0]
+
 
 def p_expression_number(p):
     "expression : NUMBER"
@@ -1052,20 +1109,17 @@ def p_expression_rand(p):
 
 def p_error(p):
     sErrorList.append(p)
-    #print(sErrorList[-1])
+    # print(sErrorList[-1])
+
+
 # endregion
 
+# endregion
 
 # region Generate AST
-parser = yacc.yacc(start="program", method='LALR')
 
-my_ex_code = """function asd (a,x) {
-    print(a+x);
-    }{ }"""
+parser = yacc.yacc(start="program", method="LALR")
 
-my_ex_code2 = """let a=5 in print(a+8) ;"""
-
-# create_AST_graph(nodes)
 
 def find_column(input, token):
     line_start = input.rfind("\n", 0, token.lexpos) + 1
@@ -1100,7 +1154,8 @@ def write_c_code_to_file(ast, filename):
         f.write("#include <stdlib.h>\n")
         f.write("#include <string.h>\n\n")
         f.write(
-            """char* concatenate_strings(const char* str1, const char* str2) {
+            """//Concatenate two strings
+    char* concatenate_strings(const char* str1, const char* str2) {
     // Calculate the length needed for the concatenated string
     int length = strlen(str1) + strlen(str2) + 1; // +1 for the null terminator
 
@@ -1124,7 +1179,13 @@ def write_c_code_to_file(ast, filename):
         f.write("}\n")
 
 
-hulk_parse("""let x = 5 in print(x);""")
+my_ex_code = """function asd (a,x) {
+    print(a+x);
+    }{ }"""
+
+my_ex_code2 = f"""let a=5 in {{print(a+5);\nprint(3);}}"""
+
+hulk_parse(my_ex_code2)
 
 
 # endregion
