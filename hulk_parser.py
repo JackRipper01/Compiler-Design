@@ -1,4 +1,6 @@
 from ast import arg
+
+from numpy import isin
 import hulk_lexer
 from hulk_lexer import lex, tokens
 from ply import yacc
@@ -230,7 +232,7 @@ class Let(Node):
             for assignment in self.assign:
                 c_code += f"{assignment.value}, "
             c_code = c_code[:-2]
-        c_code += ");"
+        c_code += ")" + ("" if isinstance(self.parent,Let) else ";")
         return c_code
 
 
