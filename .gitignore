@@ -167,3 +167,4 @@ output/
 out.c
 output.c
 *.c
+/output
