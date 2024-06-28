@@ -4,6 +4,7 @@ from ply import yacc
 import random
 import math
 import graphviz
+import io
 
 sErrorList=[]
 
@@ -32,6 +33,7 @@ class Node:
     def eval(self):
         pass
 def create_AST_graph(dict: dict, graph_name):
+    #print(*dict, sep="\n")
     dot = graphviz.Digraph(graph_name)
     for key in dict.keys():
         if not key.parent:
@@ -115,6 +117,15 @@ class Case(Node):
 class While(Node):
     def __init__(self, condition, body):    
         add_slf(self, "WHILE")
+        self.condition = condition
+        self.body = body
+
+class For(Node):
+    def __init__(self, iterator, iterable, body):    
+        add_slf(self, "WHILE")
+        self.iterator = iterator
+        self.iterable = iterable
+        self.body = body
 
 class TrueLiteral(Node):
     def __init__(self):
@@ -125,19 +136,47 @@ class FalseLiteral(Node):
         add_slf(self, "FALSE")
 
 class TypeDef(Node):
-    def __init__(self, id,  params, members):
+    def __init__(self, id,  params, members, inherits):
         add_slf(self, "TYPE_DEF")
         self.id = id
         self.variables = filter(lambda x :type(x) is Assign,members)
         self.functions = filter(lambda x :type(x) is FunctionDef, members)
         self.params = params
+        self.inherits = inherits
 
+class TypeCall(Node):
+    def __init__(self, id,  params):
+        add_slf(self, "TYPE_CALL")
+        self.id = id
+        self.params = params
+
+class Protocol(Node):
+    def __init__(self, id,  methods, extends):
+        add_slf(self, "PROTOCOL")
+        self.id = id
+        self.methods = methods
+        self.extends = extends
+
+class VectorExt(Node):
+    def __init__(self, items):
+        add_slf(self, "VECTOR_EXT")
+        self.items = items
+
+class VectorInt(Node):
+    def __init__(self, expression, iterator, iterable):
+        add_slf(self, "VECTOR_INT")
+
+class VectorCall(Node):
+    def __init__(self, id, index):
+        add_slf(self, "VECTOR_CALL")
+        self.id = id
+        self.index = index
 #region JTR AST
 
 class BinOp(Node):
 
     def __init__(self, left, op, right):
-        add_slf(self, str(op))
+        add_slf(self, op)
         self.left = left
         self.op = op
         self.right = right
@@ -414,25 +453,25 @@ lexer.parenthesisCount = 0
 
 precedence = (
     #("right", "PRINT","SQRT","SIN","COS","EXP","LOG","RAND"),
-    ("nonassoc", "NAME"),
-    ("right", "IN", "LET"),
+    ("right", "LET", "IN"),
     ("right", "IF", "ELIF", "ELSE"),
-    ("right", "WHILE"),
+    ("right", "WHILE", "FOR"),
     ("nonassoc", "EQUAL"),
-    ("left", "COMMA"),
-    ("nonassoc", "INLINE"),
+    ("right", "ASSDESTROYER"),
+    ("left", "DOT"),
+    ("left", "AS"),
+    ("left", "IS"),
     ("left", "CONCAT", "DCONCAT"),
     ("left", "OR"),
     ("left", "AND"),
     ("left", "EQEQUAL","NOTEQUAL"),
     ("left", "LESSEQUAL","GREATEREQUAL","LESS","GREATER"),
+    ("nonassoc", "NOT"),
     ("left", "PLUS", "MINUS"),
     ("left", "TIMES", "DIVIDE", "MOD"),
-    ("nonassoc", "NOT"),
     ("right", "POWER"),
-    ("right", "LPAREN", "LPAREN"),
-    ("right", "LBRACE", "RBRACE"),
     ("nonassoc", "UMINUS"),
+    ("nonassoc", "LPAREN", "RPAREN"),
 )
 
 def p_empty(p):
@@ -453,23 +492,90 @@ def p_namedef(p):
     p[0] = ID(p[1], p[2])
 
 def p_program(p):
-    "program : functions_and_types hl_expression"
+    "program : functions_types_protocols global_hl_expression"
     p[0] = Program(p[1], p[2])
-    p[2].parent = p[0]
     for i in p[1]:
         i.parent = p[0]
-        
-def p_functionx_type_list_items(p):
-    "functions_and_types : function_def functions_and_types"
+    if p[2]:
+        p[2].parent = p[0]
+
+def p_global_hl_expression(p):
+    "global_hl_expression : hl_expression"
+    p[0] = p[1]
+
+def p_global_hl_expression_e(p):
+    "global_hl_expression : empty"
+    p[0] = None
+
+def p_functionsx_types_protocols_list_items(p):
+    "functions_types_protocols : function_def functions_types_protocols"
     p[0] = [p[1]]+p[2]
 
-def p_function_typex_list_items(p):
-    "functions_and_types : type_def functions_and_types"
+def p_functions_typesx_protocols_list_items(p):
+    "functions_types_protocols : type_def functions_types_protocols"
+    p[0] = [p[1]]+p[2]
+
+def p_functions_types_protocolsx_list_items(p):
+    "functions_types_protocols : protocol_def functions_types_protocols"
     p[0] = [p[1]]+p[2]
 
 def p_function_type_list_items_empty(p):
-    "functions_and_types : empty"
+    "functions_types_protocols : empty"
     p[0]=[]
+
+def p_protocol(p):
+    "protocol_def : PROTOCOL NAME opt_extends LBRACE protocol_methods RBRACE opt_semi"
+    id = ID(p[2], "protocol")
+    p[0] = Protocol(id, p[5], p[3])
+    id.parent = p[0]
+    for i in p[5]:
+        i.parent = p[0]
+    if p[3]:
+        p[3].parent = p[0]
+
+def p_protocol_extends(p):
+    "opt_extends : EXTENDS NAME"
+    p[0] = ID(p[2], "extends")
+
+def p_protocol_extends_e(p):
+    "opt_extends : empty"
+    p[0] = None
+
+def p_protocol_methods(p):
+    "protocol_methods : protocol_method protocol_methods"
+    p[0] = [p[1]]+p[2]
+
+def p_protocol_methods_e(p):
+    "protocol_methods : protocol_method empty"
+    p[0] = [p[1]]
+
+def p_protocol_method(p):
+    "protocol_method : NAME LPAREN protocol_method_params RPAREN COLON NAME SEMI"
+    id = ID(p[1], p[6])
+    params = Params(p[3])
+    for i in p[3]:
+        i.parent = params
+    p[0] = FunctionDef(id, params, None)
+    id.parent = p[0]
+    params.parent = p[0]
+
+def p_protocol_method_params(p):
+    "protocol_method_params : NAME COLON NAME protocol_method_params_rem"
+    p[0] = [ID(p[1], p[3])]+p[4]
+
+def p_protocol_method_params_e(p):
+    "protocol_method_params : empty"
+    p[0] = []
+
+def p_protocol_method_params_rem(p):
+    "protocol_method_params_rem : COMMA NAME COLON NAME protocol_method_params_rem"
+    p[0] = [ID(p[2], p[4])]+p[5]
+
+def p_protocol_method_params_rem_e(p):
+    "protocol_method_params_rem : empty"
+    p[0] = []
+
+
 
 
 
@@ -479,11 +585,21 @@ def p_exp_func_call(p):
 
 def p_func_call(p):
     "func_call : NAME LPAREN cs_exps RPAREN"
-    id = ID(p[1],"")
+    id = ID(p[1],"func_call")
     p[0] = FunctionCall(id,p[3])
     id.parent = p[0]
     p[3].parent = p[0]
 
+def p_exp_type_call(p):
+    "expression : type_call"
+    p[0]=p[1]
+
+def p_type_call(p):
+    "type_call : NEW NAME LPAREN cs_exps RPAREN"
+    id = ID(p[2], p[2])
+    p[0] = TypeCall(id,p[4])
+    id.parent = p[0]
+    p[4].parent = p[0]
 
 def p_cs_exps(p):
     "cs_exps : cs_exps_list"
@@ -546,19 +662,40 @@ def p_func_params_list_rem_e(p):
     p[0] = []
 
 def p_type_def(p):
-    "type_def : TYPE NAME opt_type_params LBRACE type_members RBRACE"
+    "type_def : TYPE NAME opt_type_params opt_inheritance LBRACE type_members RBRACE opt_semi"
     params = Params(p[3])
     for i in p[3]:
         i.parent = params
 
     id = ID(p[2], p[2])
 
-    p[0] = TypeDef(id, params, p[5])
-    for i in p[5]:
+    p[0] = TypeDef(id, params, p[6], p[4])
+    for i in p[6]:
         i.parent = p[0]
     params.parent = p[0]
     id.parent = p[0]
+    if p[4]:
+        p[4].parent = p[0]
     
+def p_opt_inheritance(p):
+    "opt_inheritance : INHERITS NAME opt_inheritance_params"
+    id = ID(p[2], "inherits")
+    p[0] = TypeCall(id, p[3])
+    p[3].parent = p[0]
+    id.parent = p[0]
+
+def p_opt_inheritance_e(p):
+    "opt_inheritance : empty"
+    p[0] = None
+
+def p_opt_inheritance_params(p):
+    "opt_inheritance_params : LPAREN cs_exps RPAREN"
+    p[0] = p[2]
+
+def p_opt_inheritance_params_e(p):
+    "opt_inheritance_params : empty"
+    p[0] = Params([])
+
 def p_opt_type_params(p):
     "opt_type_params : LPAREN typedef_params RPAREN"
     p[0] = p[2]
@@ -621,20 +758,9 @@ def p_member_var_dec(p):
     p[1].parent = p[0]
     p[3].parent = p[0]
 
-
-
-
-
-
-
-
-
-
-
 def p_hl_expression(p):
     """hl_expression : expression SEMI
-					| expression_block
-                    
+					| expression_block     
 	"""
     p[0] = p[1]
 
@@ -756,6 +882,19 @@ def p_opt_semi(p):
     """opt_semi : SEMI
                 | empty"""
 
+def p_for_hl(p):
+    "hl_expression : FOR LPAREN destroyable IN expression RPAREN hl_expression"
+    p[0] = For(p[3],p[5],p[7])
+    p[3].parent = p[0]
+    p[5].parent = p[0]
+    p[7].parent = p[0]
+
+def p_for(p):
+    "expression : FOR LPAREN destroyable IN expression RPAREN expression"
+    p[0] = For(p[3],p[5],p[7])
+    p[3].parent = p[0]
+    p[5].parent = p[0]
+    p[7].parent = p[0]
 
 def p_while_hl(p):
     "hl_expression : WHILE expression_parenthized hl_expression"
@@ -794,8 +933,16 @@ def p_expression_binop(p):
     | expression GREATEREQUAL expression
     | expression LESS expression
     | expression GREATER expression
+    | destroyable ASSDESTROYER expression
+    | expression DOT member_resolut
+    | expression IS type_test
+    | expression AS type_test
     """
-    p[0] = BinOp(left=p[1], op=p[2], right=p[3])
+    if p[2] == ":=":
+        p[0] = BinOp(left=p[1], op="AD", right=p[3])
+    else:
+        p[0] = BinOp(left=p[1], op=p[2], right=p[3])
+
     p[1].parent = p[0]
     p[3].parent = p[0]
 
@@ -816,11 +963,32 @@ def p_expression_binop_hl(p):
     | expression GREATEREQUAL hl_expression
     | expression LESS hl_expression
     | expression GREATER hl_expression
+    | destroyable ASSDESTROYER hl_expression
     """
+    if p[2] == ":=":
+        p[0] = BinOp(left=p[1], op="AD", right=p[3])
+    else:
+        p[0] = BinOp(left=p[1], op=p[2], right=p[3])
+
     p[0] = BinOp(left=p[1], op=p[2], right=p[3])
     p[1].parent = p[0]
     p[3].parent = p[0]
 
+def p_destroyable(p):
+    "destroyable : NAME"
+    p[0] = ID(p[1], "")
+
+def p_type_test(p):
+    "type_test : NAME"
+    p[0] = ID(p[1], p[1])
+
+def p_member_resolut_fc(p):
+    "member_resolut : func_call"
+    p[0] = p[1]
+    
+def p_member_resolut_att(p):
+    "member_resolut : NAME"
+    p[0] = ID(p[1], "")
 
 def p_expression_unary(p):
     """expression : MINUS expression %prec UMINUS
@@ -847,6 +1015,30 @@ def p_expression_string(p):
 def p_expression_variable(p):
     "expression : NAME"
     p[0] = ID(p[1],"")
+
+def p_expression_vector(p):
+    "expression : vector"
+    p[0] = p[1]
+
+def p_vector_ext(p):
+    "vector : LSQB cs_exps RSQB"
+    p[0] = VectorExt(p[2])
+    p[2].parent = p[0]
+        
+    
+def p_vector_int(p):
+    "vector : LSQB expression SUCH_AS destroyable IN expression RSQB"
+    p[0] = VectorInt(p[2], p[4], p[6])
+    p[2].parent = p[0]
+    p[4].parent = p[0]
+    p[6].parent = p[0]
+
+def p_expression_vector_ind(p):
+    "expression :  NAME LSQB expression RSQB"
+    id = ID(p[1], "")
+    p[0] = VectorCall(id, p[3])
+    id.parent = p[0]
+    p[3].parent = p[0]
 
 def p_expression_pi(p):
     "expression : PI"
@@ -917,7 +1109,8 @@ def p_error(p):
 
 def find_column(input, token):
     line_start = input.rfind('\n', 0, token.lexpos) + 1
- 
+    if line_start<0:
+        line_start = 0
     return (token.lexpos - line_start) + 1
 
 def hulk_parse(code):
@@ -936,26 +1129,12 @@ def hulk_parse(code):
                 print(" - ", f"Syntax error near '{i.value}' at line {i.lineno}, column {find_column(code,i)}")
             else:
                 print("Syntax error at EOF")
+            break
+
         return None
 
 if __name__=="__main__":
-
-    hulk_parse(r"""type Point {
-    x = 0;
-    y = 0;
-
-    getX() => x;
-    getY() => y;
-
-    setX(x) => x;
-    setY(y) => y;
-}
-{{{{{{let a = 42 in
-    if (a % 2 == 0) {
-        print(a);
-        print("Even");
-    }
-    else print("Odd");}}}}}}
-""")
+    # print(code)
+    hulk_parse(io.open("input/custom_test.hulk").read())
 #endregion
 #xd
