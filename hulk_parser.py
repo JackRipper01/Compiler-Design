@@ -296,7 +296,7 @@ class TypeDef(Node):
         self.functions = filter(lambda x :type(x) is FunctionDef, members)
         self.params = params
 
-#region JTR AST
+# region JTR AST
 
 # region JTR AST
 
@@ -789,7 +789,7 @@ def p_program(p):
     p[2].parent = p[0]
     for i in p[1]:
         i.parent = p[0]
-        
+
 def p_functionx_type_list_items(p):
     "functions_and_types : function_def functions_and_types"
     p[0] = [p[1]]+p[2]
@@ -801,7 +801,6 @@ def p_function_typex_list_items(p):
 def p_function_type_list_items_empty(p):
     "functions_and_types : empty"
     p[0]=[]
-
 
 
 def p_exp_func_call(p):
@@ -901,7 +900,7 @@ def p_type_def(p):
         i.parent = p[0]
     params.parent = p[0]
     id.parent = p[0]
-    
+
 def p_opt_type_params(p):
     "opt_type_params : LPAREN typedef_params RPAREN"
     p[0] = p[2]
@@ -933,7 +932,7 @@ def p_type_members(p):
 def p_type_members_e(p):
     "type_members : empty"
     p[0] = []
-    
+
 def p_member_func(p):
     "type_member : member_func"
     p[0] = p[1]
@@ -963,15 +962,6 @@ def p_member_var_dec(p):
     p[0] = Assign(p[1], p[3])
     p[1].parent = p[0]
     p[3].parent = p[0]
-
-
-
-
-
-
-
-
-
 
 
 def p_hl_expression(p):
@@ -1358,27 +1348,29 @@ my_ex_code = """function asd (a,x) {
 my_ex_code2 = (
     f"""let a=5 in let b = 4 in let c=3 in {{a+4;\nprint(a);}}"""
 )
-print(my_ex_code2)
-hulk_parse(my_ex_code2)
 
-if __name__=="__main__":
 
-    hulk_parse(r"""type Point {
-    x = 0;
-    y = 0;
+if __name__ == "__main__":
+    print(my_ex_code2)
+    hulk_parse(my_ex_code2)
 
-    getX() => x;
-    getY() => y;
+# if __name__=="__main__":
 
-    setX(x) => x;
-    setY(y) => y;
-}
-{{{{{{let a = 42 in
-    if (a % 2 == 0) {
-        print(a);
-        print("Even");
-    }
-    else print("Odd");}}}}}}
-""")
+#     hulk_parse(r"""type Point {
+#     x = 0;
+#     y = 0;
+
+#     getX() => x;
+#     getY() => y;
+
+#     setX(x) => x;
+#     setY(y) => y;
+# }
+# {{{{{{let a = 42 in
+#     if (a % 2 == 0) {
+#         print(a);
+#         print("Even");
+#     }
+#     else print("Odd");}}}}}}
+# """)
 # endregion
-
