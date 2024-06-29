@@ -168,3 +168,4 @@ parser.out
 *.json
 hulk_parser.py
 .gitignore
+hulk_parser.py
