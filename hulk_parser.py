@@ -218,7 +218,7 @@ class Let(Node):
             if last_newline_index != -1:
                 c_code = (
                     c_code[: last_newline_index + 1]
-                    + " return "
+                    + "return "
                     + c_code[last_newline_index + 1 :]
                     + ";"
                 )
@@ -334,7 +334,6 @@ class VectorCall(Node):
         add_slf(self, "VECTOR_CALL")
         self.id = id
         self.index = index
-#region JTR AST
 
 # region JTR AST
 
@@ -906,8 +905,6 @@ def p_protocol_method_params_rem_e(p):
     p[0] = []
 
 
-
-
 def p_exp_func_call(p):
     "expression : func_call"
     p[0] = p[1]
@@ -1017,7 +1014,7 @@ def p_type_def(p):
     id.parent = p[0]
     if p[4]:
         p[4].parent = p[0]
-    
+
 def p_opt_inheritance(p):
     "opt_inheritance : INHERITS NAME opt_inheritance_params"
     id = ID(p[2], "inherits")
@@ -1342,7 +1339,7 @@ def p_type_test(p):
 def p_member_resolut_fc(p):
     "member_resolut : func_call"
     p[0] = p[1]
-    
+
 def p_member_resolut_att(p):
     "member_resolut : NAME"
     p[0] = ID(p[1], "")
@@ -1386,8 +1383,8 @@ def p_vector_ext(p):
     "vector : LSQB cs_exps RSQB"
     p[0] = VectorExt(p[2])
     p[2].parent = p[0]
-        
-    
+
+
 def p_vector_int(p):
     "vector : LSQB expression SUCH_AS destroyable IN expression RSQB"
     p[0] = VectorInt(p[2], p[4], p[6])
@@ -1475,7 +1472,40 @@ def p_error(p):
 
 # endregion
 
+
 # endregion
+# create output.c file with the code transformed
+def write_c_code_to_file(ast, filename):
+    with open(filename, "w") as f:
+        f.write("#include <stdio.h>\n")
+        f.write("#include <math.h>\n")
+        f.write("#include <stdlib.h>\n")
+        f.write("#include <string.h>\n\n")
+        f.write(
+            """//Concatenate two strings
+    char* concatenate_strings(const char* str1, const char* str2) {
+    // Calculate the length needed for the concatenated string
+    int length = strlen(str1) + strlen(str2) + 1; // +1 for the null terminator
+
+    // Allocate memory for the concatenated string
+    char* result = (char*)malloc(length * sizeof(char));
+    if (result == NULL) {
+        printf("Memory allocation failed");
+        exit(1); // Exit if memory allocation fails
+    }
+
+    // Copy the first string and concatenate the second string
+    strcpy(result, str1);
+    strcat(result, str2);
+
+    return result;
+}\n\n"""
+        )
+        f.write("int main() {\n\n")
+        f.write(f"{ast.build()}\n\n")
+        f.write("return 0;\n")
+        f.write("}\n")
+
 
 # region Generate AST
 
@@ -1512,22 +1542,7 @@ def hulk_parse(code):
 
 if __name__=="__main__":
 
-    hulk_parse(r"""type Point {
-    x = 0;
-    y = 0;
-
-    getX() => x;
-    getY() => y;
-
-    setX(x) => x;
-    setY(y) => y;
-}
-{{{{{{let a = 42 in
-    if (a % 2 == 0) {
-        print(a);
-        print("Even");
-    }
-    else print("Odd");}}}}}}
+    hulk_parse("""let a=4 in let b =5 in print(a+5);
 """)
-#endregion
-#xd
+# endregion
+# xd
