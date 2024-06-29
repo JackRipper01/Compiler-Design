@@ -165,3 +165,4 @@ parser.out
 *.hlk
 .vscode/settings.json
 .vscode/settings.json
+*.json
