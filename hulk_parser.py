@@ -782,20 +782,21 @@ precedence = (
     ("right", "WHILE", "FOR"),
     ("nonassoc", "EQUAL"),
     ("right", "ASSDESTROYER"),
-    ("left", "DOT"),
     ("left", "AS"),
     ("left", "IS"),
     ("left", "CONCAT", "DCONCAT"),
     ("left", "OR"),
     ("left", "AND"),
     ("left", "EQEQUAL","NOTEQUAL"),
-    ("left", "LESSEQUAL","GREATEREQUAL","LESS","GREATER"),
-    ("nonassoc", "NOT"),
+    ("nonassoc", "LESSEQUAL","GREATEREQUAL","LESS","GREATER"),
+    ("right", "NOT"),
     ("left", "PLUS", "MINUS"),
     ("left", "TIMES", "DIVIDE", "MOD"),
     ("right", "POWER"),
-    ("nonassoc", "UMINUS"),
-    ("nonassoc", "LPAREN", "RPAREN"),
+    ("right", "UMINUS"),
+    ("right", "LPAREN", "RPAREN"),
+    ("nonassoc", "NAME"),
+    ("left", "DOT"),
 )
 
 
@@ -1287,7 +1288,7 @@ def p_expression_binop(p):
     | expression LESS expression
     | expression GREATER expression
     | destroyable ASSDESTROYER expression
-    | expression DOT member_resolut
+    | member_resolute ASSDESTROYER expression
     | expression IS type_test
     | expression AS type_test
     """
@@ -1318,6 +1319,7 @@ def p_expression_binop_hl(p):
     | expression LESS hl_expression
     | expression GREATER hl_expression
     | destroyable ASSDESTROYER hl_expression
+    | member_resolute ASSDESTROYER hl_expression
     """
     if p[2] == ":=":
         p[0] = BinOp(left=p[1], op="AD", right=p[3])
@@ -1328,6 +1330,7 @@ def p_expression_binop_hl(p):
     p[1].parent = p[0]
     p[3].parent = p[0]
 
+    
 def p_destroyable(p):
     "destroyable : NAME"
     p[0] = ID(p[1], "")
@@ -1335,6 +1338,16 @@ def p_destroyable(p):
 def p_type_test(p):
     "type_test : NAME"
     p[0] = ID(p[1], p[1])
+    
+def p_exp_member_resolute(p):
+    "expression : member_resolute"
+    p[0] = p[1]
+
+def p_member_resolute(p):
+    "member_resolute : expression DOT member_resolut"
+    p[0] = BinOp(left=p[1], op=p[2], right=p[3])
+    p[1].parent = p[0]
+    p[3].parent = p[0]
 
 def p_member_resolut_fc(p):
     "member_resolut : func_call"
@@ -1522,9 +1535,13 @@ def hulk_parse(code):
 
     AST = parser.parse(code)
 
-    if len(sErrorList) == 0:
-        create_AST_graph(nodes, "AST")
-        write_c_code_to_file(AST, "out.c")
+    if len(sErrorList)==0:
+        
+        try:
+            create_AST_graph(nodes, "AST")
+        except Exception as e:
+            print("NO SE PUDO CREAR EL GRAFO....muy grande!!!")
+            print(e)
         return AST
     else:
         print("\nPARSING FINISHED WITH ERRORS:")
@@ -1541,8 +1558,8 @@ def hulk_parse(code):
         return None
 
 if __name__=="__main__":
-
-    hulk_parse("""let a=4 in let b =5 in print(a+5);
-""")
-# endregion
-# xd
+    code = io.open("input/custom_test.hulk").read()
+    # print(code)
+    hulk_parse(code)
+#endregion
+#xd
