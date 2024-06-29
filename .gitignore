@@ -166,3 +166,5 @@ parser.out
 .vscode/settings.json
 .vscode/settings.json
 *.json
+hulk_parser.py
+.gitignore

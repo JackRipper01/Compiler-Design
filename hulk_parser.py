@@ -5,7 +5,7 @@ import random
 import graphviz
 # For graphviz in windows:
 import os
-os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz/bin/'
+os.environ["PATH"] += os.pathsep + 'C:/Program Files(x86)/Graphviz/bin/'
 
 # constants
 PI = math.pi
