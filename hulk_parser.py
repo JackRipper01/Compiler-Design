@@ -793,7 +793,7 @@ precedence = (
     ("left", "PLUS", "MINUS"),
     ("left", "TIMES", "DIVIDE", "MOD"),
     ("right", "POWER"),
-    ("right", "UMINUS"),
+    # ("right", "UMINUS"),
     ("right", "LPAREN", "RPAREN"),
     ("nonassoc", "NAME"),
     ("left", "DOT"),
@@ -1358,16 +1358,14 @@ def p_member_resolut_att(p):
     p[0] = ID(p[1], "")
 
 def p_expression_unary(p):
-    """expression : MINUS expression %prec UMINUS
-    | NOT expression
+    """expression : NOT expression
     """
     p[0] = UnaryOp(op=p[1], operand=p[2])
     p[2].parent = p[0]
 
 
 def p_expression_unary_hl(p):
-    """hl_expression : MINUS hl_expression %prec UMINUS
-    | NOT hl_expression
+    """hl_expression : NOT hl_expression
     """
     p[0] = UnaryOp(op=p[1], operand=p[2])
     p[2].parent = p[0]
@@ -1485,40 +1483,7 @@ def p_error(p):
 
 # endregion
 
-
 # endregion
-# create output.c file with the code transformed
-def write_c_code_to_file(ast, filename):
-    with open(filename, "w") as f:
-        f.write("#include <stdio.h>\n")
-        f.write("#include <math.h>\n")
-        f.write("#include <stdlib.h>\n")
-        f.write("#include <string.h>\n\n")
-        f.write(
-            """//Concatenate two strings
-    char* concatenate_strings(const char* str1, const char* str2) {
-    // Calculate the length needed for the concatenated string
-    int length = strlen(str1) + strlen(str2) + 1; // +1 for the null terminator
-
-    // Allocate memory for the concatenated string
-    char* result = (char*)malloc(length * sizeof(char));
-    if (result == NULL) {
-        printf("Memory allocation failed");
-        exit(1); // Exit if memory allocation fails
-    }
-
-    // Copy the first string and concatenate the second string
-    strcpy(result, str1);
-    strcat(result, str2);
-
-    return result;
-}\n\n"""
-        )
-        f.write("int main() {\n\n")
-        f.write(f"{ast.build()}\n\n")
-        f.write("return 0;\n")
-        f.write("}\n")
-
 
 # region Generate AST
 
