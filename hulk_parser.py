@@ -1,4 +1,5 @@
 from ast import arg
+from calendar import c
 
 from numpy import isin
 import hulk_lexer
@@ -37,6 +38,7 @@ class Node:
         self.parent = None
         self.static_type = "Object"
         self.dynamic_type = "Object"
+        self.ret_point = "ret_point"
 
     def check(self):
         pass
@@ -120,33 +122,50 @@ class ExpressionBlock(Node):
         self.exp_list = exps
 
     def build(self):
-        code = f"float {self.name}() {{\n"
-
-        for i, exp in enumerate(self.exp_list):
-            # Check if it's the last expression in the block
+        self.static_type = "float"
+        self.ret_point = "ret_point_expression_block_" + str(
+            self.instance_id
+        )  # anailzar lo del id pa q no haya lio
+        code = f"""{self.static_type} {self.name}() {{
+        """
+        for exp, i in zip(self.exp_list, range(len(self.exp_list))):
+            body_def, body_ret = exp.build()
+            code += body_def + "\n"
             if i == len(self.exp_list) - 1:
-                break
-            else:
-                code += exp.build() + ";" + "\n"
+                code += f"return {body_ret};\n"
+        code += "}"
+        code += f"""{self.static_type} {self.ret_point} = expression_block_{self.instance_id}();"""
+        return code, self.ret_point
 
-        # el codigo para q la ultima expression retorne es:
-        code += self.exp_list[-1].build()
-        last_newline_index = code.rfind("\n")
+        # region old
+        # code = f"float {self.name}() {{\n"
 
-        if last_newline_index != -1:
-            substring_after_last_newline = code[last_newline_index + 1 :].lstrip()
-            # print(substring_after_last_newline)
-            code = (
-                code[: last_newline_index + 1]
-                + "return "
-                + substring_after_last_newline
-                + ";"
-            )
-        else:
-            code_without_initial_whitespace = code.lstrip()
-            code = "return " + code_without_initial_whitespace + ";"
-        code += "\n}\n"
-        return code
+        # for i, exp in enumerate(self.exp_list):
+        #     # Check if it's the last expression in the block
+        #     if i == len(self.exp_list) - 1:
+        #         break
+        #     else:
+        #         code += exp.build() + ";" + "\n"
+
+        # # el codigo para q la ultima expression retorne es:
+        # code += self.exp_list[-1].build()
+        # last_newline_index = code.rfind("\n")
+
+        # if last_newline_index != -1:
+        #     substring_after_last_newline = code[last_newline_index + 1 :].lstrip()
+        #     # print(substring_after_last_newline)
+        #     code = (
+        #         code[: last_newline_index + 1]
+        #         + "return "
+        #         + substring_after_last_newline
+        #         + ";"
+        #     )
+        # else:
+        #     code_without_initial_whitespace = code.lstrip()
+        #     code = "return " + code_without_initial_whitespace + ";"
+        # code += "\n}\n"
+        # return code
+        # endregion
 
 
 class Let(Node):
@@ -182,58 +201,66 @@ class Let(Node):
         var_type = self.assign[0].name.static_type
         var_type = "float"  # temporal
         body_def, body_ret = self.body.build()
+        self.ret_point = "ret_point_let_" + str(
+            self.instance_id
+        )  # analizar instance id
+
         c_code = f"""{self.static_type} let_{self.instance_id}(){{
         {assign_def}
         {var_type} {var_name} = {assign_ret};
         {body_def}
-        {self.static_type} ret = {body_ret};
-        return ret;
+        return {body_ret};
         }}
+        {self.static_type} {self.ret_point} = let_{self.instance_id}();
         """
-        return c_code, f"let_{self.instance_id}()"
-        # # Use instance_id to create a unique function name
-        # c_code = f"{return_type} let_{self.instance_id}("
-        # if len(self.assign) == 1:
-        #     c_code += f"float {self.assign[0].name.name}"
-        # else:
-        #     for assignment in self.assign:
-        #         c_code += f"float {assignment.name.name}, "
-        #     c_code = c_code[:-2]
-        # c_code += ") {\n"
+        return c_code, self.ret_point
 
-        # # body
-        # body_code = self.body.build()
-        # # Sol (working)
-        # if isinstance(self.body, ExpressionBlock):
-        #     c_code += body_code
-        #     c_code += "return " + self.body.name + "();"
-        #     c_code += "\n}\n"
-        # else:
-        #     c_code += body_code
-        #     last_newline_index = c_code.rfind("\n")
-        #     if last_newline_index != -1:
-        #         c_code = (
-        #             c_code[: last_newline_index + 1]
-        #             + "return "
-        #             + c_code[last_newline_index + 1 :]
-        #             + ";"
-        #         )
-        #         c_code += "\n}\n"
-        #     else:
-        #         raise ValueError(
-        #             f"Te falto un salto de linea luego de algun {{ o de algun }} antes de llamar a la funcion"
-        #         )
+    # ret_point_3
+    # region old
+    # # Use instance_id to create a unique function name
+    # c_code = f"{return_type} let_{self.instance_id}("
+    # if len(self.assign) == 1:
+    #     c_code += f"float {self.assign[0].name.name}"
+    # else:
+    #     for assignment in self.assign:
+    #         c_code += f"float {assignment.name.name}, "
+    #     c_code = c_code[:-2]
+    # c_code += ") {\n"
 
-        # # arguments of the call
-        # c_code += f"let_{self.instance_id}("
-        # if len(self.assign) == 1:
-        #     c_code += f"{self.assign[0].value}"
-        # else:
-        #     for assignment in self.assign:
-        #         c_code += f"{assignment.value}, "
-        #     c_code = c_code[:-2]
-        # c_code += ")" + ("" if isinstance(self.parent, Let) else ";")
-        # return c_code
+    # # body
+    # body_code = self.body.build()
+    # # Sol (working)
+    # if isinstance(self.body, ExpressionBlock):
+    #     c_code += body_code
+    #     c_code += "return " + self.body.name + "();"
+    #     c_code += "\n}\n"
+    # else:
+    #     c_code += body_code
+    #     last_newline_index = c_code.rfind("\n")
+    #     if last_newline_index != -1:
+    #         c_code = (
+    #             c_code[: last_newline_index + 1]
+    #             + "return "
+    #             + c_code[last_newline_index + 1 :]
+    #             + ";"
+    #         )
+    #         c_code += "\n}\n"
+    #     else:
+    #         raise ValueError(
+    #             f"Te falto un salto de linea luego de algun {{ o de algun }} antes de llamar a la funcion"
+    #         )
+
+    # # arguments of the call
+    # c_code += f"let_{self.instance_id}("
+    # if len(self.assign) == 1:
+    #     c_code += f"{self.assign[0].value}"
+    # else:
+    #     for assignment in self.assign:
+    #         c_code += f"{assignment.value}, "
+    #     c_code = c_code[:-2]
+    # c_code += ")" + ("" if isinstance(self.parent, Let) else ";")
+    # return c_code
+    # endregion
 
 
 class Assign(Node):  # example: name = var a ,value = 4
@@ -531,13 +558,16 @@ class Print(
     def build(self):
         child_def, child_ret = self.value.build()
         self.static_type = "float"
+        self.ret_point = "ret_point_print_" + str(self.instance_id)
         code = f"""{self.static_type} print_{self.instance_id}() {{
 {child_def}
-{self.static_type} ret = {child_ret};
-printf("%f\\n",ret);
-return ret;
-}}"""
-        return code, f"print_{self.instance_id}()"
+
+printf("%f\\n",{child_ret});
+return {child_ret};
+}}
+{self.static_type} {self.ret_point} = print_{self.instance_id}();
+"""
+        return code, self.ret_point
 
 
 class Sqrt(Node):
@@ -679,7 +709,7 @@ precedence = (
     ("left", "PLUS", "MINUS"),
     ("left", "TIMES", "DIVIDE", "MOD"),
     ("right", "POWER"),
-    # ("right", "UMINUS"),
+    ("right", "UMINUS"),
     ("right", "LPAREN", "RPAREN"),
     ("nonassoc", "NAME"),
     ("left", "DOT"),
@@ -1020,15 +1050,15 @@ def p_member_var_dec(p):
     p[3].parent = p[0]
 
 
+def p_expression_tbl(p):
+    """expression : expression_block"""
+    p[0] = p[1]
+
+
 def p_hl_expression(p):
     """hl_expression : expression SEMI
     | expression_block
     """
-    p[0] = p[1]
-
-
-def p_expression_tbl(p):
-    """expression : expression_block"""
     p[0] = p[1]
 
 
@@ -1273,13 +1303,15 @@ def p_member_resolut_att(p):
 
 
 def p_expression_unary(p):
-    """expression : NOT expression"""
+    """expression : NOT expression
+    | MINUS expression %prec UMINUS"""
     p[0] = UnaryOp(op=p[1], operand=p[2])
     p[2].parent = p[0]
 
 
 def p_expression_unary_hl(p):
-    """hl_expression : NOT hl_expression"""
+    """hl_expression : NOT hl_expression
+    | MINUS hl_expression %prec UMINUS"""
     p[0] = UnaryOp(op=p[1], operand=p[2])
     p[2].parent = p[0]
 
@@ -1327,7 +1359,7 @@ def p_expression_vector_ind(p):
 
 
 def p_expression_vector_ind_pare(p):
-    "expression :  expression_parenthized LSQB expression RSQB"
+    "expression :  expression LSQB expression RSQB"
     p[0] = VectorCall(p[1], p[3])
     p[1].parent = p[0]
     p[3].parent = p[0]
@@ -1441,9 +1473,45 @@ def hulk_parse(code):
         return None
 
 
+# create output.c file with the code transformed
+def write_c_code_to_file(ast, filename):
+    code_main = ast.build()
+    with open(filename, "w") as f:
+        f.write("#include <stdio.h>\n")
+        f.write("#include <math.h>\n")
+        f.write("#include <stdlib.h>\n")
+        f.write("#include <string.h>\n\n")
+        f.write(
+            """//Concatenate two strings
+    char* concatenate_strings(const char* str1, const char* str2) {
+    // Calculate the length needed for the concatenated string
+    int length = strlen(str1) + strlen(str2) + 1; // +1 for the null terminator
+
+    // Allocate memory for the concatenated string
+    char* result = (char*)malloc(length * sizeof(char));
+    if (result == NULL) {
+        printf("Memory allocation failed");
+        exit(1); // Exit if memory allocation fails
+    }
+
+    // Copy the first string and concatenate the second string
+    strcpy(result, str1);
+    strcat(result, str2);
+
+    return result;
+}\n\n"""
+        )
+        f.write("float main() {\n\n")
+        f.write(f"{code_main[0]}\n\n")
+        f.write(f"return {code_main[1]};\n")
+        f.write("}\n")
+
+
 if __name__ == "__main__":
-    code = "let a = let b = let c = 2 in c in b in a;"
-    # print(code)
-    hulk_parse(code)
+    ast = hulk_parse(
+r"""{};
+[2];"""
+    )
+    # write_c_code_to_file(ast, "out.c")
 # endregion
 # xd
