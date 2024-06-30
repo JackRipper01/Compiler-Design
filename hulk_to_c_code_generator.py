@@ -35,3 +35,4 @@ def write_c_code_to_file(ast, filename):
         f.write("}\n")
 
 write_c_code_to_file(ast,"out.c")
+
