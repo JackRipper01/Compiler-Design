@@ -1,5 +1,6 @@
 from ast import arg
 from calendar import c
+from turtle import right
 
 from numpy import isin
 import hulk_lexer
@@ -52,6 +53,7 @@ class Node:
 
 class Program(Node):
     function_names = set()  # Class variable to keep track of function names
+    instance_count = 0
 
     def __init__(self, functions_types, global_expression):
         super().__init__(self, "")
@@ -60,7 +62,39 @@ class Program(Node):
         self.global_exp = global_expression
 
     def build(self):
-        return self.global_exp.build()
+        code_main = self.global_exp.build()
+        with open("./out.c", "w") as f:
+            f.write("#include <stdio.h>\n")
+            f.write("#include <math.h>\n")
+            f.write("#include <stdlib.h>\n")
+            f.write("#include <string.h>\n\n")
+            f.write(
+                """//Concatenate two strings
+        char* concatenate_strings(const char* str1, const char* str2) {
+        // Calculate the length needed for the concatenated string
+        int length = strlen(str1) + strlen(str2) + 1; // +1 for the null terminator
+
+        // Allocate memory for the concatenated string
+        char* result = (char*)malloc(length * sizeof(char));
+        if (result == NULL) {
+            printf("Memory allocation failed");
+            exit(1); // Exit if memory allocation fails
+        }
+
+        // Copy the first string and concatenate the second string
+        strcpy(result, str1);
+        strcat(result, str2);
+
+        return result;
+    }\n\n"""
+            )
+            if self.functions:
+                for function in self.functions:
+                    f.write(f"{function.build()[0]}\n\n")
+            f.write("float main() {\n\n")
+            f.write(f"{code_main[0]}\n\n")
+            f.write(f"return {code_main[1]};\n")
+            f.write("}\n")
 
     @classmethod
     def add_function_name(cls, name):
@@ -90,12 +124,46 @@ class FunctionDef(Node):
             raise ValueError(f"Function {self.func_id} is already defined.")
         Program.add_function_name(self.func_id)  # Add the function name to the tracker
 
+    def build(self):
+        self.static_type = "float"
+        list_params = []
+        body_def, body_ret = self.body.build()
+        for param in self.params.param_list:
+            list_params.append(("float", param.name))
+        params_c_code = ""
+        for param_code in list_params:
+            params_c_code += f"{param_code[0]} {param_code[1]},"
+        params_c_code = params_c_code[:-1]
+        code = f"""{self.static_type} {self.func_id.name}({params_c_code}){{{body_def}
+        return {body_ret};
+        }}"""
+
+        return code, ""
+
 
 class FunctionCall(Node):
     def __init__(self, func_id, params):
         super().__init__(self, "FUNC_CALL")
         self.func_id = func_id
         self.params = params
+
+    def build(self):
+        def_ret_list_params = []
+        for param in self.params.param_list:
+            build_of_param = param.build()
+            def_ret_list_params.append(build_of_param)
+
+        params_def_code = ""
+        for param_def_code in def_ret_list_params:
+            if param_def_code[0] != "":
+                params_def_code += param_def_code[0] + "\n"
+
+        params_ret_c_code = ""
+        for param_ret_code in def_ret_list_params:
+            params_ret_c_code += param_ret_code[1] + ","
+
+        params_ret_c_code = params_ret_c_code[:-1]
+        return f"{params_def_code}", f"""{self.func_id.name}({params_ret_c_code})"""
 
 
 class Params(Node):
@@ -105,27 +173,23 @@ class Params(Node):
 
 
 class ExpressionBlock(Node):
-    instance_count = 0  # Class variable to keep track of the number of instances
-
     def __init__(self, exps):
-        ExpressionBlock.instance_count += (
-            1  # Increment the counter for each new instance
-        )
-        self.instance_id = ExpressionBlock.instance_count
+        super().__init__(self, "EXP_BLOCK")
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
         self.name = f"expression_block_{self.instance_id}"
         while Program.function_name_exists(self.name):
-            ExpressionBlock.instance_count += 1
-            self.instance_id = ExpressionBlock.instance_count
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
             self.name = f"expression_block_{self.instance_id}"
         Program.add_function_name(self.name)  # Add the function name to the tracker
-        super().__init__(self, "EXP_BLOCK")
         self.exp_list = exps
 
     def build(self):
         self.static_type = "float"
         self.ret_point = "ret_point_expression_block_" + str(
             self.instance_id
-        )  # anailzar lo del id pa q no haya lio
+        )  # analizar lo del id pa q no haya lio
         code = f"""{self.static_type} {self.name}() {{
         """
         for exp, i in zip(self.exp_list, range(len(self.exp_list))):
@@ -169,22 +233,17 @@ class ExpressionBlock(Node):
 
 
 class Let(Node):
-    instance_count = 0  # Class variable to keep track of the number of instances
-
     def __init__(self, assign, body):
-        Let.instance_count += 1  # Increment the counter for each new instance
-        self.instance_id = (
-            Let.instance_count
-        )  # Assign the current count to this instance
-        # Construct the function name
+        super().__init__(self, "LET")
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
         self.name = f"let_{self.instance_id}"
-        # Check if the function name already exists
         while Program.function_name_exists(self.name):
-            Let.instance_count += 1
-            self.instance_id = Let.instance_count
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
             self.name = f"let_{self.instance_id}"
         Program.add_function_name(self.name)  # Add the function name to the tracker
-        super().__init__(self, "LET")
+
         self.assign = assign
         self.body = body
 
@@ -287,9 +346,29 @@ class ID(Node):
 
 
 class If(Node):
-    def __init__(self, cond_expr):
+    def __init__(self, case_list):
         super().__init__(self, "IF")
-        self.cond_expr = cond_expr
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"if_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"if_{self.instance_id}"
+        Program.add_function_name(self.name)  # Add the function name to the tracker
+        self.case_list = case_list
+
+    def build(self):
+        self.static_type = "float"
+        self.ret_point = "ret_point_if_" + str(self.instance_id)  # analizar id blabla
+        c_code = f"""{self.static_type} if_{self.instance_id}(){{"""
+        for case in self.case_list:
+            def_case, ret_case = case.build()
+            c_code += f"{def_case}"
+            c_code += "\n"
+        c_code += "}\n"
+        c_code += f"{self.static_type} {self.ret_point} = if_{self.instance_id}();"
+        return c_code, self.ret_point
 
 
 class Case(Node):
@@ -297,6 +376,19 @@ class Case(Node):
         super().__init__(self, "IF " + branch)
         self.condition = condition
         self.body = body
+        self.branch = branch
+
+    def build(self):
+
+        c_code = ""
+        def_condition, ret_condition = self.condition.build()
+        def_body, ret_body = self.body.build()
+        c_code += f"""{def_condition}"""
+        c_code += f"""if ((int){ret_condition}){{
+            {def_body}
+            return {ret_body};
+            }}"""
+        return c_code, ""
 
 
 class While(Node):
@@ -318,10 +410,16 @@ class TrueLiteral(Node):
     def __init__(self):
         super().__init__(self, "TRUE")
 
+    def build(self):
+        return "", "1"
+
 
 class FalseLiteral(Node):
     def __init__(self):
         super().__init__(self, "FALSE")
+
+    def build(self):
+        return "", "0"
 
 
 class TypeDef(Node):
@@ -371,6 +469,14 @@ class BinOp(Node):
 
     def __init__(self, left, op, right):
         super().__init__(self, op)
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"bin_op_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"bin_op_{self.instance_id}"
+        Program.add_function_name(self.name)  # Add the function name to the tracker
         self.left = left
         self.op = op
         self.right = right
@@ -416,14 +522,27 @@ class BinOp(Node):
         return left_type
 
     def build(self):
-        if self.op in ["+", "-", "*", "/"]:
-            return f"({self.left.build()} {self.op} {self.right.build()})"
+        self.static_type = "float"
+        left_def, left_ret = self.left.build()
+        right_def, right_ret = self.right.build()
+        self.ret_point = "ret_point_bin_op_" + str(self.instance_id)
+
+        code = f"""{self.static_type} bin_op_{self.instance_id}(){{
+        {left_def}
+        {right_def}"""
+        if self.op in ["+", "-", "*", "/", "%"]:
+            code += f"\nreturn (float)({left_ret} {self.op} {right_ret});\n"
+        elif self.op in [">", "<", ">=", "<=", "==", "!="]:
+            code += f"\nreturn (int)({left_ret} {self.op} {right_ret});\n"
         elif self.op in ["^", "**"]:
-            return f"(pow({self.left.build()}, {self.right.build()}))"
-        elif self.op == "@":
-            return f"(concatenate_strings({self.left.build()}, {self.right.build()}))"
+            code += f"\nreturn = (pow({left_ret}, {right_ret});\n"
         else:
             raise TypeError(f"Unknown operator {self.op}")
+        code += "\n}\n"
+        code += f"{self.static_type} {self.ret_point} = bin_op_{self.instance_id}();\n"
+        return code, self.ret_point
+        # elif self.op == "@":
+        #     return f"(concatenate_strings({self.left.build()}, {self.right.build()}))"
 
 
 class UnaryOp(Node):
@@ -477,7 +596,7 @@ class Num(Node):
         return "number"
 
     def build(self):
-        return "", str(self.value)
+        return "", "(float)" + str(self.value)
 
 
 class StringLiteral(Node):
@@ -1054,6 +1173,7 @@ def p_expression_tbl(p):
     """expression : expression_block"""
     p[0] = p[1]
 
+
 def p_hl_expression(p):
     """hl_expression : expression SEMI
     | expression_block
@@ -1129,7 +1249,7 @@ def p_if_hl(p):
 
     p[0] = If([first] + p[4] + [last])
 
-    for i in p[0].cond_expr:
+    for i in p[0].case_list:
         i.parent = p[0]
 
 
@@ -1146,7 +1266,7 @@ def p_if_exp(p):
 
     p[0] = If([first] + p[4] + [last])
 
-    for i in p[0].cond_expr:
+    for i in p[0].case_list:
         i.parent = p[0]
 
 
@@ -1303,14 +1423,14 @@ def p_member_resolut_att(p):
 
 def p_expression_unary(p):
     """expression : NOT expression
-                | MINUS expression %prec UMINUS"""
+    | MINUS expression %prec UMINUS"""
     p[0] = UnaryOp(op=p[1], operand=p[2])
     p[2].parent = p[0]
 
 
 def p_expression_unary_hl(p):
     """hl_expression : NOT hl_expression
-                    | MINUS hl_expression %prec UMINUS"""
+    | MINUS hl_expression %prec UMINUS"""
     p[0] = UnaryOp(op=p[1], operand=p[2])
     p[2].parent = p[0]
 
@@ -1465,41 +1585,10 @@ def hulk_parse(code):
 
 
 # create output.c file with the code transformed
-def write_c_code_to_file(ast, filename):
-    code_main = ast.build()
-    with open(filename, "w") as f:
-        f.write("#include <stdio.h>\n")
-        f.write("#include <math.h>\n")
-        f.write("#include <stdlib.h>\n")
-        f.write("#include <string.h>\n\n")
-        f.write(
-            """//Concatenate two strings
-    char* concatenate_strings(const char* str1, const char* str2) {
-    // Calculate the length needed for the concatenated string
-    int length = strlen(str1) + strlen(str2) + 1; // +1 for the null terminator
-
-    // Allocate memory for the concatenated string
-    char* result = (char*)malloc(length * sizeof(char));
-    if (result == NULL) {
-        printf("Memory allocation failed");
-        exit(1); // Exit if memory allocation fails
-    }
-
-    // Copy the first string and concatenate the second string
-    strcpy(result, str1);
-    strcat(result, str2);
-
-    return result;
-}\n\n"""
-        )
-        f.write("float main() {\n\n")
-        f.write(f"{code_main[0]}\n\n")
-        f.write(f"return {code_main[1]};\n")
-        f.write("}\n")
-
 
 if __name__ == "__main__":
-    ast = hulk_parse(r"{{{2;};-4;};[2];}")
-    # write_c_code_to_file(ast, "out.c")
+    ast = hulk_parse(r"function fact(a){if(a>0) a*fact(a-1) else 1;}print(fact(5));")
+    # ast = hulk_parse(r"print(2>1);")
+    ast.build()
 # endregion
 # xd
