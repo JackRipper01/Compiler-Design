@@ -18,6 +18,7 @@ lexer.parenthesisCount = 0
 
 nodes = {}
 
+
 def create_AST_graph(dict: dict, graph_name):
     dot = graphviz.Digraph(graph_name)
     for key in dict.keys():
@@ -28,6 +29,7 @@ def create_AST_graph(dict: dict, graph_name):
         if key.parent:
             dot.edge(str(key.parent), str(key))
     dot.render(directory="output")
+
 
 class Node:
     def __init__(self, slf, nm):
@@ -56,13 +58,7 @@ class Program(Node):
         self.global_exp = global_expression
 
     def build(self):
-        if self.functions:
-            functions_code = ""
-            for function in self.functions:
-                functions_code += function.build()
-            return functions_code + self.global_exp.build()
-        else:
-            return self.global_exp.build()
+        return self.global_exp.build()
 
     @classmethod
     def add_function_name(cls, name):
@@ -131,7 +127,7 @@ class ExpressionBlock(Node):
             if i == len(self.exp_list) - 1:
                 break
             else:
-                code += exp.build() +";"+ "\n"
+                code += exp.build() + ";" + "\n"
 
         # el codigo para q la ultima expression retorne es:
         code += self.exp_list[-1].build()
@@ -143,11 +139,12 @@ class ExpressionBlock(Node):
             code = (
                 code[: last_newline_index + 1]
                 + "return "
-                + substring_after_last_newline +";"
+                + substring_after_last_newline
+                + ";"
             )
         else:
             code_without_initial_whitespace = code.lstrip()
-            code = "return " + code_without_initial_whitespace+";"
+            code = "return " + code_without_initial_whitespace + ";"
         code += "\n}\n"
         return code
 
@@ -179,48 +176,64 @@ class Let(Node):
         pass
 
     def build(self):  # generate c code
-        return_type = "float"
-        # Use instance_id to create a unique function name
-        c_code = f"{return_type} let_{self.instance_id}("
-        if len(self.assign) == 1:
-            c_code += f"float {self.assign[0].name.name}"
-        else:
-            for assignment in self.assign:
-                c_code += f"float {assignment.name.name}, "
-            c_code = c_code[:-2]
-        c_code += ") {\n"
+        self.static_type = "float"
+        assign_def, assign_ret = self.assign[0].value.build()
+        var_name = self.assign[0].name.name
+        var_type = self.assign[0].name.static_type
+        var_type = "float"  # temporal
+        body_def, body_ret = self.body.build()
+        c_code = f"""{self.static_type} let_{self.instance_id}(){{
+        {assign_def}
+        {var_type} {var_name} = {assign_ret};
+        {body_def}
+        {self.static_type} ret = {body_ret};
+        return ret;
+        }}
+        """
+        return c_code, f"let_{self.instance_id}()"
+        # # Use instance_id to create a unique function name
+        # c_code = f"{return_type} let_{self.instance_id}("
+        # if len(self.assign) == 1:
+        #     c_code += f"float {self.assign[0].name.name}"
+        # else:
+        #     for assignment in self.assign:
+        #         c_code += f"float {assignment.name.name}, "
+        #     c_code = c_code[:-2]
+        # c_code += ") {\n"
 
-        # body
-        body_code = self.body.build()
-        # Sol (working)
-        if isinstance(self.body, ExpressionBlock):
-            c_code += body_code
-            c_code += "return " + self.body.name + "();"
-            c_code += "\n}\n"
-        else:
-            c_code+= body_code
-            last_newline_index = c_code.rfind("\n")
-            if last_newline_index != -1:
-                c_code = (
-                    c_code[: last_newline_index + 1]
-                    + "return "
-                    + c_code[last_newline_index + 1 :]
-                    + ";"
-                )
-                c_code += "\n}\n"
-            else:
-                raise ValueError(f"Te falto un salto de linea luego de algun {{ o de algun }} antes de llamar a la funcion")
+        # # body
+        # body_code = self.body.build()
+        # # Sol (working)
+        # if isinstance(self.body, ExpressionBlock):
+        #     c_code += body_code
+        #     c_code += "return " + self.body.name + "();"
+        #     c_code += "\n}\n"
+        # else:
+        #     c_code += body_code
+        #     last_newline_index = c_code.rfind("\n")
+        #     if last_newline_index != -1:
+        #         c_code = (
+        #             c_code[: last_newline_index + 1]
+        #             + "return "
+        #             + c_code[last_newline_index + 1 :]
+        #             + ";"
+        #         )
+        #         c_code += "\n}\n"
+        #     else:
+        #         raise ValueError(
+        #             f"Te falto un salto de linea luego de algun {{ o de algun }} antes de llamar a la funcion"
+        #         )
 
-        # arguments of the call
-        c_code += f"let_{self.instance_id}("
-        if len(self.assign) == 1:
-            c_code += f"{self.assign[0].value}"
-        else:
-            for assignment in self.assign:
-                c_code += f"{assignment.value}, "
-            c_code = c_code[:-2]
-        c_code += ")" + ("" if isinstance(self.parent,Let) else ";")
-        return c_code
+        # # arguments of the call
+        # c_code += f"let_{self.instance_id}("
+        # if len(self.assign) == 1:
+        #     c_code += f"{self.assign[0].value}"
+        # else:
+        #     for assignment in self.assign:
+        #         c_code += f"{assignment.value}, "
+        #     c_code = c_code[:-2]
+        # c_code += ")" + ("" if isinstance(self.parent, Let) else ";")
+        # return c_code
 
 
 class Assign(Node):  # example: name = var a ,value = 4
@@ -228,7 +241,6 @@ class Assign(Node):  # example: name = var a ,value = 4
         super().__init__(self, "ASSIGN")
         self.name = name
         self.value = value
-
 
 
 class ID(Node):
@@ -244,7 +256,7 @@ class ID(Node):
         return self.opt_type
 
     def build(self):
-        return self.name
+        return "", self.name
 
 
 class If(Node):
@@ -259,18 +271,21 @@ class Case(Node):
         self.condition = condition
         self.body = body
 
+
 class While(Node):
-    def __init__(self, condition, body):    
+    def __init__(self, condition, body):
         super().__init__(self, "WHILE")
         self.condition = condition
         self.body = body
 
+
 class For(Node):
-    def __init__(self, iterator, iterable, body):    
+    def __init__(self, iterator, iterable, body):
         super().__init__(self, "WHILE")
         self.iterator = iterator
         self.iterable = iterable
         self.body = body
+
 
 class TrueLiteral(Node):
     def __init__(self):
@@ -281,42 +296,49 @@ class FalseLiteral(Node):
     def __init__(self):
         super().__init__(self, "FALSE")
 
+
 class TypeDef(Node):
-    def __init__(self, id,  params, members, inherits):
+    def __init__(self, id, params, members, inherits):
         super().__init__(self, "TYPE_DEF")
         self.id = id
-        self.variables = filter(lambda x :type(x) is Assign,members)
-        self.functions = filter(lambda x :type(x) is FunctionDef, members)
+        self.variables = filter(lambda x: type(x) is Assign, members)
+        self.functions = filter(lambda x: type(x) is FunctionDef, members)
         self.params = params
         self.inherits = inherits
 
+
 class TypeCall(Node):
-    def __init__(self, id,  params):
+    def __init__(self, id, params):
         super().__init__(self, "TYPE_CALL")
         self.id = id
         self.params = params
 
+
 class Protocol(Node):
-    def __init__(self, id,  methods, extends):
+    def __init__(self, id, methods, extends):
         super().__init__(self, "PROTOCOL")
         self.id = id
         self.methods = methods
         self.extends = extends
+
 
 class VectorExt(Node):
     def __init__(self, items):
         super().__init__(self, "VECTOR_EXT")
         self.items = items
 
+
 class VectorInt(Node):
     def __init__(self, expression, iterator, iterable):
         super().__init__(self, "VECTOR_INT")
+
 
 class VectorCall(Node):
     def __init__(self, id, index):
         super().__init__(self, "VECTOR_CALL")
         self.id = id
         self.index = index
+
 
 class BinOp(Node):
 
@@ -365,7 +387,6 @@ class BinOp(Node):
 
         # The type of a binary operation is the type of its operands
         return left_type
-
 
     def build(self):
         if self.op in ["+", "-", "*", "/"]:
@@ -429,7 +450,7 @@ class Num(Node):
         return "number"
 
     def build(self):
-        return str(self.value)
+        return "", str(self.value)
 
 
 class StringLiteral(Node):
@@ -474,7 +495,6 @@ class E(Node):
     def __init__(self):
         super().__init__(self, "E")
 
-
     def check(self):
         pass
 
@@ -485,8 +505,6 @@ class E(Node):
         return "M_E"
 
 
-# endregion
-# region built-in functions classes########################
 class Print(
     Node
 ):  # most be modified to work with all literals, now only works with numbers, missing strings and booleans
@@ -511,25 +529,15 @@ class Print(
         return "void"
 
     def build(self):
-        if self.value.infer_type() == "string":
-            code = f"""char* print_{self.instance_id}(char* printable) {{
-printf("%s\\n", printable);
-return printeable;
-}}\nprint_{self.instance_id}({self.value.build()})"""
-            return code
-
-        elif self.value.infer_type() == "number":
-            code = f"""float print_{self.instance_id}(float printeable) {{
-printf("%f\\n", printeable);
-return printeable;
-}}\nprint_{self.instance_id}({self.value.build()})"""
-            return code
-        else:
-            code = f"""float print_{self.instance_id}(float printeable) {{
-printf("%f\\n", printeable);
-return printeable;
-}}\nprint_{self.instance_id}({self.value.build()})"""
-            return code
+        child_def, child_ret = self.value.build()
+        self.static_type = "float"
+        code = f"""{self.static_type} print_{self.instance_id}() {{
+{child_def}
+{self.static_type} ret = {child_ret};
+printf("%f\\n",ret);
+return ret;
+}}"""
+        return code, f"print_{self.instance_id}()"
 
 
 class Sqrt(Node):
@@ -654,7 +662,7 @@ class Rand(Node):
 # region GRAMMAR
 
 precedence = (
-    #("right", "PRINT","SQRT","SIN","COS","EXP","LOG","RAND"),
+    # ("right", "PRINT","SQRT","SIN","COS","EXP","LOG","RAND"),
     ("right", "LET", "IN"),
     ("right", "IF", "ELIF", "ELSE"),
     ("right", "WHILE", "FOR"),
@@ -665,8 +673,8 @@ precedence = (
     ("left", "CONCAT", "DCONCAT"),
     ("left", "OR"),
     ("left", "AND"),
-    ("left", "EQEQUAL","NOTEQUAL"),
-    ("nonassoc", "LESSEQUAL","GREATEREQUAL","LESS","GREATER"),
+    ("left", "EQEQUAL", "NOTEQUAL"),
+    ("nonassoc", "LESSEQUAL", "GREATEREQUAL", "LESS", "GREATER"),
     ("right", "NOT"),
     ("left", "PLUS", "MINUS"),
     ("left", "TIMES", "DIVIDE", "MOD"),
@@ -676,6 +684,7 @@ precedence = (
     ("nonassoc", "NAME"),
     ("left", "DOT"),
 )
+
 
 def p_empty(p):
     "empty :"
@@ -705,29 +714,36 @@ def p_program(p):
     if p[2]:
         p[2].parent = p[0]
 
+
 def p_global_hl_expression(p):
     "global_hl_expression : hl_expression"
     p[0] = p[1]
+
 
 def p_global_hl_expression_e(p):
     "global_hl_expression : empty"
     p[0] = None
 
+
 def p_functionsx_types_protocols_list_items(p):
     "functions_types_protocols : function_def functions_types_protocols"
-    p[0] = [p[1]]+p[2]
+    p[0] = [p[1]] + p[2]
+
 
 def p_functions_typesx_protocols_list_items(p):
     "functions_types_protocols : type_def functions_types_protocols"
-    p[0] = [p[1]]+p[2]
+    p[0] = [p[1]] + p[2]
+
 
 def p_functions_types_protocolsx_list_items(p):
     "functions_types_protocols : protocol_def functions_types_protocols"
-    p[0] = [p[1]]+p[2]
+    p[0] = [p[1]] + p[2]
+
 
 def p_function_type_list_items_empty(p):
     "functions_types_protocols : empty"
-    p[0]=[]
+    p[0] = []
+
 
 def p_protocol(p):
     "protocol_def : PROTOCOL NAME opt_extends LBRACE protocol_methods RBRACE opt_semi"
@@ -739,21 +755,26 @@ def p_protocol(p):
     if p[3]:
         p[3].parent = p[0]
 
+
 def p_protocol_extends(p):
     "opt_extends : EXTENDS NAME"
     p[0] = ID(p[2], "extends")
+
 
 def p_protocol_extends_e(p):
     "opt_extends : empty"
     p[0] = None
 
+
 def p_protocol_methods(p):
     "protocol_methods : protocol_method protocol_methods"
-    p[0] = [p[1]]+p[2]
+    p[0] = [p[1]] + p[2]
+
 
 def p_protocol_methods_e(p):
     "protocol_methods : protocol_method empty"
     p[0] = [p[1]]
+
 
 def p_protocol_method(p):
     "protocol_method : NAME LPAREN protocol_method_params RPAREN COLON NAME SEMI"
@@ -765,17 +786,21 @@ def p_protocol_method(p):
     id.parent = p[0]
     params.parent = p[0]
 
+
 def p_protocol_method_params(p):
     "protocol_method_params : NAME COLON NAME protocol_method_params_rem"
-    p[0] = [ID(p[1], p[3])]+p[4]
+    p[0] = [ID(p[1], p[3])] + p[4]
+
 
 def p_protocol_method_params_e(p):
     "protocol_method_params : empty"
     p[0] = []
 
+
 def p_protocol_method_params_rem(p):
     "protocol_method_params_rem : COMMA NAME COLON NAME protocol_method_params_rem"
-    p[0] = [ID(p[2], p[4])]+p[5]
+    p[0] = [ID(p[2], p[4])] + p[5]
+
 
 def p_protocol_method_params_rem_e(p):
     "protocol_method_params_rem : empty"
@@ -789,21 +814,24 @@ def p_exp_func_call(p):
 
 def p_func_call(p):
     "func_call : NAME LPAREN cs_exps RPAREN"
-    id = ID(p[1],"func_call")
-    p[0] = FunctionCall(id,p[3])
+    id = ID(p[1], "func_call")
+    p[0] = FunctionCall(id, p[3])
     id.parent = p[0]
     p[3].parent = p[0]
 
+
 def p_exp_type_call(p):
     "expression : type_call"
-    p[0]=p[1]
+    p[0] = p[1]
+
 
 def p_type_call(p):
     "type_call : NEW NAME LPAREN cs_exps RPAREN"
     id = ID(p[2], p[2])
-    p[0] = TypeCall(id,p[4])
+    p[0] = TypeCall(id, p[4])
     id.parent = p[0]
     p[4].parent = p[0]
+
 
 def p_cs_exps(p):
     "cs_exps : cs_exps_list"
@@ -834,8 +862,8 @@ def p_cs_exps_list_rem_e(p):
 
 def p_function_def(p):
     "function_def : FUNCTION NAME LPAREN func_params RPAREN opt_type INLINE hl_expression"
-    id = ID(p[2],p[6])
-    p[0] = FunctionDef(id,p[4],p[8])
+    id = ID(p[2], p[6])
+    p[0] = FunctionDef(id, p[4], p[8])
     id.parent = p[0]
     p[4].parent = p[0]
     p[8].parent = p[0]
@@ -843,8 +871,8 @@ def p_function_def(p):
 
 def p_function_def_fullform(p):
     "function_def : FUNCTION NAME LPAREN func_params RPAREN opt_type expression_block opt_semi"
-    id = ID(p[2],p[6])
-    p[0] = FunctionDef(id,p[4],p[7])
+    id = ID(p[2], p[6])
+    p[0] = FunctionDef(id, p[4], p[7])
     id.parent = p[0]
     p[4].parent = p[0]
     p[7].parent = p[0]
@@ -876,6 +904,7 @@ def p_func_params_list_rem_e(p):
     "func_params_list_rem : empty"
     p[0] = []
 
+
 def p_type_def(p):
     "type_def : TYPE NAME opt_type_params opt_inheritance LBRACE type_members RBRACE opt_semi"
     params = Params(p[3])
@@ -892,6 +921,7 @@ def p_type_def(p):
     if p[4]:
         p[4].parent = p[0]
 
+
 def p_opt_inheritance(p):
     "opt_inheritance : INHERITS NAME opt_inheritance_params"
     id = ID(p[2], "inherits")
@@ -899,73 +929,89 @@ def p_opt_inheritance(p):
     p[3].parent = p[0]
     id.parent = p[0]
 
+
 def p_opt_inheritance_e(p):
     "opt_inheritance : empty"
     p[0] = None
+
 
 def p_opt_inheritance_params(p):
     "opt_inheritance_params : LPAREN cs_exps RPAREN"
     p[0] = p[2]
 
+
 def p_opt_inheritance_params_e(p):
     "opt_inheritance_params : empty"
     p[0] = Params([])
+
 
 def p_opt_type_params(p):
     "opt_type_params : LPAREN typedef_params RPAREN"
     p[0] = p[2]
 
+
 def p_opt_type_params_e(p):
     "opt_type_params : empty"
     p[0] = []
 
+
 def p_typedef_params(p):
     "typedef_params : namedef typedef_params_rem"
-    p[0] = [p[1]]+p[2]
+    p[0] = [p[1]] + p[2]
+
 
 def p_typedef_params_e(p):
     "typedef_params : empty"
     p[0] = []
 
+
 def p_typedef_params_rem(p):
     "typedef_params_rem : COMMA namedef typedef_params_rem"
     p[0] = [p[2]] + p[3]
+
 
 def p_typedef_params_rem_e(p):
     "typedef_params_rem : empty"
     p[0] = []
 
+
 def p_type_members(p):
     "type_members : type_member type_members"
-    p[0] = [p[1]]+p[2]
+    p[0] = [p[1]] + p[2]
+
 
 def p_type_members_e(p):
     "type_members : empty"
     p[0] = []
 
+
 def p_member_func(p):
     "type_member : member_func"
     p[0] = p[1]
 
+
 def p_member_function_def(p):
     "member_func : NAME LPAREN func_params RPAREN opt_type INLINE hl_expression"
-    id = ID(p[1],p[5])
-    p[0] = FunctionDef(id,p[3],p[7])
+    id = ID(p[1], p[5])
+    p[0] = FunctionDef(id, p[3], p[7])
     id.parent = p[0]
     p[3].parent = p[0]
     p[7].parent = p[0]
 
+
 def p_member_function_def_fullform(p):
     "member_func : NAME LPAREN func_params RPAREN opt_type expression_block opt_semi"
-    id = ID(p[1],p[5])
-    p[0] = FunctionDef(id,p[3],p[6])
+    id = ID(p[1], p[5])
+    p[0] = FunctionDef(id, p[3], p[6])
     id.parent = p[0]
     p[3].parent = p[0]
     p[6].parent = p[0]
 
+
 def p_member_var(p):
     "type_member : member_var"
     p[0] = p[1]
+
 
 def p_member_var_dec(p):
     "member_var : namedef EQUAL hl_expression"
@@ -973,10 +1019,11 @@ def p_member_var_dec(p):
     p[1].parent = p[0]
     p[3].parent = p[0]
 
+
 def p_hl_expression(p):
     """hl_expression : expression SEMI
-					| expression_block     
-	"""
+    | expression_block
+    """
     p[0] = p[1]
 
 
@@ -1042,7 +1089,7 @@ def p_rem_assignments_empty(p):
 
 def p_if_hl(p):
     "hl_expression : IF expression_parenthized expression opt_elifs ELSE hl_expression"
-    first = Case(p[2],p[3],"if")
+    first = Case(p[2], p[3], "if")
     p[2].parent = first
     p[3].parent = first
 
@@ -1059,7 +1106,7 @@ def p_if_hl(p):
 
 def p_if_exp(p):
     "expression : IF expression_parenthized expression opt_elifs ELSE expression"
-    first = Case(p[2],p[3],"if")
+    first = Case(p[2], p[3], "if")
     p[2].parent = first
     p[3].parent = first
 
@@ -1076,7 +1123,7 @@ def p_if_exp(p):
 
 def p_opt_elifs(p):
     "opt_elifs : ELIF expression_parenthized expression opt_elifs"
-    elif_cond = Case(p[2],p[3],"elif")
+    elif_cond = Case(p[2], p[3], "elif")
     p[2].parent = elif_cond
     p[3].parent = elif_cond
     p[0] = [elif_cond] + p[4]
@@ -1086,29 +1133,34 @@ def p_opt_elifs_e(p):
     "opt_elifs : empty"
     p[0] = []
 
+
 def p_opt_semi(p):
     """opt_semi : SEMI
-                | empty"""
+    | empty"""
+
 
 def p_for_hl(p):
     "hl_expression : FOR LPAREN destroyable IN expression RPAREN hl_expression"
-    p[0] = For(p[3],p[5],p[7])
+    p[0] = For(p[3], p[5], p[7])
     p[3].parent = p[0]
     p[5].parent = p[0]
     p[7].parent = p[0]
 
+
 def p_for(p):
     "expression : FOR LPAREN destroyable IN expression RPAREN expression"
-    p[0] = For(p[3],p[5],p[7])
+    p[0] = For(p[3], p[5], p[7])
     p[3].parent = p[0]
     p[5].parent = p[0]
     p[7].parent = p[0]
+
 
 def p_while_hl(p):
     "hl_expression : WHILE expression_parenthized hl_expression"
     p[0] = While(p[2], p[3])
     p[2].parent = p[0]
     p[3].parent = p[0]
+
 
 def p_while(p):
     "expression : WHILE expression_parenthized expression"
@@ -1120,6 +1172,7 @@ def p_while(p):
 def p_expression_group(p):
     "expression : expression_parenthized"
     p[0] = p[1]
+
 
 def p_expression_parenthized(p):
     "expression_parenthized : LPAREN expression RPAREN"
@@ -1186,18 +1239,21 @@ def p_expression_binop_hl(p):
     p[1].parent = p[0]
     p[3].parent = p[0]
 
-    
+
 def p_destroyable(p):
     "destroyable : NAME"
     p[0] = ID(p[1], "")
 
+
 def p_type_test(p):
     "type_test : NAME"
     p[0] = ID(p[1], p[1])
-    
+
+
 def p_exp_member_resolute(p):
     "expression : member_resolute"
     p[0] = p[1]
+
 
 def p_member_resolute(p):
     "member_resolute : expression DOT member_resolut"
@@ -1205,24 +1261,25 @@ def p_member_resolute(p):
     p[1].parent = p[0]
     p[3].parent = p[0]
 
+
 def p_member_resolut_fc(p):
     "member_resolut : func_call"
     p[0] = p[1]
+
 
 def p_member_resolut_att(p):
     "member_resolut : NAME"
     p[0] = ID(p[1], "")
 
+
 def p_expression_unary(p):
-    """expression : NOT expression
-    """
+    """expression : NOT expression"""
     p[0] = UnaryOp(op=p[1], operand=p[2])
     p[2].parent = p[0]
 
 
 def p_expression_unary_hl(p):
-    """hl_expression : NOT hl_expression
-    """
+    """hl_expression : NOT hl_expression"""
     p[0] = UnaryOp(op=p[1], operand=p[2])
     p[2].parent = p[0]
 
@@ -1246,6 +1303,7 @@ def p_expression_vector(p):
     "expression : vector"
     p[0] = p[1]
 
+
 def p_vector_ext(p):
     "vector : LSQB cs_exps RSQB"
     p[0] = VectorExt(p[2])
@@ -1259,12 +1317,21 @@ def p_vector_int(p):
     p[4].parent = p[0]
     p[6].parent = p[0]
 
+
 def p_expression_vector_ind(p):
     "expression :  NAME LSQB expression RSQB"
     id = ID(p[1], "")
     p[0] = VectorCall(id, p[3])
     id.parent = p[0]
     p[3].parent = p[0]
+
+
+def p_expression_vector_ind_pare(p):
+    "expression :  expression_parenthized LSQB expression RSQB"
+    p[0] = VectorCall(p[1], p[3])
+    p[1].parent = p[0]
+    p[3].parent = p[0]
+
 
 def p_expression_pi(p):
     "expression : PI"
@@ -1332,25 +1399,27 @@ def p_error(p):
     sErrorList.append(p)
     # print(sErrorList[-1])
 
+
 # endregion
 
 # region Generate AST
 
+
 def find_column(input, token):
-    line_start = input.rfind('\n', 0, token.lexpos) + 1
-    if line_start<0:
+    line_start = input.rfind("\n", 0, token.lexpos) + 1
+    if line_start < 0:
         line_start = 0
     return (token.lexpos - line_start) + 1
 
 
 def hulk_parse(code):
 
-    parser = yacc.yacc(start="program", method='LALR')
+    parser = yacc.yacc(start="program", method="LALR")
 
     AST = parser.parse(code)
 
-    if len(sErrorList)==0:
-        
+    if len(sErrorList) == 0:
+
         try:
             create_AST_graph(nodes, "AST")
         except Exception as e:
@@ -1371,9 +1440,10 @@ def hulk_parse(code):
 
         return None
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     code = "let a = let b = let c = 2 in c in b in a;"
     # print(code)
     hulk_parse(code)
-#endregion
-#xd
+# endregion
+# xd
