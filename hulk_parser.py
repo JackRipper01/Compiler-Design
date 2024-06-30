@@ -1054,7 +1054,6 @@ def p_expression_tbl(p):
     """expression : expression_block"""
     p[0] = p[1]
 
-
 def p_hl_expression(p):
     """hl_expression : expression SEMI
     | expression_block
@@ -1304,14 +1303,14 @@ def p_member_resolut_att(p):
 
 def p_expression_unary(p):
     """expression : NOT expression
-    | MINUS expression %prec UMINUS"""
+                | MINUS expression %prec UMINUS"""
     p[0] = UnaryOp(op=p[1], operand=p[2])
     p[2].parent = p[0]
 
 
 def p_expression_unary_hl(p):
     """hl_expression : NOT hl_expression
-    | MINUS hl_expression %prec UMINUS"""
+                    | MINUS hl_expression %prec UMINUS"""
     p[0] = UnaryOp(op=p[1], operand=p[2])
     p[2].parent = p[0]
 
@@ -1348,14 +1347,6 @@ def p_vector_int(p):
     p[2].parent = p[0]
     p[4].parent = p[0]
     p[6].parent = p[0]
-
-
-def p_expression_vector_ind(p):
-    "expression :  NAME LSQB expression RSQB"
-    id = ID(p[1], "")
-    p[0] = VectorCall(id, p[3])
-    id.parent = p[0]
-    p[3].parent = p[0]
 
 
 def p_expression_vector_ind_pare(p):
@@ -1508,10 +1499,7 @@ def write_c_code_to_file(ast, filename):
 
 
 if __name__ == "__main__":
-    ast = hulk_parse(
-r"""{};
-[2];"""
-    )
+    ast = hulk_parse(r"{{{2;};-4;};[2];}")
     # write_c_code_to_file(ast, "out.c")
 # endregion
 # xd
