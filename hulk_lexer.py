@@ -10,8 +10,9 @@ errorList=[]
 tokens = []
 keywordlist = [
 		'print', 'sqrt', 'sin', 'cos', 'exp', 'log', 'rand', 'function', 'let', 'in', 'if', 'elif', 'else',
-		'true', 'false', 'while', 'for', 'range', 'type', 'new', 'inherits', 'is', 'as', 'protocol', 'extends',
-		'PI', 'E'
+		'true', 'false', 'while', 'for', 'type', 'new', 'inherits', 'is', 'as', 'protocol', 'extends',
+		'PI', 'E',
+		#'range'
 		]
 
 RESERVED = {}
@@ -34,14 +35,12 @@ tokens = tuple(tokens) + (
 
 	    'LPAREN', 'RPAREN',
 	    'LBRACE', 'RBRACE',
-	    'LSQB', 'RSQB',
-		'NEWLINE',
+		
+		'SUCH_AS', 'LSQB', 'RSQB',
 		
 		'STRING',
 		'CONCAT', 'DCONCAT',
-		'NAME', 
-		
-		'EOFM'
+		'NAME'
 	)
 
 t_EQEQUAL = r'=='
@@ -65,6 +64,8 @@ t_TIMES  = r'\*'
 t_DIVIDE = r'/'
 t_MOD = r'%'
 t_POWER = r'\^|\*\*'
+
+t_SUCH_AS = r'\|\|'
 
 t_OR  = r'\|'
 t_AND = r'&'
@@ -128,3 +129,27 @@ def t_error(t):
     t.lexer.skip(1)
 
 t_ignore = " \t"
+
+if __name__=="__main__":
+	lexer = lex.lex()
+	lexer.parenthesisCount = 0
+	toks = lexer.input(r"""{function asd (a,x) {
+                    print(a+x);
+                   }
+                   function asd (a,x) => {
+                    print(a+x);
+                   }
+                   function asd (a,x) => {
+                    print(a+x);
+                   };
+                   function asdf (a,x) => print(a+x);
+                   let a = print(sin(10)) in {let a=5, b=6 in {print(rand()-5*3+2);
+                            rand();};
+                {print(rand()-5*3+2);
+                            rand();} ;
+                            2*23+123;
+                {let x=2 in let a:int=7 in print(1+5);
+                 print(let asd=4 in {rand();}); AAAAAAA();}
+                {{{print(sin((PI*(((1/2)))+PI * x + f() - asd(x,y) )));}}}{{{}}} print('asd'@ "PRINT aaaa \"  "); };}""")
+	for i in lexer:
+		print(i)

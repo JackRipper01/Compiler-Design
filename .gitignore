@@ -163,9 +163,23 @@ cython_debug/
 parsetab.py
 parser.out
 *.hlk
+<<<<<<< HEAD
 .vscode/settings.json
 .vscode/settings.json
 *.json
 hulk_parser.py
 .gitignore
 hulk_parser.py
+=======
+out.c
+out.exe
+output/
+out.c
+output.c
+*.c
+/output
+output/AST.gv
+/.vscode
+test.py
+hulk_parser copy.py
+>>>>>>> develop
