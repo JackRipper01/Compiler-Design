@@ -1138,7 +1138,7 @@ def hulk_parse(code):
             create_AST_graph(nodes, "AST")
         except Exception as e:
             print("NO SE PUDO CREAR EL GRAFO....muy grande!!!")
-            print(e)
+            # print(e)
         return AST
     else:
         print("\nPARSING FINISHED WITH ERRORS:")
