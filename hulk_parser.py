@@ -9,7 +9,10 @@ import math
 import graphviz
 import io
 
-# For graphviz in windows:
+# Parser
+import ply.yacc as yacc
+
+# For graphviz in windows(Only for Hivan):
 import os
 os.environ["PATH"] += os.pathsep + 'C:/Program Files(x86)/Graphviz/bin/'
 
@@ -18,12 +21,11 @@ sErrorList = []
 PI = math.pi
 E = math.e
 
-
 # Build the lexer
 lexer = hulk_lexer.lex.lex(module=hulk_lexer)
 lexer.parenthesisCount = 0
 
-# region classes##################################
+# region AST classes
 
 # LLEVAREMOS UN PARENT POR DEFECTO
 nodes = {}
@@ -338,11 +340,8 @@ class VectorCall(Node):
         add_slf(self, "VECTOR_CALL")
         self.id = id
         self.index = index
-
-# region JTR AST
-
-
-# Operations Classes (binary, unary,etc)
+# endregion
+# region Operations Classes (binary, unary,etc)
 class BinOp(Node):
 
     def __init__(self, left, op, right):
@@ -467,8 +466,8 @@ class UnaryOp(Node):
         else:
             raise TypeError(f"Unknown unary operator {self.op}")
 
-
-# number class
+# endregion
+# region literals
 class Num(Node):
     def __init__(self, value):
         add_slf(self, str(value))
@@ -518,9 +517,8 @@ class StringLiteral(Node):
 
     def build(self):
         return f'"{self.value}"'
-
-
-# constants classes
+# endregion
+# region constants classes
 class Pi(Node):
 
     def __init__(self):
@@ -564,7 +562,7 @@ class E(Node):
 
 
 # endregion
-# region built-in functions classes########################
+# region built-in functions classes
 class Print(
     Node
 ):  # most be modified to work with all literals, now only works with numbers, missing strings and booleans
@@ -774,11 +772,7 @@ class Rand(Node):
 
 
 # endregion
-
-# Parser########################################################################################
-import ply.yacc as yacc
-
-# precedence rules for the arithmetic operators
+# region precedence rules for the arithmetic operators
 precedence = (
     #("right", "PRINT","SQRT","SIN","COS","EXP","LOG","RAND"),
     ("right", "LET", "IN"),
@@ -802,9 +796,8 @@ precedence = (
     ("nonassoc", "NAME"),
     ("left", "DOT"),
 )
-
-
-# region Defining the Grammatical##########################
+# endregion
+# region Defining the Grammatic
 def p_empty(p):
     "empty :"
     pass
@@ -1182,8 +1175,7 @@ def p_rem_assignments(p):
 def p_rem_assignments_empty(p):
     "rem_assignments : empty"
     p[0] = []
-
-
+# endregion
 # region if grammatical
 def p_if_hl(p):
     "hl_expression : IF expression_parenthized expression opt_elifs ELSE hl_expression"
@@ -1262,8 +1254,7 @@ def p_while(p):
     p[3].parent = p[0]
 
 # endregion
-
-
+# region expression
 def p_expression_group(p):
     "expression : expression_parenthized"
     p[0] = p[1]
@@ -1271,8 +1262,7 @@ def p_expression_group(p):
 def p_expression_parenthized(p):
     "expression_parenthized : LPAREN expression RPAREN"
     p[0] = p[2]
-
-
+# endregion
 # region operations
 def p_expression_binop(p):
     """expression : expression PLUS expression
@@ -1433,8 +1423,8 @@ def p_expression_false(p):
     "expression : FALSE"
     p[0] = FalseLiteral()
 
-
-# region built-in funct grammatical
+#endregion
+# region built-in funct
 def p_expression_print(p):
     "expression : PRINT LPAREN expression RPAREN"
     p[0] = Print(p[3])
@@ -1477,15 +1467,9 @@ def p_expression_rand(p):
     p[0] = Rand()
 
 
-# endregion
-
-
 def p_error(p):
     sErrorList.append(p)
     # print(sErrorList[-1])
-
-
-# endregion
 
 # endregion
 
@@ -1526,9 +1510,9 @@ def hulk_parse(code):
 
         return None
 
-if __name__=="__main__":
-    code = io.open("input/custom_test.hulk").read()
-    # print(code)
-    hulk_parse(code)
+# if __name__=="__main__":
+#     code = io.open("input/custom_test.hulk").read()
+#     # print(code)
+#     hulk_parse(code)
 #endregion
-#xd
+
