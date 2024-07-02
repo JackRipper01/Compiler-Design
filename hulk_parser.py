@@ -396,6 +396,44 @@ class While(Node):
         super().__init__(self, "WHILE")
         self.condition = condition
         self.body = body
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"while_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"while_{self.instance_id}"
+        Program.add_function_name(self.name)  # Add the function name to the tracker
+
+    def build(
+        self,
+    ):  # posible mejora seria si no se cumple la cond del if nunca, no hacerle build al body del while o algo asi tal vez
+        self.static_type = "float"
+        self.ret_point = "ret_point_while_" + str(self.instance_id)
+        def_condition, ret_condition = self.condition.build()
+        def_body, ret_body = self.body.build()
+        c_code = f"""{self.static_type} while_{self.instance_id}(){{
+            while(1){{
+            int while_body_executed = 0;
+            {self.static_type} {self.ret_point} =0;"""  # ARREGLAR ESTOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+        c_code += f"""{def_condition}"""
+        # altamente opcional el {ret_body} debajo del {def_body}
+        c_code += f"""
+            if ((int){ret_condition}){{
+            while_body_executed = 1;
+            {def_body}
+            {self.ret_point} = {ret_body};
+            }}
+            else{{
+                if (while_body_executed == 1)
+                    return {self.ret_point};
+                else
+                break;//que carajo retorno
+            }}"""
+        c_code += "}\n}\n"
+
+        c_code += f"{self.static_type} {self.ret_point} = while_{self.instance_id}();"
+        return c_code, self.ret_point
 
 
 class For(Node):
@@ -489,7 +527,7 @@ class BinOp(Node):
         self.right.check()
 
         # Check the operator
-        if self.op not in ["+", "-", "*", "/", "^", "**", "@"]:
+        if self.op not in ["+", "-", "*", "/", "^", "**", "@", "AD"]:
             raise TypeError(f"Invalid operator: {self.op}")
 
         # Infer the types of the operands
@@ -536,6 +574,8 @@ class BinOp(Node):
             code += f"\nreturn (int)({left_ret} {self.op} {right_ret});\n"
         elif self.op in ["^", "**"]:
             code += f"\nreturn = (pow({left_ret}, {right_ret});\n"
+        elif self.op == "AD":
+            code += f"return {left_ret} = {right_ret};"
         else:
             raise TypeError(f"Unknown operator {self.op}")
         code += "\n}\n"
@@ -835,6 +875,7 @@ precedence = (
 )
 
 
+# region temporal occult
 def p_empty(p):
     "empty :"
     pass
@@ -1236,6 +1277,7 @@ def p_rem_assignments_empty(p):
     p[0] = []
 
 
+# endregion
 def p_if_hl(p):
     "hl_expression : IF expression_parenthized expression opt_elifs ELSE hl_expression"
     first = Case(p[2], p[3], "if")
@@ -1585,9 +1627,9 @@ def hulk_parse(code):
 
 
 # create output.c file with the code transformed
-
+# HULK_EXAMP:function fact(a){if(a>0) a*fact(a-1) else 1;}print(fact(5));
 if __name__ == "__main__":
-    ast = hulk_parse(r"function fact(a){if(a>0) a*fact(a-1) else 1;}print(fact(5));")
+    ast = hulk_parse(r"let a = 10 in while (a >= 0) {print(a); a := a - 1;}")
     # ast = hulk_parse(r"print(2>1);")
     ast.build()
 # endregion
