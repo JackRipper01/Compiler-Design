@@ -16,20 +16,11 @@ sErrorList = []
 lexer = hulk_lexer.lex.lex(module=hulk_lexer)
 lexer.parenthesisCount = 0
 
-# region AST classes
-
-# LLEVAREMOS UN PARENT POR DEFECTO
 # region AST
 
 nodes = {}
 
 
-def add_slf(slf, nm):
-    nodes[slf] = nm
-
-
-def create_AST_graph(dict: dict, graph_name):
-    dot = graphviz.Digraph(graph_name)
 def create_AST_graph(dict: dict, graph_name):
     dot = graphviz.Digraph(graph_name)
     for key in dict.keys():
@@ -405,6 +396,44 @@ class While(Node):
         super().__init__(self, "WHILE")
         self.condition = condition
         self.body = body
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"while_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"while_{self.instance_id}"
+        Program.add_function_name(self.name)  # Add the function name to the tracker
+
+    def build(
+        self,
+    ):  # posible mejora seria si no se cumple la cond del if nunca, no hacerle build al body del while o algo asi tal vez
+        self.static_type = "float"
+        self.ret_point = "ret_point_while_" + str(self.instance_id)
+        def_condition, ret_condition = self.condition.build()
+        def_body, ret_body = self.body.build()
+        c_code = f"""{self.static_type} while_{self.instance_id}(){{
+            while(1){{
+            int while_body_executed = 0;
+            {self.static_type} {self.ret_point} =0;"""  # ARREGLAR ESTOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+        c_code += f"""{def_condition}"""
+        # altamente opcional el {ret_body} debajo del {def_body}
+        c_code += f"""
+            if ((int){ret_condition}){{
+            while_body_executed = 1;
+            {def_body}
+            {self.ret_point} = {ret_body};
+            }}
+            else{{
+                if (while_body_executed == 1)
+                    return {self.ret_point};
+                else
+                break;//que carajo retorno
+            }}"""
+        c_code += "}\n}\n"
+
+        c_code += f"{self.static_type} {self.ret_point} = while_{self.instance_id}();"
+        return c_code, self.ret_point
 
 
 class For(Node):
@@ -475,7 +504,7 @@ class VectorCall(Node):
 
 
 class BinOp(Node):
-    
+
     def __init__(self, left, op, right):
         super().__init__(self, op)
         Program.instance_count += 1  # Increment the counter for each new instance
@@ -498,7 +527,7 @@ class BinOp(Node):
         self.right.check()
 
         # Check the operator
-        if self.op not in ["+", "-", "*", "/", "^", "**", "@"]:
+        if self.op not in ["+", "-", "*", "/", "^", "**", "@", "AD"]:
             raise TypeError(f"Invalid operator: {self.op}")
 
         # Infer the types of the operands
@@ -545,6 +574,8 @@ class BinOp(Node):
             code += f"\nreturn (int)({left_ret} {self.op} {right_ret});\n"
         elif self.op in ["^", "**"]:
             code += f"\nreturn = (pow({left_ret}, {right_ret});\n"
+        elif self.op == "AD":
+            code += f"return {left_ret} = {right_ret};"
         else:
             raise TypeError(f"Unknown operator {self.op}")
         code += "\n}\n"
@@ -660,8 +691,6 @@ class E(Node):
         return "M_E"
 
 
-# endregion
-# region built-in functions classes
 class Print(
     Node
 ):  # most be modified to work with all literals, now only works with numbers, missing strings and booleans
@@ -818,25 +847,10 @@ class Rand(Node):
 
 
 # endregion
-# region precedence rules for the arithmetic operators
 
 # region GRAMMAR
 
 precedence = (
-    #("right", "PRINT","SQRT","SIN","COS","EXP","LOG","RAND"),
-    ("right", "LET", "IN"),
-    ("right", "IF", "ELIF", "ELSE"),
-    ("right", "WHILE", "FOR"),
-    ("nonassoc", "EQUAL"),
-    ("right", "ASSDESTROYER"),
-    ("left", "AS"),
-    ("left", "IS"),
-    ("left", "CONCAT", "DCONCAT"),
-    ("left", "OR"),
-    ("left", "AND"),
-    ("left", "EQEQUAL","NOTEQUAL"),
-    ("nonassoc", "LESSEQUAL","GREATEREQUAL","LESS","GREATER"),
-    ("right", "NOT"),
     # ("right", "PRINT","SQRT","SIN","COS","EXP","LOG","RAND"),
     ("right", "LET", "IN"),
     ("right", "IF", "ELIF", "ELSE"),
@@ -858,13 +872,10 @@ precedence = (
     ("right", "LPAREN", "RPAREN"),
     ("nonassoc", "NAME"),
     ("left", "DOT"),
-    ("nonassoc", "NAME"),
-    ("left", "DOT"),
 )
-# endregion
-# region Defining the Grammatic
 
 
+# region temporal occult
 def p_empty(p):
     "empty :"
     pass
@@ -898,269 +909,6 @@ def p_global_hl_expression(p):
     "global_hl_expression : hl_expression"
     p[0] = p[1]
 
-def p_global_hl_expression_e(p):
-    "global_hl_expression : empty"
-    p[0] = None
-
-def p_functionsx_types_protocols_list_items(p):
-    "functions_types_protocols : function_def functions_types_protocols"
-    p[0] = [p[1]]+p[2]
-
-def p_functions_typesx_protocols_list_items(p):
-    "functions_types_protocols : type_def functions_types_protocols"
-    p[0] = [p[1]]+p[2]
-
-def p_functions_types_protocolsx_list_items(p):
-    "functions_types_protocols : protocol_def functions_types_protocols"
-    p[0] = [p[1]]+p[2]
-
-def p_function_type_list_items_empty(p):
-    "functions_types_protocols : empty"
-    p[0]=[]
-
-def p_protocol(p):
-    "protocol_def : PROTOCOL NAME opt_extends LBRACE protocol_methods RBRACE opt_semi"
-    id = ID(p[2], "protocol")
-    p[0] = Protocol(id, p[5], p[3])
-    id.parent = p[0]
-    for i in p[5]:
-        i.parent = p[0]
-    if p[3]:
-        p[3].parent = p[0]
-
-def p_protocol_extends(p):
-    "opt_extends : EXTENDS NAME"
-    p[0] = ID(p[2], "extends")
-
-def p_protocol_extends_e(p):
-    "opt_extends : empty"
-    p[0] = None
-
-def p_protocol_methods(p):
-    "protocol_methods : protocol_method protocol_methods"
-    p[0] = [p[1]]+p[2]
-
-def p_protocol_methods_e(p):
-    "protocol_methods : protocol_method empty"
-    p[0] = [p[1]]
-
-def p_protocol_method(p):
-    "protocol_method : NAME LPAREN protocol_method_params RPAREN COLON NAME SEMI"
-    id = ID(p[1], p[6])
-    params = Params(p[3])
-    for i in p[3]:
-        i.parent = params
-    p[0] = FunctionDef(id, params, None)
-    id.parent = p[0]
-    params.parent = p[0]
-
-def p_protocol_method_params(p):
-    "protocol_method_params : NAME COLON NAME protocol_method_params_rem"
-    p[0] = [ID(p[1], p[3])]+p[4]
-
-def p_protocol_method_params_e(p):
-    "protocol_method_params : empty"
-    p[0] = []
-
-def p_protocol_method_params_rem(p):
-    "protocol_method_params_rem : COMMA NAME COLON NAME protocol_method_params_rem"
-    p[0] = [ID(p[2], p[4])]+p[5]
-
-def p_protocol_method_params_rem_e(p):
-    "protocol_method_params_rem : empty"
-    p[0] = []
-
-
-def p_exp_func_call(p):
-    "expression : func_call"
-    p[0] = p[1]
-
-
-def p_func_call(p):
-    "func_call : NAME LPAREN cs_exps RPAREN"
-    id = ID(p[1],"func_call")
-    p[0] = FunctionCall(id,p[3])
-    id.parent = p[0]
-    p[3].parent = p[0]
-
-def p_exp_type_call(p):
-    "expression : type_call"
-    p[0]=p[1]
-
-def p_type_call(p):
-    "type_call : NEW NAME LPAREN cs_exps RPAREN"
-    id = ID(p[2], p[2])
-    p[0] = TypeCall(id,p[4])
-    id.parent = p[0]
-    p[4].parent = p[0]
-
-def p_cs_exps(p):
-    "cs_exps : cs_exps_list"
-    p[0] = Params(p[1])
-    for i in p[1]:
-        i.parent = p[0]
-
-
-def p_cs_exps_list(p):
-    "cs_exps_list : expression cs_exps_list_rem"
-    p[0] = [p[1]] + p[2]
-
-
-def p_cs_exps_list_e(p):
-    "cs_exps_list : empty"
-    p[0] = []
-
-
-def p_cs_exps_list_rem(p):
-    "cs_exps_list_rem : COMMA expression cs_exps_list_rem"
-    p[0] = [p[2]] + p[3]
-
-
-def p_cs_exps_list_rem_e(p):
-    "cs_exps_list_rem : empty"
-    p[0] = []
-
-
-def p_function_def(p):
-    "function_def : FUNCTION NAME LPAREN func_params RPAREN opt_type INLINE hl_expression"
-    id = ID(p[2],p[6])
-    p[0] = FunctionDef(id,p[4],p[8])
-    id.parent = p[0]
-    p[4].parent = p[0]
-    p[8].parent = p[0]
-
-
-def p_function_def_fullform(p):
-    "function_def : FUNCTION NAME LPAREN func_params RPAREN opt_type expression_block opt_semi"
-    id = ID(p[2],p[6])
-    p[0] = FunctionDef(id,p[4],p[7])
-    id.parent = p[0]
-    p[4].parent = p[0]
-    p[7].parent = p[0]
-
-
-def p_func_params(p):
-    "func_params : func_params_list"
-    p[0] = Params(p[1])
-    for i in p[1]:
-        i.parent = p[0]
-
-
-def p_func_params_list(p):
-    "func_params_list : namedef func_params_list_rem"
-    p[0] = [p[1]] + p[2]
-
-
-def p_func_params_list_e(p):
-    "func_params_list : empty"
-    p[0] = []
-
-
-def p_func_params_list_rem(p):
-    "func_params_list_rem : COMMA namedef func_params_list_rem"
-    p[0] = [p[2]] + p[3]
-
-
-def p_func_params_list_rem_e(p):
-    "func_params_list_rem : empty"
-    p[0] = []
-
-def p_type_def(p):
-    "type_def : TYPE NAME opt_type_params opt_inheritance LBRACE type_members RBRACE opt_semi"
-    params = Params(p[3])
-    for i in p[3]:
-        i.parent = params
-
-    id = ID(p[2], p[2])
-
-    p[0] = TypeDef(id, params, p[6], p[4])
-    for i in p[6]:
-        i.parent = p[0]
-    params.parent = p[0]
-    id.parent = p[0]
-    if p[4]:
-        p[4].parent = p[0]
-
-def p_opt_inheritance(p):
-    "opt_inheritance : INHERITS NAME opt_inheritance_params"
-    id = ID(p[2], "inherits")
-    p[0] = TypeCall(id, p[3])
-    p[3].parent = p[0]
-    id.parent = p[0]
-
-def p_opt_inheritance_e(p):
-    "opt_inheritance : empty"
-    p[0] = None
-
-def p_opt_inheritance_params(p):
-    "opt_inheritance_params : LPAREN cs_exps RPAREN"
-    p[0] = p[2]
-
-def p_opt_inheritance_params_e(p):
-    "opt_inheritance_params : empty"
-    p[0] = Params([])
-
-def p_opt_type_params(p):
-    "opt_type_params : LPAREN typedef_params RPAREN"
-    p[0] = p[2]
-
-def p_opt_type_params_e(p):
-    "opt_type_params : empty"
-    p[0] = []
-
-def p_typedef_params(p):
-    "typedef_params : namedef typedef_params_rem"
-    p[0] = [p[1]]+p[2]
-
-def p_typedef_params_e(p):
-    "typedef_params : empty"
-    p[0] = []
-
-def p_typedef_params_rem(p):
-    "typedef_params_rem : COMMA namedef typedef_params_rem"
-    p[0] = [p[2]] + p[3]
-
-def p_typedef_params_rem_e(p):
-    "typedef_params_rem : empty"
-    p[0] = []
-
-def p_type_members(p):
-    "type_members : type_member type_members"
-    p[0] = [p[1]]+p[2]
-
-def p_type_members_e(p):
-    "type_members : empty"
-    p[0] = []
-
-def p_member_func(p):
-    "type_member : member_func"
-    p[0] = p[1]
-
-def p_member_function_def(p):
-    "member_func : NAME LPAREN func_params RPAREN opt_type INLINE hl_expression"
-    id = ID(p[1],p[5])
-    p[0] = FunctionDef(id,p[3],p[7])
-    id.parent = p[0]
-    p[3].parent = p[0]
-    p[7].parent = p[0]
-
-def p_member_function_def_fullform(p):
-    "member_func : NAME LPAREN func_params RPAREN opt_type expression_block opt_semi"
-    id = ID(p[1],p[5])
-    p[0] = FunctionDef(id,p[3],p[6])
-    id.parent = p[0]
-    p[3].parent = p[0]
-    p[6].parent = p[0]
-
-def p_member_var(p):
-    "type_member : member_var"
-    p[0] = p[1]
-
-def p_member_var_dec(p):
-    "member_var : namedef EQUAL hl_expression"
-    p[0] = Assign(p[1], p[3])
-    p[1].parent = p[0]
-    p[3].parent = p[0]
 
 def p_global_hl_expression_e(p):
     "global_hl_expression : empty"
@@ -1491,22 +1239,6 @@ def p_expression_block_list_e(p):
     p[0] = []
 
 
-# def p_expression_block_hl(p):
-#     """expression_block_hl : LBRACE expression_block_list RBRACE"""
-#     p[0] = ExpressionBlock(p[2])
-#     for i in p[2]:
-#         i.parent = p[0]
-
-
-# def p_expression_block_hl_list(p):
-#     "expression_block_hl_list : hl_expression expression_block_hl_list"
-#     p[0]=[p[1]]+p[2]
-
-# def p_expression_block_list_e(p):
-#     "expression_block_list : empty"
-#     p[0] = []
-
-
 def p_hl_let(p):
     """hl_expression : LET assign_values IN hl_expression"""
     p[0] = Let(p[2], p[4])
@@ -1545,6 +1277,7 @@ def p_rem_assignments_empty(p):
     p[0] = []
 
 
+# endregion
 def p_if_hl(p):
     "hl_expression : IF expression_parenthized expression opt_elifs ELSE hl_expression"
     first = Case(p[2], p[3], "if")
@@ -1635,8 +1368,8 @@ def p_expression_group(p):
 def p_expression_parenthized(p):
     "expression_parenthized : LPAREN expression RPAREN"
     p[0] = p[2]
-# endregion
-# region operations
+
+
 def p_expression_binop(p):
     """expression : expression PLUS expression
     | expression MINUS expression
@@ -1854,14 +1587,6 @@ def p_error(p):
 
 # endregion
 
-
-def p_error(p):
-    sErrorList.append(p)
-    # print(sErrorList[-1])
-
-
-# endregion
-
 # region Generate AST
 
 
@@ -1902,9 +1627,9 @@ def hulk_parse(code):
 
 
 # create output.c file with the code transformed
-
+# HULK_EXAMP:function fact(a){if(a>0) a*fact(a-1) else 1;}print(fact(5));
 if __name__ == "__main__":
-    ast = hulk_parse(r"function fact(a){if(a>0) a*fact(a-1) else 1;}print(fact(5));")
+    ast = hulk_parse(r"let a = 10 in while (a >= 0) {print(a); a := a - 1;}")
     # ast = hulk_parse(r"print(2>1);")
     ast.build()
 # endregion
