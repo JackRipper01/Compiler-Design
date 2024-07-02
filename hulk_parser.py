@@ -175,7 +175,7 @@ class Program(Node):
     def function_name_exists(cls, name):
         return name in cls.function_names
 
-
+#region FunctionClasses
 class FunctionDef(Node):
     def __init__(self, func_id, params, body):
         super().__init__(self, "FUNC_DEF")
@@ -234,7 +234,7 @@ class Params(Node):
         super().__init__(self, "params")
         self.param_list = param_list
 
-
+#endregion
 class ExpressionBlock(Node):
     def __init__(self, exps):
         super().__init__(self, "EXP_BLOCK")
@@ -263,36 +263,6 @@ class ExpressionBlock(Node):
         code += "}"
         code += f"""{self.static_type} {self.ret_point} = expression_block_{self.instance_id}();"""
         return code, self.ret_point
-
-        # region old
-        # code = f"float {self.name}() {{\n"
-
-        # for i, exp in enumerate(self.exp_list):
-        #     # Check if it's the last expression in the block
-        #     if i == len(self.exp_list) - 1:
-        #         break
-        #     else:
-        #         code += exp.build() + ";" + "\n"
-
-        # # el codigo para q la ultima expression retorne es:
-        # code += self.exp_list[-1].build()
-        # last_newline_index = code.rfind("\n")
-
-        # if last_newline_index != -1:
-        #     substring_after_last_newline = code[last_newline_index + 1 :].lstrip()
-        #     # print(substring_after_last_newline)
-        #     code = (
-        #         code[: last_newline_index + 1]
-        #         + "return "
-        #         + substring_after_last_newline
-        #         + ";"
-        #     )
-        # else:
-        #     code_without_initial_whitespace = code.lstrip()
-        #     code = "return " + code_without_initial_whitespace + ";"
-        # code += "\n}\n"
-        # return code
-        # endregion
 
 
 class Let(Node):
@@ -338,52 +308,7 @@ class Let(Node):
         return c_code, self.ret_point
 
     # ret_point_3
-    # region old
-    # # Use instance_id to create a unique function name
-    # c_code = f"{return_type} let_{self.instance_id}("
-    # if len(self.assign) == 1:
-    #     c_code += f"float {self.assign[0].name.name}"
-    # else:
-    #     for assignment in self.assign:
-    #         c_code += f"float {assignment.name.name}, "
-    #     c_code = c_code[:-2]
-    # c_code += ") {\n"
-
-    # # body
-    # body_code = self.body.build()
-    # # Sol (working)
-    # if isinstance(self.body, ExpressionBlock):
-    #     c_code += body_code
-    #     c_code += "return " + self.body.name + "();"
-    #     c_code += "\n}\n"
-    # else:
-    #     c_code += body_code
-    #     last_newline_index = c_code.rfind("\n")
-    #     if last_newline_index != -1:
-    #         c_code = (
-    #             c_code[: last_newline_index + 1]
-    #             + "return "
-    #             + c_code[last_newline_index + 1 :]
-    #             + ";"
-    #         )
-    #         c_code += "\n}\n"
-    #     else:
-    #         raise ValueError(
-    #             f"Te falto un salto de linea luego de algun {{ o de algun }} antes de llamar a la funcion"
-    #         )
-
-    # # arguments of the call
-    # c_code += f"let_{self.instance_id}("
-    # if len(self.assign) == 1:
-    #     c_code += f"{self.assign[0].value}"
-    # else:
-    #     for assignment in self.assign:
-    #         c_code += f"{assignment.value}, "
-    #     c_code = c_code[:-2]
-    # c_code += ")" + ("" if isinstance(self.parent, Let) else ";")
-    # return c_code
-    # endregion
-
+    
 
 class Assign(Node):  # example: name = var a ,value = 4
     def __init__(self, name, value):
@@ -724,7 +649,6 @@ class UnaryOp(Node):
             raise TypeError(f"Unknown unary operator {self.op}")
 
 
-# number class
 class Num(Node):
     def __init__(self, value):
         super().__init__(self, str(value))
@@ -797,7 +721,7 @@ class E(Node):
     def build(self):
         return "M_E"
 
-
+#region built-in functions
 class Print(
     Node
 ):  # most be modified to work with all literals, now only works with numbers, missing strings and booleans
@@ -1736,8 +1660,9 @@ def hulk_parse(code):
         return None
 
 if __name__=="__main__":
-    code = io.open("input/custom_test.hulk").read()
+    # code = io.open("input/custom_test.hulk").read()
     # print(code)
+    code=""
     hulk_parse(code)
 # endregion
 # xd
