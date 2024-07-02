@@ -6,10 +6,10 @@ from numpy import isin
 import hulk_lexer
 from hulk_lexer import lex, tokens
 from ply import yacc
-import random
-import math
 import graphviz
-import io
+from typing import List
+lexer = hulk_lexer.lex.lex(module=hulk_lexer)
+lexer.parenthesisCount = 0
 
 sErrorList = []
 
@@ -20,8 +20,77 @@ lexer.parenthesisCount = 0
 
 nodes = {}
 
+def refact_ast(nodes_dict : dict):
+    "esto convierte el for en el while equivalente y los let en los let con una sola asignacion concatenados equivalentes"
+    for_expressions : List[For] = list(filter(lambda x: type(x) is For, nodes_dict.keys()))
+    
+    for for_item in for_expressions:
+        nodes.pop(for_item)
+        condition_id_iter = ID ("iterable", "")
+        func_call_next_id = ID("next", "func_call")
+        func_call_next_params = Params([])
+        func_call_next = FunctionCall(func_call_next_id, func_call_next_params)
+        condition = BinOp(condition_id_iter ,".", func_call_next)
+        id_assign_inner_let = for_item.iterator
+        assign_id_iter = ID ("iterable", "")
+        func_call_current_id = ID("current", "func_call")
+        func_call_current_params = Params([])
+        func_call_current = FunctionCall(func_call_current_id, func_call_current_params)
+        value_assign_inner_let = BinOp(assign_id_iter ,".", func_call_current)
+        assign_inner_let = Assign(id_assign_inner_let, value_assign_inner_let)
+        inner_let = Let([assign_inner_let], for_item.body)
+        while_item = While(condition, inner_let)
+        id_master_assign = ID ("iterable", "")
+        value_master_assign = for_item.iterable
+        master_assign = Assign(id_master_assign, value_master_assign)
+        # master_let = Let([master_assign], while_item)
+        master_let : Let = for_item.parent
+        master_let.assign.append(master_assign)
+        master_let.body = while_item
+
+        func_call_next_id.parent = func_call_next
+        func_call_next_params.parent = func_call_next
+        condition_id_iter.parent = condition
+        func_call_next.parent = condition
+        func_call_current_id.parent = func_call_current
+        func_call_current_params.parent = func_call_current
+        assign_id_iter.parent = value_assign_inner_let
+        func_call_current.parent = value_assign_inner_let
+        id_assign_inner_let.parent = assign_inner_let
+        value_assign_inner_let.parent = assign_inner_let
+        assign_inner_let.parent = inner_let
+        for_item.body.parent = inner_let
+        condition.parent = while_item
+        inner_let.parent = while_item
+        id_master_assign.parent = master_assign
+        value_master_assign.parent = master_assign
+        master_assign.parent = master_let
+        while_item.parent = master_let
+        # master_let.parent = for_item.parent
+        for_item = master_let
+
+    let_expressions : List[Let] = list(filter(lambda x: type(x) is Let, nodes_dict.keys()))
+
+    for let in let_expressions:
+        if len(let.assign)<=1:
+            # print("let is ok")
+            continue
+
+        current_let = let
+        end_body = let.body
+        for assign_item in (let.assign)[1:]:
+            new_let = Let(assign_item, None)
+            assign_item.parent = new_let
+            current_let.body = new_let
+            new_let.parent = current_let
+            current_let = new_let
+        current_let.body = end_body
+        end_body.parent = current_let
+        let.assign = let.assign[:1]
+
 
 def create_AST_graph(dict: dict, graph_name):
+    "guarda el ast en un grafiquito guapo...si es muy grande se parte"
     dot = graphviz.Digraph(graph_name)
     for key in dict.keys():
         if not key.parent:
@@ -62,7 +131,7 @@ class Program(Node):
         self.global_exp = global_expression
 
     def build(self):
-        code_main = self.global_exp.build()
+        main_def, main_ret = self.global_exp.build()
         with open("./out.c", "w") as f:
             f.write("#include <stdio.h>\n")
             f.write("#include <math.h>\n")
@@ -92,8 +161,8 @@ class Program(Node):
                 for function in self.functions:
                     f.write(f"{function.build()[0]}\n\n")
             f.write("float main() {\n\n")
-            f.write(f"{code_main[0]}\n\n")
-            f.write(f"return {code_main[1]};\n")
+            f.write(f"{main_def}\n\n")
+            f.write(f"return {main_ret};\n")
             f.write("}\n")
 
     @classmethod
@@ -105,12 +174,6 @@ class Program(Node):
     @classmethod
     def function_name_exists(cls, name):
         return name in cls.function_names
-
-
-class FunctionList(Node):
-    def __init__(self, functions_list):
-        super().__init__(self, "FUNCTIONS")
-        self.function_list = functions_list
 
 
 class FunctionDef(Node):
@@ -374,6 +437,7 @@ class If(Node):
 class Case(Node):
     def __init__(self, condition, body, branch):
         super().__init__(self, "IF " + branch)
+        super().__init__(self, "IF " + branch)
         self.condition = condition
         self.body = body
         self.branch = branch
@@ -390,8 +454,24 @@ class Case(Node):
             }}"""
         return c_code, ""
 
+        self.branch = branch
+
+    def build(self):
+
+        c_code = ""
+        def_condition, ret_condition = self.condition.build()
+        def_body, ret_body = self.body.build()
+        c_code += f"""{def_condition}"""
+        c_code += f"""if ((int){ret_condition}){{
+            {def_body}
+            return {ret_body};
+            }}"""
+        return c_code, ""
+
 
 class While(Node):
+    def __init__(self, condition, body):
+        super().__init__(self, "WHILE")
     def __init__(self, condition, body):
         super().__init__(self, "WHILE")
         self.condition = condition
@@ -437,8 +517,8 @@ class While(Node):
 
 
 class For(Node):
-    def __init__(self, iterator, iterable, body):
-        super().__init__(self, "WHILE")
+    def __init__(self, iterator, iterable, body):    
+        super().__init__(self, "FOR")
         self.iterator = iterator
         self.iterable = iterable
         self.body = body
@@ -463,21 +543,31 @@ class FalseLiteral(Node):
 class TypeDef(Node):
     def __init__(self, id, params, members, inherits):
         super().__init__(self, "TYPE_DEF")
+    def __init__(self, id, params, members, inherits):
+        super().__init__(self, "TYPE_DEF")
         self.id = id
+        self.variables = filter(lambda x: type(x) is Assign, members)
+        self.functions = filter(lambda x: type(x) is FunctionDef, members)
         self.variables = filter(lambda x: type(x) is Assign, members)
         self.functions = filter(lambda x: type(x) is FunctionDef, members)
         self.params = params
         self.inherits = inherits
 
 
+
 class TypeCall(Node):
+    def __init__(self, id, params):
+        super().__init__(self, "TYPE_CALL")
     def __init__(self, id, params):
         super().__init__(self, "TYPE_CALL")
         self.id = id
         self.params = params
 
 
+
 class Protocol(Node):
+    def __init__(self, id, methods, extends):
+        super().__init__(self, "PROTOCOL")
     def __init__(self, id, methods, extends):
         super().__init__(self, "PROTOCOL")
         self.id = id
@@ -485,27 +575,43 @@ class Protocol(Node):
         self.extends = extends
 
 
+
 class VectorExt(Node):
     def __init__(self, items):
         super().__init__(self, "VECTOR_EXT")
+        super().__init__(self, "VECTOR_EXT")
         self.items = items
+
 
 
 class VectorInt(Node):
     def __init__(self, expression, iterator, iterable):
         super().__init__(self, "VECTOR_INT")
 
+        super().__init__(self, "VECTOR_INT")
+
 
 class VectorCall(Node):
     def __init__(self, id, index):
+        super().__init__(self, "VECTOR_CALL")
         super().__init__(self, "VECTOR_CALL")
         self.id = id
         self.index = index
 
 
+
 class BinOp(Node):
 
     def __init__(self, left, op, right):
+        super().__init__(self, op)
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"bin_op_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"bin_op_{self.instance_id}"
+        Program.add_function_name(self.name)  # Add the function name to the tracker
         super().__init__(self, op)
         Program.instance_count += 1  # Increment the counter for each new instance
         self.instance_id = Program.instance_count
@@ -522,6 +628,7 @@ class BinOp(Node):
     def check(
         self,
     ):
+        # Check the operands
         # Check the operands
         self.left.check()
         self.right.check()
@@ -998,12 +1105,12 @@ def p_protocol_method_params_rem_e(p):
 
 
 def p_exp_func_call(p):
-    "expression : func_call"
+    "expression : func_call_next"
     p[0] = p[1]
 
 
 def p_func_call(p):
-    "func_call : NAME LPAREN cs_exps RPAREN"
+    "func_call_next : NAME LPAREN cs_exps RPAREN"
     id = ID(p[1], "func_call")
     p[0] = FunctionCall(id, p[3])
     id.parent = p[0]
@@ -1277,6 +1384,7 @@ def p_rem_assignments_empty(p):
     p[0] = []
 
 
+
 # endregion
 def p_if_hl(p):
     "hl_expression : IF expression_parenthized expression opt_elifs ELSE hl_expression"
@@ -1332,18 +1440,24 @@ def p_opt_semi(p):
 
 def p_for_hl(p):
     "hl_expression : FOR LPAREN destroyable IN expression RPAREN hl_expression"
-    p[0] = For(p[3], p[5], p[7])
-    p[3].parent = p[0]
-    p[5].parent = p[0]
-    p[7].parent = p[0]
+    for_exp = For(p[3], p[5], p[7])
+    p[3].parent = for_exp
+    p[5].parent = for_exp
+    p[7].parent = for_exp
+    p[0] = Let([], for_exp)
+    for_exp.parent = p[0]
+
 
 
 def p_for(p):
     "expression : FOR LPAREN destroyable IN expression RPAREN expression"
-    p[0] = For(p[3], p[5], p[7])
-    p[3].parent = p[0]
-    p[5].parent = p[0]
-    p[7].parent = p[0]
+    for_exp = For(p[3], p[5], p[7])
+    p[3].parent = for_exp
+    p[5].parent = for_exp
+    p[7].parent = for_exp
+    p[0] = Let([], for_exp)
+    for_exp.parent = p[0]
+
 
 
 def p_while_hl(p):
@@ -1454,7 +1568,7 @@ def p_member_resolute(p):
 
 
 def p_member_resolut_fc(p):
-    "member_resolut : func_call"
+    "member_resolut : func_call_next"
     p[0] = p[1]
 
 
@@ -1591,6 +1705,7 @@ def p_error(p):
 
 
 def find_column(input, token):
+    "busca la columna del token que da error"
     line_start = input.rfind("\n", 0, token.lexpos) + 1
     if line_start < 0:
         line_start = 0
@@ -1598,18 +1713,13 @@ def find_column(input, token):
 
 
 def hulk_parse(code):
-
+    "parsea el codigo de hulk, retornando la raiz del ast"
     parser = yacc.yacc(start="program", method="LALR")
 
     AST = parser.parse(code)
 
     if len(sErrorList) == 0:
-
-        try:
-            create_AST_graph(nodes, "AST")
-        except Exception as e:
-            print("NO SE PUDO CREAR EL GRAFO....muy grande!!!")
-            print(e)
+        print("SUCCESS PARSING!!")
         return AST
     else:
         print("\nPARSING FINISHED WITH ERRORS:")
@@ -1625,12 +1735,9 @@ def hulk_parse(code):
 
         return None
 
-
-# create output.c file with the code transformed
-# HULK_EXAMP:function fact(a){if(a>0) a*fact(a-1) else 1;}print(fact(5));
-if __name__ == "__main__":
-    ast = hulk_parse(r"let a = 10 in while (a >= 0) {print(a); a := a - 1;}")
-    # ast = hulk_parse(r"print(2>1);")
-    ast.build()
+if __name__=="__main__":
+    code = io.open("input/custom_test.hulk").read()
+    # print(code)
+    hulk_parse(code)
 # endregion
 # xd
