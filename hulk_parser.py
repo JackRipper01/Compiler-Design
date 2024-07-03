@@ -3,14 +3,15 @@ from hulk_lexer import lex, tokens
 from ply import yacc
 import graphviz
 from typing import List
+
 lexer = hulk_lexer.lex.lex(module=hulk_lexer)
 lexer.parenthesisCount = 0
 
 sErrorList = []
 
-# region AST
-
 nodes = {}
+
+#region UTILS
 
 def refact_ast(nodes_dict : dict):
     "esto convierte el for en el while equivalente y los let en los let con una sola asignacion concatenados equivalentes"
@@ -71,7 +72,7 @@ def refact_ast(nodes_dict : dict):
         current_let = let
         end_body = let.body
         for assign_item in (let.assign)[1:]:
-            new_let = Let(assign_item, None)
+            new_let = Let([assign_item], None)
             assign_item.parent = new_let
             current_let.body = new_let
             new_let.parent = current_let
@@ -79,20 +80,43 @@ def refact_ast(nodes_dict : dict):
         current_let.body = end_body
         end_body.parent = current_let
         let.assign = let.assign[:1]
-        
+    return nodes_dict
 
 def create_AST_graph(dict: dict, graph_name):
     "guarda el ast en un grafiquito guapo...si es muy grande se parte"
     dot = graphviz.Digraph(graph_name)
     for key in dict.keys():
-        if not key.parent:
-            dict[key] += " ( </> )"
         dot.node(str(key), dict[key])
     for key in dict.keys():
         if key.parent:
             dot.edge(str(key.parent), str(key))
     dot.render(directory="output")
 
+# def father_child():
+#     childs_dict = {}
+#     root = None
+#     for node in nodes:
+#         if node.parent:
+#             if childs_dict.get(node.parent):
+#                 childs_dict[node.parent].add(node)
+#             else:
+#                 childs_dict[node.parent] = set()
+#                 childs_dict[node.parent].add(node)
+#         else:
+#             root = node
+#     return root, childs_dict
+
+# def func_type_proto_scope(ast_input):
+#     for function in ast_input.functions:
+
+
+# def add_variable_context(root, navigable_tree):
+#     """adding scope for variable declaration, FUNCTION_DEF and LET"""
+#     for child in navigable_tree[root]
+
+#endregion
+
+# region AST
 
 class Node:
     def __init__(self, slf, nm):
@@ -101,14 +125,19 @@ class Node:
         self.static_type = "Object"
         self.dynamic_type = "Object"
         self.ret_point = "ret_point"
+        self.variable_scope = {}
+        self.function_type_prototype_scope = {}
 
     def check(self):
+        "check the correct use of the variables in the current scope"
         pass
 
     def infer_type(self):
+        "tries to infer the type of the current expression"
         pass
 
     def build(self):
+        "generates the code for the "
         pass
 
 
@@ -117,7 +146,7 @@ class Program(Node):
     instance_count = 0
 
     def __init__(self, functions_types, global_expression):
-        super().__init__(self, "")
+        super().__init__(self, "PROGRAM")
         self.functions = filter(lambda x: type(x) is FunctionDef, functions_types)
         self.types = filter(lambda x: type(x) is TypeDef, functions_types)
         self.global_exp = global_expression
@@ -256,36 +285,6 @@ class ExpressionBlock(Node):
         code += f"""{self.static_type} {self.ret_point} = expression_block_{self.instance_id}();"""
         return code, self.ret_point
 
-        # region old
-        # code = f"float {self.name}() {{\n"
-
-        # for i, exp in enumerate(self.exp_list):
-        #     # Check if it's the last expression in the block
-        #     if i == len(self.exp_list) - 1:
-        #         break
-        #     else:
-        #         code += exp.build() + ";" + "\n"
-
-        # # el codigo para q la ultima expression retorne es:
-        # code += self.exp_list[-1].build()
-        # last_newline_index = code.rfind("\n")
-
-        # if last_newline_index != -1:
-        #     substring_after_last_newline = code[last_newline_index + 1 :].lstrip()
-        #     # print(substring_after_last_newline)
-        #     code = (
-        #         code[: last_newline_index + 1]
-        #         + "return "
-        #         + substring_after_last_newline
-        #         + ";"
-        #     )
-        # else:
-        #     code_without_initial_whitespace = code.lstrip()
-        #     code = "return " + code_without_initial_whitespace + ";"
-        # code += "\n}\n"
-        # return code
-        # endregion
-
 
 class Let(Node):
     def __init__(self, assign, body):
@@ -330,51 +329,6 @@ class Let(Node):
         return c_code, self.ret_point
 
     # ret_point_3
-    # region old
-    # # Use instance_id to create a unique function name
-    # c_code = f"{return_type} let_{self.instance_id}("
-    # if len(self.assign) == 1:
-    #     c_code += f"float {self.assign[0].name.name}"
-    # else:
-    #     for assignment in self.assign:
-    #         c_code += f"float {assignment.name.name}, "
-    #     c_code = c_code[:-2]
-    # c_code += ") {\n"
-
-    # # body
-    # body_code = self.body.build()
-    # # Sol (working)
-    # if isinstance(self.body, ExpressionBlock):
-    #     c_code += body_code
-    #     c_code += "return " + self.body.name + "();"
-    #     c_code += "\n}\n"
-    # else:
-    #     c_code += body_code
-    #     last_newline_index = c_code.rfind("\n")
-    #     if last_newline_index != -1:
-    #         c_code = (
-    #             c_code[: last_newline_index + 1]
-    #             + "return "
-    #             + c_code[last_newline_index + 1 :]
-    #             + ";"
-    #         )
-    #         c_code += "\n}\n"
-    #     else:
-    #         raise ValueError(
-    #             f"Te falto un salto de linea luego de algun {{ o de algun }} antes de llamar a la funcion"
-    #         )
-
-    # # arguments of the call
-    # c_code += f"let_{self.instance_id}("
-    # if len(self.assign) == 1:
-    #     c_code += f"{self.assign[0].value}"
-    # else:
-    #     for assignment in self.assign:
-    #         c_code += f"{assignment.value}, "
-    #     c_code = c_code[:-2]
-    # c_code += ")" + ("" if isinstance(self.parent, Let) else ";")
-    # return c_code
-    # endregion
 
 
 class Assign(Node):  # example: name = var a ,value = 4
@@ -385,16 +339,16 @@ class Assign(Node):  # example: name = var a ,value = 4
 
 
 class ID(Node):
-    def __init__(self, name, opt_type):
-        if opt_type == "":
+    def __init__(self, name, annotated_type):
+        if annotated_type == "":
             super().__init__(self, "var " + name)
         else:
-            super().__init__(self, opt_type + " " + name)
+            super().__init__(self, annotated_type + " " + name)
         self.name = name
-        self.opt_type = opt_type
+        self.annotated_type = annotated_type
 
     def infer_type(self):
-        return self.opt_type
+        return self.annotated_type
 
     def build(self):
         return "", self.name
@@ -1639,27 +1593,9 @@ def hulk_parse(code):
         return None
 
 
-# create output.c file with the code transformed
 
 if __name__ == "__main__":
-    # ast = hulk_parse(r"function fact(a){if(a>0) a*fact(a-1) else 1;}print(fact(5));")
-    # ast = hulk_parse(r"print(2>1);")
-    ast = hulk_parse(r"let a = 5, b = a in a + b;")
-    create_AST_graph(nodes, "lets_normal")
-    refact_ast(nodes)
-    create_AST_graph(nodes, "lets_factorized")
-    nodes = {}
-    ast = hulk_parse("2+for (x in range(0, 10)) print(x);")
-    refact_ast(nodes)
-    create_AST_graph(nodes, "entry_for")
-    print("tiene unaaaaa", ast.global_exp.right)
-    nodes = {}
-    ast = hulk_parse("""let iterable = range(0, 10) in
-    while (iterable.next())
-        let x = iterable.current() in
-            print(x);""")
-    create_AST_graph(nodes, "output_for")
-    
-    # ast.build()
+    ast = hulk_parse(r"let a = 5 , a = a+2 in print(a);")
+    nodes = refact_ast(nodes)
+    create_AST_graph(nodes, "AST")
 # endregion
-# xd
