@@ -11,6 +11,11 @@ import math
 import graphviz
 import io
 
+# For Hivan Only :
+# Code for Graphviz working in windows 
+import os
+os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz/bin/'
+
 sErrorList = []
 
 lexer = hulk_lexer.lex.lex(module=hulk_lexer)
@@ -251,22 +256,31 @@ class Let(Node):
         pass
 
     def infer_type(self):
-        pass
+       return check_type(self)
 
     def build(self):  # generate c code
-        self.static_type = "float"
-        assign_def, assign_ret = self.assign[0].value.build()
-        var_name = self.assign[0].name.name
-        var_type = self.assign[0].name.static_type
-        var_type = "float"  # temporal
+        self.static_type = check_type(self)
+        ret = self.assign[0].build()
+        # print(ret)
+        # assign_def, assign_ret = self.assign[0].value.build()
+        # var_name = self.assign[0].name.name
+        # var_type = self.assign[0].name.static_type
+        # var_type = "float"  # temporal
         body_def, body_ret = self.body.build()
         self.ret_point = "ret_point_let_" + str(
             self.instance_id
         )  # analizar instance id
 
+        # c_code = f"""{self.static_type} let_{self.instance_id}(){{
+        # {assign_def}
+        # {var_type} {var_name} = {assign_ret};
+        # {body_def}
+        # return {body_ret};
+        # }}
+        # {self.static_type} {self.ret_point} = let_{self.instance_id}();
+        # """
         c_code = f"""{self.static_type} let_{self.instance_id}(){{
-        {assign_def}
-        {var_type} {var_name} = {assign_ret};
+        {ret};
         {body_def}
         return {body_ret};
         }}
@@ -327,6 +341,19 @@ class Assign(Node):  # example: name = var a ,value = 4
         super().__init__(self, "ASSIGN")
         self.name = name
         self.value = value
+        
+    def build(self): # generate c code (Variable declaration)
+        # print(type(self))
+        # print(isinstance(self,Assign))
+        
+        assign_type = check_type(self)
+        if assign_type == 'string':
+            return f'char {self.name.build()}[] = {self.value.build()}'
+        elif assign_type == 'number':
+            return f'int {self.name.build()} = {self.value.build()}'
+        else: 
+            return f'{assign_type} {self.name.build()} = {self.value.build()}'
+        
 
 
 class ID(Node):
@@ -342,7 +369,7 @@ class ID(Node):
         return self.opt_type
 
     def build(self):
-        return "", self.name
+        return self.name
 
 
 class If(Node):
@@ -1625,12 +1652,90 @@ def hulk_parse(code):
 
         return None
 
+# region Type Checking
 
+def check_type(node: Node):
+    # print('in check_type')
+    # print(type(node))
+    if isinstance(node,Assign):
+        # print('mark 1')
+        return assign_check_type(node)
+    elif isinstance(node, Num):
+        # print('mark 2')
+        return number_check_type(node)
+    elif isinstance(node, StringLiteral):
+        # print('mark 3')
+        return string_check_type(node)
+    elif isinstance(node, Let):
+        # print('mark 4')
+        let_check_type(node)
+    elif isinstance(node, Print):
+        # print('mark 5')
+        return print_check_type(node)
+    elif isinstance(node, BinOp):
+        # print('mark 6')
+        return binop_check_type(node)
+#     elif isinstance(node, ID):
+#         return id_check_type(node)
+    
+# def id_check_type(node: ID):
+#     pass
+
+def binop_check_type(node: BinOp):
+    left_type = check_type(node.left)
+    right_type = check_type(node.right)
+
+    # Check that the types are valid for the operation
+    if node.op in ["+", "-", "*", "/"]:
+        if left_type != "number" or right_type != "number":
+            raise TypeError(f"Invalid type for operation: {left_type}")
+        else: return 'number'
+    if node.op in ["^", "**"]:
+        if left_type != "number" or right_type != "number":
+            raise TypeError(f"Invalid type for operation: {left_type}")
+        else: return 'number'
+    if node.op == "@":
+        if (
+            left_type != "string"
+            and left_type != "number"
+            or right_type != "string"
+            and right_type != "number"
+        ):
+            raise TypeError(f"Invalid type for operation: {left_type}")
+        else: return 'string'
+
+def print_check_type(node: Print):
+    return 'void'
+
+def let_check_type(node: Let):
+    return check_type(node.body)
+
+def assign_check_type(node: Assign):
+    # print('in assign_check_type')
+    declared_type = node.name.opt_type
+    type = check_type(node.value)
+    if declared_type != '':
+        if (type != declared_type):
+            # Exception here!!!!!!!!!!
+            raise TypeError('Declared type is diferent from the type of the value given.')
+    node.name.opt_type = type
+    return type
+
+def number_check_type(node: Num):
+    return 'number'
+
+def string_check_type(node: StringLiteral):
+    return 'string'
+
+
+# endregion
 # create output.c file with the code transformed
 # HULK_EXAMP:function fact(a){if(a>0) a*fact(a-1) else 1;}print(fact(5));
 if __name__ == "__main__":
-    ast = hulk_parse(r"let a = 10 in while (a >= 0) {print(a); a := a - 1;}")
+    # ast = hulk_parse(r"let a = 10 in while (a >= 0) {print(a); a := a - 1;}")
+    ast = hulk_parse(r'let msg = "Hello World", a= 10 in print(msg);')
     # ast = hulk_parse(r"print(2>1);")
     ast.build()
 # endregion
 # xd
+
