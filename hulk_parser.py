@@ -8,6 +8,7 @@ from hulk_lexer import lex, tokens
 from ply import yacc
 import graphviz
 from typing import List
+
 lexer = hulk_lexer.lex.lex(module=hulk_lexer)
 lexer.parenthesisCount = 0
 
@@ -20,31 +21,34 @@ lexer.parenthesisCount = 0
 
 nodes = {}
 
-def refact_ast(nodes_dict : dict):
+
+def refact_ast(nodes_dict: dict):
     "esto convierte el for en el while equivalente y los let en los let con una sola asignacion concatenados equivalentes"
-    for_expressions : List[For] = list(filter(lambda x: type(x) is For, nodes_dict.keys()))
-    
+    for_expressions: List[For] = list(
+        filter(lambda x: type(x) is For, nodes_dict.keys())
+    )
+
     for for_item in for_expressions:
         nodes.pop(for_item)
-        condition_id_iter = ID ("iterable", "")
+        condition_id_iter = ID("iterable", "")
         func_call_next_id = ID("next", "func_call")
         func_call_next_params = Params([])
         func_call_next = FunctionCall(func_call_next_id, func_call_next_params)
-        condition = BinOp(condition_id_iter ,".", func_call_next)
+        condition = BinOp(condition_id_iter, ".", func_call_next)
         id_assign_inner_let = for_item.iterator
-        assign_id_iter = ID ("iterable", "")
+        assign_id_iter = ID("iterable", "")
         func_call_current_id = ID("current", "func_call")
         func_call_current_params = Params([])
         func_call_current = FunctionCall(func_call_current_id, func_call_current_params)
-        value_assign_inner_let = BinOp(assign_id_iter ,".", func_call_current)
+        value_assign_inner_let = BinOp(assign_id_iter, ".", func_call_current)
         assign_inner_let = Assign(id_assign_inner_let, value_assign_inner_let)
         inner_let = Let([assign_inner_let], for_item.body)
         while_item = While(condition, inner_let)
-        id_master_assign = ID ("iterable", "")
+        id_master_assign = ID("iterable", "")
         value_master_assign = for_item.iterable
         master_assign = Assign(id_master_assign, value_master_assign)
         # master_let = Let([master_assign], while_item)
-        master_let : Let = for_item.parent
+        master_let: Let = for_item.parent
         master_let.assign.append(master_assign)
         master_let.body = while_item
 
@@ -69,10 +73,12 @@ def refact_ast(nodes_dict : dict):
         # master_let.parent = for_item.parent
         for_item = master_let
 
-    let_expressions : List[Let] = list(filter(lambda x: type(x) is Let, nodes_dict.keys()))
+    let_expressions: List[Let] = list(
+        filter(lambda x: type(x) is Let, nodes_dict.keys())
+    )
 
     for let in let_expressions:
-        if len(let.assign)<=1:
+        if len(let.assign) <= 1:
             # print("let is ok")
             continue
 
@@ -160,6 +166,9 @@ class Program(Node):
             if self.functions:
                 for function in self.functions:
                     f.write(f"{function.build()[0]}\n\n")
+            if self.types:
+                for type in self.types:
+                    f.write(f"{type.build()[0]}\n\n")
             f.write("float main() {\n\n")
             f.write(f"{main_def}\n\n")
             f.write(f"return {main_ret};\n")
@@ -175,7 +184,8 @@ class Program(Node):
     def function_name_exists(cls, name):
         return name in cls.function_names
 
-#region FunctionClasses
+
+# region FunctionClasses
 class FunctionDef(Node):
     def __init__(self, func_id, params, body):
         super().__init__(self, "FUNC_DEF")
@@ -234,7 +244,8 @@ class Params(Node):
         super().__init__(self, "params")
         self.param_list = param_list
 
-#endregion
+
+# endregion
 class ExpressionBlock(Node):
     def __init__(self, exps):
         super().__init__(self, "EXP_BLOCK")
@@ -308,7 +319,7 @@ class Let(Node):
         return c_code, self.ret_point
 
     # ret_point_3
-    
+
 
 class Assign(Node):  # example: name = var a ,value = 4
     def __init__(self, name, value):
@@ -397,6 +408,7 @@ class Case(Node):
 class While(Node):
     def __init__(self, condition, body):
         super().__init__(self, "WHILE")
+
     def __init__(self, condition, body):
         super().__init__(self, "WHILE")
         self.condition = condition
@@ -442,7 +454,7 @@ class While(Node):
 
 
 class For(Node):
-    def __init__(self, iterator, iterable, body):    
+    def __init__(self, iterator, iterable, body):
         super().__init__(self, "FOR")
         self.iterator = iterator
         self.iterable = iterable
@@ -468,31 +480,64 @@ class FalseLiteral(Node):
 class TypeDef(Node):
     def __init__(self, id, params, members, inherits):
         super().__init__(self, "TYPE_DEF")
-    def __init__(self, id, params, members, inherits):
-        super().__init__(self, "TYPE_DEF")
         self.id = id
-        self.variables = filter(lambda x: type(x) is Assign, members)
-        self.functions = filter(lambda x: type(x) is FunctionDef, members)
-        self.variables = filter(lambda x: type(x) is Assign, members)
-        self.functions = filter(lambda x: type(x) is FunctionDef, members)
+        self.variables = list(filter(lambda x: type(x) is Assign, members))
+        self.functions = list(filter(lambda x: type(x) is FunctionDef, members))
         self.params = params
         self.inherits = inherits
 
+    def build(self):
+        self.static_type = self.id.name
+        # struct definition
+        WWWWTTTTFFFF = "float"
+        c_code = f"""typedef struct {self.id.name}{{\n"""
+
+        for var in self.variables:
+            c_code += f"{WWWWTTTTFFFF} {var.name.name};\n"
+        for func in self.functions:
+            c_code += f"{WWWWTTTTFFFF} {func.func_id.name}(void* self"
+            if func.params.param_list:
+                for function_params in func.params.param_list:
+                    c_code += f", {WWWWTTTTFFFF} {function_params.name}"
+            c_code += ");\n"
+        c_code += f"}} {self.id.name};\n"
+
+        # functions definition
+
+        for func in self.functions:
+            def_func, ret_func = func.build()
+            c_code += f"""{func.static_type} {self.static_type}_{func.func_id.name}(void* self"""
+            if func.params.param_list:
+                for function_params in func.params.param_list:
+                    c_code += f", {WWWWTTTTFFFF} {function_params.name}"
+            c_code += f"""){{\n{def_func}\n}}\n"""
+        # constructor definition
+        c_code += f"""{self.static_type}* new_{self.static_type}("""
+        for param in self.params.param_list:
+            c_code += f"{WWWWTTTTFFFF} {param.name},"
+        c_code = c_code[:-1]
+        c_code += f"""){{"""
+        c_code += f"""{self.static_type}* obj = ({self.static_type}*)malloc(sizeof({self.static_type}));"""
+        for var in self.variables:
+            def_variable_value, ret_variable_value = var.value.build()
+            c_code += f"""{def_variable_value}"""
+            c_code += f"""obj->{var.name} = {ret_variable_value};"""
+        for func in self.functions:
+            c_code += f"""obj->{func.func_id.name} = {self.static_type}_{func.func_id.name};"""
+        c_code += f"""return obj;"""
+        c_code += f"""}}"""
+        return c_code, ""
 
 
 class TypeCall(Node):
     def __init__(self, id, params):
         super().__init__(self, "TYPE_CALL")
-    def __init__(self, id, params):
-        super().__init__(self, "TYPE_CALL")
         self.id = id
         self.params = params
 
 
-
+# region temporal
 class Protocol(Node):
-    def __init__(self, id, methods, extends):
-        super().__init__(self, "PROTOCOL")
     def __init__(self, id, methods, extends):
         super().__init__(self, "PROTOCOL")
         self.id = id
@@ -500,29 +545,22 @@ class Protocol(Node):
         self.extends = extends
 
 
-
 class VectorExt(Node):
     def __init__(self, items):
         super().__init__(self, "VECTOR_EXT")
-        super().__init__(self, "VECTOR_EXT")
         self.items = items
-
 
 
 class VectorInt(Node):
     def __init__(self, expression, iterator, iterable):
         super().__init__(self, "VECTOR_INT")
 
-        super().__init__(self, "VECTOR_INT")
-
 
 class VectorCall(Node):
     def __init__(self, id, index):
         super().__init__(self, "VECTOR_CALL")
-        super().__init__(self, "VECTOR_CALL")
         self.id = id
         self.index = index
-
 
 
 class BinOp(Node):
@@ -596,7 +634,13 @@ class BinOp(Node):
         left_def, left_ret = self.left.build()
         right_def, right_ret = self.right.build()
         self.ret_point = "ret_point_bin_op_" + str(self.instance_id)
-
+        if self.op == ".":
+            self.static_type = "Point"
+            self.right.static_type = "float"
+            code = f"""{self.right.static_type} bin_op_{self.instance_id}(){{"""
+            code += f"return (({self.static_type}*){left_ret})->{right_ret};\n}}"
+            code += f"{self.right.static_type} {self.ret_point} = bin_op_{self.instance_id}();\n"
+            return code, self.ret_point
         code = f"""{self.static_type} bin_op_{self.instance_id}(){{
         {left_def}
         {right_def}"""
@@ -721,7 +765,8 @@ class E(Node):
     def build(self):
         return "M_E"
 
-#region built-in functions
+
+# region built-in functions
 class Print(
     Node
 ):  # most be modified to work with all literals, now only works with numbers, missing strings and booleans
@@ -906,7 +951,6 @@ precedence = (
 )
 
 
-# region temporal occult
 def p_empty(p):
     "empty :"
     pass
@@ -1041,6 +1085,8 @@ def p_func_call(p):
     p[3].parent = p[0]
 
 
+# endregion
+# endregion
 def p_exp_type_call(p):
     "expression : type_call"
     p[0] = p[1]
@@ -1241,6 +1287,7 @@ def p_member_var_dec(p):
     p[3].parent = p[0]
 
 
+# region temporal
 def p_expression_tbl(p):
     """expression : expression_block"""
     p[0] = p[1]
@@ -1308,7 +1355,6 @@ def p_rem_assignments_empty(p):
     p[0] = []
 
 
-
 # endregion
 def p_if_hl(p):
     "hl_expression : IF expression_parenthized expression opt_elifs ELSE hl_expression"
@@ -1325,6 +1371,9 @@ def p_if_hl(p):
 
     for i in p[0].case_list:
         i.parent = p[0]
+
+
+# region temporal
 
 
 def p_if_exp(p):
@@ -1372,7 +1421,6 @@ def p_for_hl(p):
     for_exp.parent = p[0]
 
 
-
 def p_for(p):
     "expression : FOR LPAREN destroyable IN expression RPAREN expression"
     for_exp = For(p[3], p[5], p[7])
@@ -1381,7 +1429,6 @@ def p_for(p):
     p[7].parent = for_exp
     p[0] = Let([], for_exp)
     for_exp.parent = p[0]
-
 
 
 def p_while_hl(p):
@@ -1624,7 +1671,7 @@ def p_error(p):
 
 
 # endregion
-
+# endregion
 # region Generate AST
 
 
@@ -1641,7 +1688,7 @@ def hulk_parse(code):
     parser = yacc.yacc(start="program", method="LALR")
 
     AST = parser.parse(code)
-
+    create_AST_graph(nodes, "AST")
     if len(sErrorList) == 0:
         print("SUCCESS PARSING!!")
         return AST
@@ -1659,10 +1706,27 @@ def hulk_parse(code):
 
         return None
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     # code = io.open("input/custom_test.hulk").read()
     # print(code)
-    code=""
-    hulk_parse(code)
+    # type PolarPoint inherits Point {
+    # rho() => sqrt(self.getX() ^ 2 + self.getY() ^ 2);
+    # }
+    code = """
+    type Point(x,y) {
+    x = x;
+    y = y;
+
+    getX() => self.x;
+    getY() => self.y;
+
+    setX(x) => self.x := x;
+    setY(y) => self.y := y;
+    }
+    4;
+"""
+    hulk_parse(code).build()
+
 # endregion
 # xd
