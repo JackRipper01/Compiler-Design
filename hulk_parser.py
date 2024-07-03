@@ -1,8 +1,6 @@
 import hulk_lexer
 from hulk_lexer import lex, tokens
 from ply import yacc
-import graphviz
-from typing import List
 from hulk_ast import *
 
 lexer = hulk_lexer.lex.lex(module=hulk_lexer)

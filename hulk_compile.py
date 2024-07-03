@@ -1,4 +1,6 @@
 from hulk_parser import *
+import graphviz
+from typing import List
 
 def refact_ast(nodes_dict : dict):
     "esto convierte el for en el while equivalente y los let en los let con una sola asignacion concatenados equivalentes"
