@@ -116,12 +116,12 @@ if __name__ == "__main__":
     setX(x) => self.x := x;
     setY(y) => self.y := y;
     }
-    
-    type PolarPoint inherits Point {
-    rho()=>self.x+10;
-    }
-    4;
+    5;
 """
     )
+    # type PolarPoint inherits Point {
+    # rho()=>self.x+10;
+    # }
     nodes = refact_ast(nodes)
     create_AST_graph(nodes, "AST")
+    ast.build()
