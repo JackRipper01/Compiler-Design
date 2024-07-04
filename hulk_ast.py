@@ -72,6 +72,16 @@ class Program(Node):
             f.write(f"return {main_ret};\n")
             f.write("}\n")
 
+    @classmethod
+    def add_function_name(cls, name):
+        if name in cls.function_names:
+            raise ValueError(f"Function {name} is already defined.")
+        cls.function_names.add(name)
+
+    @classmethod
+    def function_name_exists(cls, name):
+        return name in cls.function_names
+
 
 # region FunctionClasses
 class FunctionDef(Node):
