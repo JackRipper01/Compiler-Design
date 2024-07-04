@@ -1,5 +1,6 @@
 nodes = {}
 
+
 class Node:
     def __init__(self, slf, nm):
         nodes[slf] = nm
@@ -7,14 +8,19 @@ class Node:
         self.static_type = "Object"
         self.dynamic_type = "Object"
         self.ret_point = "ret_point"
+        self.variable_scope = {}
+        self.function_type_prototype_scope = {}
 
     def check(self):
+        "check the correct use of the variables in the current scope"
         pass
 
     def infer_type(self):
+        "tries to infer the type of the current expression"
         pass
 
     def build(self):
+        "generates the code for the"
         pass
 
 
@@ -65,16 +71,6 @@ class Program(Node):
             f.write(f"{main_def}\n\n")
             f.write(f"return {main_ret};\n")
             f.write("}\n")
-
-    @classmethod
-    def add_function_name(cls, name):
-        if name in cls.function_names:
-            raise ValueError(f"Function {name} is already defined.")
-        cls.function_names.add(name)
-
-    @classmethod
-    def function_name_exists(cls, name):
-        return name in cls.function_names
 
 
 # region FunctionClasses
@@ -271,7 +267,6 @@ class If(Node):
 class Case(Node):
     def __init__(self, condition, body, branch):
         super().__init__(self, "IF " + branch)
-        super().__init__(self, "IF " + branch)
         self.condition = condition
         self.body = body
         self.branch = branch
@@ -288,25 +283,8 @@ class Case(Node):
             }}"""
         return c_code, ""
 
-        self.branch = branch
-
-    def build(self):
-
-        c_code = ""
-        def_condition, ret_condition = self.condition.build()
-        def_body, ret_body = self.body.build()
-        c_code += f"""{def_condition}"""
-        c_code += f"""if ((int){ret_condition}){{
-            {def_body}
-            return {ret_body};
-            }}"""
-        return c_code, ""
-
 
 class While(Node):
-    def __init__(self, condition, body):
-        super().__init__(self, "WHILE")
-
     def __init__(self, condition, body):
         super().__init__(self, "WHILE")
         self.condition = condition

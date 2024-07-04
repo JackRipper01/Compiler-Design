@@ -9,19 +9,6 @@ lexer.parenthesisCount = 0
 
 sErrorList = []
 
-
-# region AST
-
-
-
-
-
-
-
-# endregion
-
-# region GRAMMAR
-
 precedence = (
     # ("right", "PRINT","SQRT","SIN","COS","EXP","LOG","RAND"),
     ("right", "LET", "IN"),
@@ -766,11 +753,6 @@ def p_error(p):
     # print(sErrorList[-1])
 
 
-# endregion
-# endregion
-# region Generate AST
-
-
 def find_column(input, token):
     "busca la columna del token que da error"
     line_start = input.rfind("\n", 0, token.lexpos) + 1
@@ -779,6 +761,25 @@ def find_column(input, token):
     return (token.lexpos - line_start) + 1
 
 
+def hulk_parse(code):
+    "parsea el codigo de hulk, retornando la raiz del ast"
+    parser = yacc.yacc(start="program", method="LALR")
 
-# endregion
-# xd
+    AST = parser.parse(code)
+
+    if len(sErrorList) == 0:
+        print("SUCCESS PARSING!!")
+        return AST
+    else:
+        print("\nPARSING FINISHED WITH ERRORS:")
+        for i in sErrorList:
+            if i:
+                print(
+                    " - ",
+                    f"Syntax error near '{i.value}' at line {i.lineno}, column {find_column(code,i)}",
+                )
+            else:
+                print("Syntax error at EOF")
+            # break
+
+        return None
