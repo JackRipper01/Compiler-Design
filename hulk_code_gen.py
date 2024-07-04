@@ -253,4 +253,3 @@ return {child_ret};
 if __name__ == "__main__":
     ast = hulk_parse("print(3>2);")
     CodeGen().visit(ast)
-    
