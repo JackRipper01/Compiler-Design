@@ -1,6 +1,9 @@
+from misc import refact_ast, create_AST_graph
+
 import hulk_lexer
 from hulk_lexer import lex, tokens
 from ply import yacc
+import hulk_ast
 from hulk_ast import (
     Program,
     FunctionDef,
@@ -36,7 +39,6 @@ from hulk_ast import (
     Log,
     Rand,
 )
-
 
 lexer = hulk_lexer.lex.lex(module=hulk_lexer)
 lexer.parenthesisCount = 0
@@ -795,15 +797,19 @@ def find_column(input, token):
     return (token.lexpos - line_start) + 1
 
 
-def hulk_parse(code):
+def hulk_parse(code, create_graph = False, nm = "AST"):
+    nodes = hulk_ast.nodes
+    
     "parsea el codigo de hulk, retornando la raiz del ast"
     parser = yacc.yacc(start="program", method="LALR")
 
     AST = parser.parse(code)
-
     if len(sErrorList) == 0:
         print("SUCCESS PARSING!!")
-        return AST
+        nodes = refact_ast(nodes)
+        if create_graph:
+            create_AST_graph(nodes, nm)
+        return AST, nodes
     else:
         print("\nPARSING FINISHED WITH ERRORS:")
         for i in sErrorList:
@@ -816,4 +822,4 @@ def hulk_parse(code):
                 print("Syntax error at EOF")
             # break
 
-        return None
+        return None, None

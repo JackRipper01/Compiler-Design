@@ -91,3 +91,51 @@ def create_AST_graph(dict: dict, graph_name):
         if key.parent:
             dot.edge(str(key.parent), str(key))
     dot.render(directory="output")
+    
+def create_Hierarchy_graph(dict: dict, graph_name):
+    "guarda la jerarquia en un grafiquito guapo...si es muy grande se parte"
+    dot = graphviz.Digraph(graph_name)
+    for key in dict.keys():
+        dot.node(str(key), dict[key].name)
+    for key in dict.keys():
+        if dict[key].parent:
+            dot.edge(str(dict[key].parent), str(key))
+    dot.render(directory="output")
+    
+def set_depth(i_dict:dict, key: str, visited):
+    if key in visited:
+        return "Error in type definition: "+key+" appeared in class hierarchy twice"
+    visited.add(key)
+    for item in i_dict[key].children:
+        i_dict[item].depth = i_dict[key].depth + 1
+        curr = set_depth(i_dict, item, visited)
+        if curr:
+            return curr
+        else:
+            pass
+        
+def LCA_BI(i_dict:dict, A, B):
+    if i_dict[A].depth == i_dict[B].depth:
+        if A == B:
+            return A
+        else:
+            A = i_dict[A].parent
+            B = i_dict[B].parent
+            return LCA_BI(i_dict, A, B)
+    else:
+        if i_dict[A].depth > i_dict[B].depth:
+            A = i_dict[A].parent
+            return LCA_BI(i_dict, A, B)
+        else:
+            B = i_dict[B].parent
+            return LCA_BI(i_dict, A, B)
+        
+def LCA(i_dict, *params):
+    lca = LCA_BI(i_dict, params[0], params[1])
+    for i in range(1, len(params)-1):
+        lca = LCA_BI(i_dict, lca, LCA_BI(i_dict, params[i], params[i+1]))
+        
+
+        
+    
+    

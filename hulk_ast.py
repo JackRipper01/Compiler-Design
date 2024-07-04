@@ -1,6 +1,5 @@
 nodes = {}
 
-
 class Node:
     def __init__(self, slf, nm):
         nodes[slf] = nm
@@ -16,7 +15,7 @@ class Program(Node):
     instance_count = 0
 
     def __init__(self, functions_types, global_expression):
-        super().__init__(self, "")
+        super().__init__(self, "PROGRAM")
         self.functions = list(filter(lambda x: type(x) is FunctionDef, functions_types))
         self.types = list(filter(lambda x: type(x) is TypeDef, functions_types))
         self.protocols = list(filter(lambda x: type(x) is Protocol, functions_types))
