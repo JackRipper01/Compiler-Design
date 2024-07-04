@@ -1,6 +1,17 @@
-from hulk_parser import *
 import graphviz
 from typing import List
+
+from hulk_ast import (
+    nodes,
+    FunctionCall,
+    Params,
+    Let,
+    Assign,
+    ID,
+    While,
+    For,
+    BinOp,
+)
 
 def refact_ast(nodes_dict : dict):
     "esto convierte el for en el while equivalente y los let en los let con una sola asignacion concatenados equivalentes"
@@ -80,48 +91,3 @@ def create_AST_graph(dict: dict, graph_name):
         if key.parent:
             dot.edge(str(key.parent), str(key))
     dot.render(directory="output")
-
-# def father_child():
-#     childs_dict = {}
-#     root = None
-#     for node in nodes:
-#         if node.parent:
-#             if childs_dict.get(node.parent):
-#                 childs_dict[node.parent].add(node)
-#             else:
-#                 childs_dict[node.parent] = set()
-#                 childs_dict[node.parent].add(node)
-#         else:
-#             root = node
-#     return root, childs_dict
-
-# def func_type_proto_scope(ast_input):
-#     for function in ast_input.functions:
-
-
-# def add_variable_context(root, navigable_tree):
-#     """adding scope for variable declaration, FUNCTION_DEF and LET"""
-#     for child in navigable_tree[root]
-
-if __name__ == "__main__":
-    ast = hulk_parse(
-        """
-    type Point(x,y) {
-    x = x;
-    y = y;
-
-    getX() => self.x;
-    getY() => self.y;
-
-    setX(x) => self.x := x;
-    setY(y) => self.y := y;
-    }
-    5;
-"""
-    )
-    # type PolarPoint inherits Point {
-    # rho()=>self.x+10;
-    # }
-    nodes = refact_ast(nodes)
-    create_AST_graph(nodes, "AST")
-    ast.build()
