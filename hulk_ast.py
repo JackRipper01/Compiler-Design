@@ -17,9 +17,9 @@ class Program(Node):
 
     def __init__(self, functions_types, global_expression):
         super().__init__(self, "")
-        self.functions = filter(lambda x: type(x) is FunctionDef, functions_types)
-        self.types = filter(lambda x: type(x) is TypeDef, functions_types)
-        self.protocols = filter(lambda x: type(x) is Protocol, functions_types)
+        self.functions = list(filter(lambda x: type(x) is FunctionDef, functions_types))
+        self.types = list(filter(lambda x: type(x) is TypeDef, functions_types))
+        self.protocols = list(filter(lambda x: type(x) is Protocol, functions_types))
         self.global_exp = global_expression
 
     @classmethod

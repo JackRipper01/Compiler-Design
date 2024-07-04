@@ -77,9 +77,9 @@ class CodeGen:
             if node.functions:
                 for function in node.functions:
                     f.write(f"{self.visit(function)[0]}\n\n")
-            if self.types:
-                for type in self.types:
-                    f.write(f"{type.build()[0]}\n\n")#modificar pa q pinche con lo nuevo
+            if node.types:
+                for type in node.types:
+                    f.write(f"{self.visit(type)[0]}\n\n")#revisar si pincho
             f.write("float main() {\n\n")
             f.write(f"{main_def}\n\n")
             f.write(f"return {main_ret};\n")
@@ -88,7 +88,7 @@ class CodeGen:
     @visitor.when(FunctionDef)
     def visit(self, node):
         node.static_type = "float"
-        self.ret_point = "ret_point_" + self.func_id.name#modificar blabla
+        node.ret_point = "ret_point_" + node.func_id.name
         list_params = []
         body_def, body_ret = self.visit(node.body)
         for param in node.params.param_list:
@@ -101,11 +101,11 @@ class CodeGen:
         return {body_ret};
         }}"""
 
-        params_name_c_code = ""#modificar de aqui hasta return blabla
+        params_name_c_code = ""
         for param_name in list_params:
             params_name_c_code += param_name[1] + ","
         params_name_c_code = params_name_c_code[:-1]
-        ret_code = f"""{self.func_id.name}({params_name_c_code})"""
+        ret_code = f"""{node.func_id.name}({params_name_c_code})"""
 
         return code, ret_code
 
@@ -166,7 +166,11 @@ class CodeGen:
         {node.static_type} {node.ret_point} = let_{node.instance_id}();
         """
         return c_code, node.ret_point
-
+    
+    @visitor.when(ID)
+    def visit(self, node):
+        return "", node.name
+    
     @visitor.when(If)
     def visit(self, node):
         node.static_type = "float"
@@ -221,53 +225,53 @@ class CodeGen:
         return c_code, node.ret_point
 
     @visitor.when(TypeDef)
-    def visit(self, node):#modificar blabla todo poripabajo
-        self.static_type = self.id.opt_type
+    def visit(self, node):
+        node.static_type = node.id.annotated_type
 
         # struct definition
         WWWWTTTTFFFF = "float"
-        c_code = f"""typedef struct {self.id.name}{{\n"""
+        c_code = f"""typedef struct {node.id.name}{{\n"""
 
-        if self.inherits:
+        if node.inherits:
             # poner aqui todo lo que este dentro del struct del padre, es decir poner aqui todos los miembros del struct del padre
-            # append a self.variables todas las variables del padre
-            # append a self.functions todas las functions del padre
+            # append a node.variables todas las variables del padre
+            # append a node.functions todas las functions del padre
             # no hace falta mas nada ya q el padre tendra lo mismo pero de su propio padre,luego este struct tendra todo lo de su padre y todo lo de su abuelo
 
-            c_code += f"""{self.inherits.name} base_{self.id.name};"""
+            c_code += f"""{node.inherits.name} base_{node.id.name};"""
 
-        for var in self.variables:
+        for var in node.variables:
             c_code += f"{WWWWTTTTFFFF} {var.name.name};\n"
-        for func in self.functions:
+        for func in node.functions:
             c_code += f"""{WWWWTTTTFFFF} (*{func.func_id.name})(void* self"""
             if func.params.param_list:
                 for function_params in func.params.param_list:
                     c_code += f", {WWWWTTTTFFFF} {function_params.name}"
             c_code += ");\n"
-        c_code += f"}} {self.id.name};\n"
+        c_code += f"}} {node.id.name};\n"
 
         # functions definition
-        for func in self.functions:
-            def_func, ret_func = func.build()
-            c_code += f"""{func.static_type} {self.static_type}_{func.func_id.name}(void* self"""
+        for func in node.functions:
+            def_func, ret_func = self.visit(func)#inventinggggggggggggggggg
+            c_code += f"""{func.static_type} {node.static_type}_{func.func_id.name}(void* self"""
             if func.params.param_list:
                 for function_params in func.params.param_list:
                     c_code += f", {WWWWTTTTFFFF} {function_params.name}"
             c_code += f"""){{\n{def_func}\nreturn {ret_func};\n}}"""
 
         # constructor definition
-        c_code += f"""{self.static_type}* new_{self.static_type}("""
-        for param in self.params.param_list:
+        c_code += f"""{node.static_type}* new_{node.static_type}("""
+        for param in node.params.param_list:
             c_code += f"{WWWWTTTTFFFF} {param.name},"
         c_code = c_code[:-1]
         c_code += f"""){{"""
-        c_code += f"""{self.static_type}* obj = ({self.static_type}*)malloc(sizeof({self.static_type}));\n"""
-        for var in self.variables:
-            def_variable_value, ret_variable_value = var.value.build()
+        c_code += f"""{node.static_type}* obj = ({node.static_type}*)malloc(sizeof({node.static_type}));\n"""
+        for var in node.variables:
+            def_variable_value, ret_variable_value = self.visit(var.value)#inventinggggggggggggggggggg
             c_code += f"""{def_variable_value}"""
             c_code += f"""obj->{var.name.name} = {ret_variable_value};\n"""
-        for func in self.functions:
-            c_code += f"""obj->{func.func_id.name} = {self.static_type}_{func.func_id.name};\n"""
+        for func in node.functions:
+            c_code += f"""obj->{func.func_id.name} = {node.static_type}_{func.func_id.name};\n"""
         c_code += f"""return obj;"""
         c_code += f"""}}"""
         return c_code, ""
@@ -287,13 +291,13 @@ class CodeGen:
         right_def, right_ret = self.visit(node.right)
         node.ret_point = "ret_point_bin_op_" + str(node.instance_id)
 
-        if self.op == ".":#modificar blabla
-            self.static_type = "Point"
-            self.right.static_type = "float"
-            code = f"""{self.right.static_type} bin_op_{self.instance_id}(){{"""
-            code += f"return (({self.static_type}*){left_ret})->{right_ret};\n}}"
-            code += f"{self.right.static_type} {self.ret_point} = bin_op_{self.instance_id}();\n"
-            return code, self.ret_point
+        if node.op == ".":
+            node.static_type = "Point"
+            node.right.static_type = "float"#ESTO CREEEEEEEEEEEEEEO q VA A DAR ERRORRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR PQ RIGHT>STATICTYPE CREO Q USA SELF>STATICTYPE Y NO NODE>STATIC TYPE
+            # code = f"""{node.right.static_type} bin_op_{node.instance_id}(){{"""
+            # code += f"return (({node.static_type}*){left_ret})->{right_ret};\n}}"
+            # code += f"{node.right.static_type} {node.ret_point} = bin_op_{node.instance_id}();\n"
+            return "", f"""(({node.static_type}*){left_ret})->{right_ret}"""
 
         code = f"""{node.static_type} bin_op_{node.instance_id}(){{
         {left_def}
@@ -304,7 +308,7 @@ class CodeGen:
             code += f"\nreturn (int)({left_ret} {node.op} {right_ret});\n"
         elif node.op in ["^", "**"]:
             code += f"\nreturn = (pow({left_ret}, {right_ret});\n"
-        elif self.op == "AD":
+        elif node.op == "AD":
             code += f"return {left_ret} = {right_ret};"
         else:
             raise TypeError(f"Unknown operator {node.op}")
@@ -315,7 +319,16 @@ class CodeGen:
     @visitor.when(UnaryOp)
     def visit(self, node):
         if node.op == "-": # recuerda el not
-            return f"(-{self.visit(node.operand)})" # recuerda q el build devuelve dos parametros
+            node.static_type = "float"
+            child_def, child_ret = self.visit(node.value)
+            node.ret_point = "ret_point_unary_op_" + str(node.instance_id)
+            code = f"""{node.static_type} unary_op_{node.instance_id}() {{
+{child_def}
+return -{child_ret};
+}}
+{node.static_type} {node.ret_point} = unary_op_{node.instance_id}();
+"""
+            return code, node.ret_point
         else:
             raise TypeError(f"Unknown unary operator {node.op}")
 
@@ -325,15 +338,15 @@ class CodeGen:
 
     @visitor.when(StringLiteral)
     def visit(self, node):
-        return f'"{node.value}"'
+        return "",f'"{node.value}"'
 
     @visitor.when(Pi)
     def visit(self, node):
-        return "M_PI"
+        return "","M_PI"
 
     @visitor.when(E)
     def visit(self, node):
-        return "M_E"
+        return "","M_E"
 
     @visitor.when(Print)
     def visit(self, node):
@@ -362,7 +375,7 @@ return sqrt({child_ret});
 {node.static_type} {node.ret_point} = sqrt_{node.instance_id}();
 """
         return code, node.ret_point
-    
+
     @visitor.when(Sin)
     def visit(self, node):
         child_def, child_ret = self.visit(node.value)
@@ -375,7 +388,7 @@ return sin({child_ret});
 {node.static_type} {node.ret_point} = sin_{node.instance_id}();
 """
         return code, node.ret_point
-    
+
     @visitor.when(Cos)
     def visit(self, node):
         child_def, child_ret = self.visit(node.value)
@@ -388,7 +401,7 @@ return cos({child_ret});
 {node.static_type} {node.ret_point} = cos_{node.instance_id}();
 """
         return code, node.ret_point
-    
+
     @visitor.when(Exp)
     def visit(self, node):
         child_def, child_ret = self.visit(node.value)
@@ -401,7 +414,7 @@ return exp({child_ret});
 {node.static_type} {node.ret_point} = exp_{node.instance_id}();
 """
         return code, node.ret_point
-    
+
     @visitor.when(Log)
     def visit(self, node):
         child_def_base,child_ret_base = self.visit(node.base)
@@ -416,12 +429,22 @@ return log({child_ret_value})/log({child_ret_base});
 {node.static_type} {node.ret_point} = log_{node.instance_id}();
 """
         return code, node.ret_point
-    
+
     @visitor.when(Rand)
     def visit(self,node):
-        return f"(float)rand()/(float)RAND_MAX"
-    
-    
+        return "",f"(float)rand()/(float)RAND_MAX" 
+
+
 if __name__ == "__main__":
-    ast = hulk_parse("print(3>2);")
+    ast = hulk_parse("""type Point(x,y) {
+    x = x;
+    y = y;
+
+    getX() => self.x;
+    getY() => self.y;
+
+    setX(x) => self.x := x;
+    setY(y) => self.y := y;
+}
+4;""")
     CodeGen().visit(ast)
