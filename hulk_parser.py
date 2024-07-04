@@ -199,6 +199,7 @@ class FunctionDef(Node):
 
     def build(self):
         self.static_type = "float"
+        self.ret_point = "ret_point_" + self.func_id.name
         list_params = []
         body_def, body_ret = self.body.build()
         for param in self.params.param_list:
@@ -210,8 +211,13 @@ class FunctionDef(Node):
         code = f"""{self.static_type} {self.func_id.name}({params_c_code}){{{body_def}
         return {body_ret};
         }}"""
+        params_name_c_code = ""
+        for param_name in list_params:
+            params_name_c_code += param_name[1] + ","
+        params_name_c_code = params_name_c_code[:-1]
+        ret_code = f"""{self.func_id.name}({params_name_c_code})"""
 
-        return code, ""
+        return code, ret_code
 
 
 class FunctionCall(Node):
@@ -485,17 +491,27 @@ class TypeDef(Node):
         self.functions = list(filter(lambda x: type(x) is FunctionDef, members))
         self.params = params
         self.inherits = inherits
+        self.mauricio = {}
 
     def build(self):
-        self.static_type = self.id.name
+        self.static_type = self.id.opt_type
+        
         # struct definition
         WWWWTTTTFFFF = "float"
         c_code = f"""typedef struct {self.id.name}{{\n"""
-
+        
+        if self.inherits:
+            #poner aqui todo lo que este dentro del struct del padre, es decir poner aqui todos los miembros del struct del padre
+            #append a self.variables todas las variables del padre
+            #append a self.functions todas las functions del padre
+            #no hace falta mas nada ya q el padre tendra lo mismo pero de su propio padre,luego este struct tendra todo lo de su padre y todo lo de su abuelo
+            
+            c_code+= f"""{self.inherits.name} base_{self.id.name};"""
+            
         for var in self.variables:
             c_code += f"{WWWWTTTTFFFF} {var.name.name};\n"
         for func in self.functions:
-            c_code += f"{WWWWTTTTFFFF} {func.func_id.name}(void* self"
+            c_code += f"""{WWWWTTTTFFFF} (*{func.func_id.name})(void* self"""
             if func.params.param_list:
                 for function_params in func.params.param_list:
                     c_code += f", {WWWWTTTTFFFF} {function_params.name}"
@@ -503,27 +519,27 @@ class TypeDef(Node):
         c_code += f"}} {self.id.name};\n"
 
         # functions definition
-
         for func in self.functions:
             def_func, ret_func = func.build()
             c_code += f"""{func.static_type} {self.static_type}_{func.func_id.name}(void* self"""
             if func.params.param_list:
                 for function_params in func.params.param_list:
                     c_code += f", {WWWWTTTTFFFF} {function_params.name}"
-            c_code += f"""){{\n{def_func}\n}}\n"""
+            c_code += f"""){{\n{def_func}\nreturn {ret_func};\n}}"""
+            
         # constructor definition
         c_code += f"""{self.static_type}* new_{self.static_type}("""
         for param in self.params.param_list:
             c_code += f"{WWWWTTTTFFFF} {param.name},"
         c_code = c_code[:-1]
         c_code += f"""){{"""
-        c_code += f"""{self.static_type}* obj = ({self.static_type}*)malloc(sizeof({self.static_type}));"""
+        c_code += f"""{self.static_type}* obj = ({self.static_type}*)malloc(sizeof({self.static_type}));\n"""
         for var in self.variables:
             def_variable_value, ret_variable_value = var.value.build()
             c_code += f"""{def_variable_value}"""
-            c_code += f"""obj->{var.name} = {ret_variable_value};"""
+            c_code += f"""obj->{var.name.name} = {ret_variable_value};\n"""
         for func in self.functions:
-            c_code += f"""obj->{func.func_id.name} = {self.static_type}_{func.func_id.name};"""
+            c_code += f"""obj->{func.func_id.name} = {self.static_type}_{func.func_id.name};\n"""
         c_code += f"""return obj;"""
         c_code += f"""}}"""
         return c_code, ""
@@ -634,6 +650,7 @@ class BinOp(Node):
         left_def, left_ret = self.left.build()
         right_def, right_ret = self.right.build()
         self.ret_point = "ret_point_bin_op_" + str(self.instance_id)
+        
         if self.op == ".":
             self.static_type = "Point"
             self.right.static_type = "float"
@@ -641,6 +658,7 @@ class BinOp(Node):
             code += f"return (({self.static_type}*){left_ret})->{right_ret};\n}}"
             code += f"{self.right.static_type} {self.ret_point} = bin_op_{self.instance_id}();\n"
             return code, self.ret_point
+        
         code = f"""{self.static_type} bin_op_{self.instance_id}(){{
         {left_def}
         {right_def}"""
@@ -1724,9 +1742,13 @@ if __name__ == "__main__":
     setX(x) => self.x := x;
     setY(y) => self.y := y;
     }
+    
+    type PolarPoint inherits Point {
+    rho()=>self.x+10;
+    }
     4;
 """
-    hulk_parse(code).build()
+    hulk_parse(code)
 
 # endregion
 # xd
