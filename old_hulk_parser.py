@@ -11,11 +11,6 @@ import math
 import graphviz
 import io
 
-# For Hivan Only :
-# Code for Graphviz working in windows 
-import os
-os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz/bin/'
-
 sErrorList = []
 
 lexer = hulk_lexer.lex.lex(module=hulk_lexer)
