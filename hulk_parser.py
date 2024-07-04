@@ -1,7 +1,41 @@
 import hulk_lexer
 from hulk_lexer import lex, tokens
 from ply import yacc
-from hulk_ast import *
+from hulk_ast import (
+    Program,
+    FunctionDef,
+    FunctionCall,
+    Params,
+    ExpressionBlock,
+    Let,
+    Assign,
+    ID,
+    If,
+    Case,
+    While,
+    For,
+    TrueLiteral,
+    FalseLiteral,
+    TypeDef,
+    TypeCall,
+    Protocol,
+    VectorExt,
+    VectorInt,
+    VectorCall,
+    BinOp,
+    UnaryOp,
+    Num,
+    StringLiteral,
+    Pi,
+    E,
+    Print,
+    Sqrt,
+    Sin,
+    Cos,
+    Exp,
+    Log,
+    Rand,
+)
 
 lexer = hulk_lexer.lex.lex(module=hulk_lexer)
 lexer.parenthesisCount = 0
