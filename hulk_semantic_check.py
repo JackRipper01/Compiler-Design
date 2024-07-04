@@ -43,6 +43,7 @@ from hulk_ast import (
     Rand,
 )
 
+
 class ScopeBuilder:
     def __init__(self):
         self.errors = []
@@ -59,26 +60,29 @@ class ScopeBuilder:
         for function in ast_input.functions:
             function_name = function.func_id.name+"/"+str(len(function.params.param_list))
             if function_name in ast_input.global_definitions:
-                print("Duplicated function: "+ function_name)
                 self.errors.append("Duplicated function: "+ function_name)
             else:
                 ast_input.global_definitions[function_name] = function
         
-        for type_def in ast_input.types:
+        for type_def in list(ast_input.types)+list(ast_input.protocols):
             type_name = type_def.id.name
             if type_name in ast_input.global_definitions:
                 self.errors.append("Duplicated type: "+ type_name)
             else:
                 ast_input.global_definitions[type_name] = type_def
-        
-        for protocol in ast_input.protocols:
-            protocol_name = protocol.id.name
-            if protocol_name in ast_input.global_definitions:
-                self.errors.append("Duplicated type: "+ protocol_name)
-            else:
-                ast_input.global_definitions[protocol_name] = protocol
     
-        print(ast_input.global_definitions)
+    def hierarchy_tree_build(self, ast_root: Program):
+        hierarchy_tree = {}
+        hierarchy_tree["Object"] = ["Number","String","Boolean"]
+        hierarchy_tree["Number"] = []
+        hierarchy_tree["String"] = []
+        hierarchy_tree["Boolean"] = []
+        for type_name in ast_root.types:
+            hierarchy_tree[type_name.id.name] = []
+            
+        for type_name in ast_root.types:
+            if 
+
 
 def semantic_check(ast: Program):
     SB = ScopeBuilder()
@@ -86,7 +90,8 @@ def semantic_check(ast: Program):
     # your code here
 
 if __name__ == "__main__":
-    ast = hulk_parse(r"function asd(a,v, wer) => print(x);function asd(a,v, wer) => print(x);type Point {}protocol Point{doo():xd;}")
+    ast : Program = hulk_parse(r"function asd(a,v, wer) => print(x);function asd(a,v, wer) => print(x);type Point {}protocol Point{doo():xd;}{}")
     nodes = refact_ast(nodes)
     create_AST_graph(nodes, "AST")
     ScopeBuilder().get_global_definitions(ast)
+    print(ast.global_exp.global_definitions)

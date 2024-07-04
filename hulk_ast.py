@@ -1,4 +1,5 @@
 nodes = {}
+global_definitions = {}
 
 class Node:
     def __init__(self, slf, nm):
@@ -7,7 +8,7 @@ class Node:
         self.static_type = "Object"
         self.ret_point = "ret_point"
         self.variable_scope = {}
-        self.global_definitions = {}
+        self.global_definitions = global_definitions
 
 
 class Program(Node):

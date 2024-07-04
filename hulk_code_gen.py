@@ -40,8 +40,8 @@ from hulk_ast import (
 
 class CodeGen:
     def __init__(self):
-        self.errors = []
-
+        pass
+    
     @visitor.on("node")
     def visit(self, node):
         pass
@@ -251,5 +251,5 @@ return {child_ret};
         return code, node.ret_point
 
 if __name__ == "__main__":
-    ast = hulk_parse("print(3>2);")
+    ast = hulk_parse("prin(3>2);")
     CodeGen().visit(ast)
