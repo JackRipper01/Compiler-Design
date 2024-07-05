@@ -136,8 +136,12 @@ def LCA(i_dict, *params):
         lca = LCA_BI(i_dict, lca, LCA_BI(i_dict, params[i], params[i+1]))
     return lca
 
-def trasspass_params_to_children(i_dict, name:str, ast):
+def trasspass_params_to_children(i_dict, name:str, ast, visited):
     forb = ["Object", "String", "Number", "Boolean"]
+    
+    if name in visited:
+        return "Error in type definition: "+name+" appeared in class hierarchy twice"
+    visited.add(name)
     
     if name not in forb:
         father_instance = ast.global_definitions[name]
@@ -153,7 +157,7 @@ def trasspass_params_to_children(i_dict, name:str, ast):
                 child_inst.inherits.params.param_list = new_params
     
     for child in i_dict[name].children:
-        trasspass_params_to_children(i_dict,child, ast)
+        trasspass_params_to_children(i_dict,child, ast, visited)
         
     
     

@@ -123,8 +123,8 @@ def t_NAME(t):
 	return t
 
 def t_error(t):
-    message = "\n# ERROR: Illegal character '%s' in %s at line %d" % (t.value[0], t.value, t.lineno)
-    print (message)
+    message = "Illegal character '%s' in %s at line %d" % (t.value[0], t.value, t.lineno)
+    # print (message)
     errorList.append(message)
     t.lexer.skip(1)
 
