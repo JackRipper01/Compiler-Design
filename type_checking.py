@@ -4,33 +4,70 @@
 from hulk_ast import *
 
 def check_type(node: Node):
-    # print('in check_type')
-    # print(type(node))
     if isinstance(node,Assign):
-        # print('mark 1')
         return assign_check_type(node)
     elif isinstance(node, Num):
-        # print('mark 2')
         return number_check_type(node)
     elif isinstance(node, StringLiteral):
-        # print('mark 3')
         return string_check_type(node)
     elif isinstance(node, Let):
-        # print('mark 4')
         let_check_type(node)
     elif isinstance(node, Print):
-        # print('mark 5')
         return print_check_type(node)
     elif isinstance(node, BinOp):
-        # print('mark 6')
         return binop_check_type(node)
-#     elif isinstance(node, ID):
-#         return id_check_type(node)
+    elif isinstance(node, Exp):
+        return exp_check_type(node)
+    elif isinstance(node, Log):
+        return log_check_type(node)
+    elif isinstance(node, Cos):
+        return cos_check_type(node)
+    elif isinstance(node, Rand):
+        return rand_check_type(node)
+    elif isinstance(node, Pi):
+        return pi_check_type(node)
+    elif isinstance(node, E):
+        return e_check_type(node)
+    elif isinstance(node, Sin):
+        return sin_check_type(node)
+    elif isinstance(node, Sqrt):
+        return sqrt_check_type(node)
     
-# def id_check_type(node: ID):
-#     pass
+    
+def sqrt_check_type(node: Sqrt, infered_type=[]):
+    static_type= 'number'
+    return check_and_ret(node, static_type, infered_type)
 
-def binop_check_type(node: BinOp):
+def sin_check_type(node: Sin, infered_type=[]):
+    static_type= 'number'
+    return check_and_ret(node, static_type, infered_type)
+
+def e_check_type(node: E, infered_type=[]):
+    static_type= 'number'
+    return check_and_ret(node, static_type, infered_type)
+
+def pi_check_type(node: Pi, infered_type=[]):
+    static_type= 'number'
+    return check_and_ret(node, static_type, infered_type)
+
+def rand_check_type(node: Rand, infered_types=[]):
+    static_type= 'number'
+    return check_and_ret(node,static_type,infered_types)
+
+def cos_check_type(node: Cos, infered_types=[]):
+    static_type= check_type(node.value, ['number'])
+    return check_and_ret(node,static_type,infered_types)
+
+def log_check_type(node: Log, infered_types=[]):
+    static_type= check_type(node.value, ['number'])
+    base = check_type(node.base, ['number'])
+    return check_and_ret(node,static_type,infered_types)
+
+def exp_check_type(node: Exp,infered_types=[]):
+    static_type= check_type(node.value, ['number'])
+    return check_and_ret(node,static_type,infered_types)
+
+def binop_check_type(node: BinOp,infered_types=[]):
     left_type = check_type(node.left)
     right_type = check_type(node.right)
     static_type=''
@@ -48,15 +85,19 @@ def binop_check_type(node: BinOp):
         ):
             raise TypeError(f"Invalid type for operation: {left_type}")
         else: static_type= 'string'
-    node.static_type=static_type
-    
-def print_check_type(node: Print):
-    node.static_type= "void"
+    return check_and_ret(node,static_type,infered_types)
 
-def let_check_type(node: Let):
-    node.static_type= check_type(node.body)
+# !!!!check_type methods Not revised completely from this Point
 
-def assign_check_type(node: Assign):
+def print_check_type(node: Print,infered_types=[]):
+    static_type= "void"
+    return check_and_ret(node,static_type,infered_types)
+
+def let_check_type(node: Let, infered_types=[]):
+    static_type= check_type(node.body)
+    check_and_ret(node,static_type,infered_types)
+
+def assign_check_type(node: Assign,infered_types=[]):
     # print('in assign_check_type')
     declared_type = check_type(node.name)
     type = check_type(node.value)
@@ -64,23 +105,38 @@ def assign_check_type(node: Assign):
         if (type != declared_type):
             # Exception here!!!!!!!!!!
             raise TypeError('Declared type is diferent from the type of the value given.')
-    node.name.opt_type = type
+    node.name.annotated_type = type
     return type
 
-def id_check_type(node:ID):
-    if not node.opt_type:
-        node.static_type= node.parent
-    else: node.static_type= node.opt_type
+def id_check_type(node:ID,infered_types=[]):
+    return node.annotated_type
 
-def number_check_type(node: Num):
+def number_check_type(node: Num,infered_types=[]):
     node.static_type= 'number'
+    return 'number'
 
-def string_check_type(node: StringLiteral):
+def string_check_type(node: StringLiteral,infered_types=[]):
     node.static_type= 'string'
+    return 'string'
 
 
 # endregion
 
+def check_and_ret(node,static_type,infers):
+    check_inference(static_type, infers)
+    node.static_type= static_type
+    return static_type
+
+def check_inference(type_val,infers: list):
+    asserted=False
+    for e in infers:
+        if(e == type_val):
+            asserted= True
+    if not asserted or len(infers)==0:
+        raise Exception(f'The Type of the object cannot be of type: {type_val}')
+    
+        
+        
 # region old
 
 # import hulk_parser as hp

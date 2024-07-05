@@ -233,14 +233,13 @@ class Assign(Node):  # example: name = var a ,value = 4
 
 
 class ID(Node):
-    def __init__(self, name, opt_type):
-        if opt_type == "":
+    def __init__(self, name, annotated_type):
+        if annotated_type == "":
             super().__init__(self, "var " + name)
         else:
-            super().__init__(self, opt_type + " " + name)
+            super().__init__(self, annotated_type + " " + name)
         self.name = name
-        self.opt_type = opt_type
-
+        self.annotated_type = annotated_type
     def infer_type(self):
         return self.opt_type
 
