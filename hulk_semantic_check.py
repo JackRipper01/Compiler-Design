@@ -1,12 +1,12 @@
 # region temp import 
 from hulk_parser import hulk_parse
-from misc import set_depth, LCA, create_Hierarchy_graph
+from misc import set_depth, LCA, create_Hierarchy_graph, trasspass_params_to_children
 # endregion
 
 import visitor
 
 from hulk_ast import (
-    Node,
+    Node, #NAN
     Program,
     FunctionDef,
     FunctionCall,
@@ -18,9 +18,9 @@ from hulk_ast import (
     If,
     Case,
     While,
-    For,
-    TrueLiteral,
-    FalseLiteral,
+    For, #NAN
+    TrueLiteral, #NAN
+    FalseLiteral, #NAN
     TypeDef,
     TypeCall,
     Protocol,
@@ -29,17 +29,17 @@ from hulk_ast import (
     VectorCall,
     BinOp,
     UnaryOp,
-    Num,
-    StringLiteral,
-    Pi,
-    E,
+    Num, #NAN
+    StringLiteral, #NAN
+    Pi, #NAN
+    E, #NAN
     Print,
     Sqrt,
     Sin,
     Cos,
     Exp,
     Log,
-    Rand,
+    Rand, #NAN
 )
 
 class HierarchyNode:
@@ -53,6 +53,7 @@ class HierarchyNode:
 class ScopeBuilder:
     def __init__(self):
         self.errors = []
+        self.inside_types = False # desarrollar idea
 
     @visitor.on("node")
     def visit(self, node):
@@ -60,8 +61,11 @@ class ScopeBuilder:
 
     @visitor.when(Program)
     def visit(self, node: Program):
-        node.global_exp.variable_scope = node.variable_scope
-        self.visit(node.global_exp)
+        if node.global_exp:
+            node.global_exp.variable_scope = node.variable_scope
+            self.visit(node.global_exp)
+        else:
+            self.errors.append("Global Expression required")
         
     @visitor.when(Print)
     def visit(self, node: Print):
@@ -108,8 +112,14 @@ class ScopeBuilder:
     def visit(self, node: BinOp):
         node.left.variable_scope = node.variable_scope
         self.visit(node.left)
-        node.right.variable_scope = node.variable_scope
-        self.visit(node.right)
+        if node.op != ".":
+            node.right.variable_scope = node.variable_scope
+            self.visit(node.right)
+        else:
+            if type(node.right) is FunctionCall:
+                node.right.params.variable_scope = node.variable_scope
+                self.visit(node.right.params)
+                # check context from class
         
     @visitor.when(UnaryOp)
     def visit(self, node: UnaryOp):
@@ -124,15 +134,53 @@ class ScopeBuilder:
             self.errors.append("Function "+fn_name+" not defined")
         node.params.variable_scope = node.variable_scope
         self.visit(node.params)
-        
+    
+    @visitor.when(TypeCall)
+    def visit(self, node: TypeCall):
+        if node.id.name in node.global_definitions:
+            if len(node.params.param_list) != len(node.global_definitions[node.id.name].params.param_list):
+                self.errors.append("Amount of params doesnt match type definition of "+node.id.name+" ("+str(len(node.global_definitions[node.id.name].params.param_list))+") and its instanstiation ("+str(len(node.params.param_list))+")")
+            node.params.variable_scope = node.variable_scope
+            self.visit(node.params)
+        else:
+            self.errors.append("Type "+ node.id.name+" not defined")
+    
     @visitor.when(ExpressionBlock)
     def visit(self, node: ExpressionBlock):
         for exp in node.exp_list:
             exp.variable_scope = node.variable_scope
             self.visit(exp)
+            
+    @visitor.when(Assign)
+    def visit(self, node: Assign):
+        node.value.variable_scope = node.variable_scope
+        self.visit(node.value)
+        
+    @visitor.when(If)
+    def visit(self, node: If):
+        for case_item in node.case_list:
+            case_item.variable_scope = node.variable_scope
+            self.visit(case_item)
+            
+    @visitor.when(While)
+    def visit(self, node: While):
+        node.condition.variable_scope = node.variable_scope
+        self.visit(node.condition)
+        node.body.variable_scope = node.variable_scope
+        self.visit(node.body)
+    
+    @visitor.when(Case)
+    def visit(self, node: Case):
+        node.condition.variable_scope = node.variable_scope
+        self.visit(node.condition)
+        node.body.variable_scope = node.variable_scope
+        self.visit(node.body)
+        
         
     @visitor.when(Let)
     def visit(self, node: Let):
+        node.assign[0].variable_scope = node.variable_scope
+        self.visit(node.assign[0])
         node.variable_scope = node.variable_scope.copy()
         node.variable_scope[node.assign[0].name.name] = (node.assign[0].name, node.assign[0].value)
         node.body.variable_scope = node.variable_scope
@@ -204,27 +252,29 @@ class ScopeBuilder:
         if len(visited) != len(i_dict):
             self.errors.append("Error en la definicion de tipos involucrando a los tipos: "+str(set(i_dict).difference(visited)))
     
+    
+        
                 
 def semantic_check(ast: Program):
     scope_visitor = ScopeBuilder()
     scope_visitor.get_global_definitions(ast)
     type_hierarchy_tree = scope_visitor.hierarchy_tree_build(ast)
     scope_visitor.check_tree(type_hierarchy_tree, "Object")
+    trasspass_params_to_children(type_hierarchy_tree, "Object",ast)
     scope_visitor.visit(ast)
     # your code here
-    print("ERRORS:" if len(scope_visitor.errors)>0 else "",*scope_visitor.errors, sep="\n")
-
+    print("SEMANTIC CHECK FOUND THE FOLLOWING ERRORS:" if len(scope_visitor.errors)>0 else "SUCCESS PERFORMING SEMANTIC CHECKING!!!",*scope_visitor.errors, sep="\n")
 
 
 if __name__ == "__main__":
-    ast,_ = hulk_parse(r"""type Animal{}
+    ast,_ = hulk_parse(r"""type Animal(a){}
                                type Felino inherits Animal{}
                                type Gato inherits Felino {}
                                type Canino inherits Animal{}
                                type Perro inherits Canino {}
                                type Lobo inherits Canino{}
                                function asd(a,b,c) => print(a);
-                               let a = 5 in asd(a,a,b);
-                               """)
-    semantic_check(ast)
+                               let a = 5, b = a in {print(new Lobo(2,2));}""")
+    if (ast):
+        semantic_check(ast)
     

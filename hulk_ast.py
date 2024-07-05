@@ -86,7 +86,7 @@ class Let(Node):
             self.name = f"let_{self.instance_id}"
         Program.add_function_name(self.name)  # Add the function name to the tracker
 
-        self.assign : Assign = assign
+        self.assign = assign
         self.body : Node = body
 
 

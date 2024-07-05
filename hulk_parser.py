@@ -811,7 +811,7 @@ def hulk_parse(code, create_graph = False, nm = "AST"):
             create_AST_graph(nodes, nm)
         return AST, nodes
     else:
-        print("\nPARSING FINISHED WITH ERRORS:")
+        print("\nPARSER FOUND THE FOLLOWING ERRORS:")
         for i in sErrorList:
             if i:
                 print(

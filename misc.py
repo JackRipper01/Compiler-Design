@@ -136,6 +136,24 @@ def LCA(i_dict, *params):
         lca = LCA_BI(i_dict, lca, LCA_BI(i_dict, params[i], params[i+1]))
     return lca
 
+def trasspass_params_to_children(i_dict, name:str, ast):
+    forb = ["Object", "String", "Number", "Boolean"]
+    
+    if name not in forb:
+        father_instance = ast.global_definitions[name]
+        for child in i_dict[name].children:
+            if child in forb:
+                continue
+            child_inst = ast.global_definitions[child]
+            if len(child_inst.params.param_list)==0 and len(child_inst.inherits.params.param_list)==0:
+                child_inst.params.param_list = father_instance.params.param_list.copy()
+                new_params = []
+                for i in child_inst.params.param_list:
+                    new_params.append(ID(i.name, ""))
+                child_inst.inherits.params.param_list = new_params
+    
+    for child in i_dict[name].children:
+        trasspass_params_to_children(i_dict,child, ast)
         
     
     
