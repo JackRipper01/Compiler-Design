@@ -134,7 +134,7 @@ def LCA(i_dict, *params):
     lca = LCA_BI(i_dict, params[0], params[1])
     for i in range(1, len(params)-1):
         lca = LCA_BI(i_dict, lca, LCA_BI(i_dict, params[i], params[i+1]))
-        
+    return lca
 
         
     

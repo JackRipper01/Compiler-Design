@@ -59,8 +59,84 @@ class ScopeBuilder:
         pass
 
     @visitor.when(Program)
-    def visit(self, node):
-        node.a = "bu ja ja"
+    def visit(self, node: Program):
+        node.global_exp.variable_scope = node.variable_scope
+        self.visit(node.global_exp)
+        
+    @visitor.when(Print)
+    def visit(self, node: Print):
+        node.value.variable_scope = node.variable_scope
+        self.visit(node.value)
+        
+    @visitor.when(Sqrt)
+    def visit(self, node: Sqrt):
+        node.value.variable_scope = node.variable_scope
+        self.visit(node.value)
+        
+    @visitor.when(Sin)
+    def visit(self, node: Sin):
+        node.value.variable_scope = node.variable_scope
+        self.visit(node.value)
+        
+    @visitor.when(Cos)
+    def visit(self, node: Cos):
+        node.value.variable_scope = node.variable_scope
+        self.visit(node.value)
+        
+    @visitor.when(Exp)
+    def visit(self, node: Exp):
+        node.value.variable_scope = node.variable_scope
+        self.visit(node.value)
+        
+    @visitor.when(Log)
+    def visit(self, node: Log):
+        node.value.variable_scope = node.variable_scope
+        self.visit(node.value)
+    
+    @visitor.when(ID)
+    def visit(self, node: ID):
+        if node.name not in node.variable_scope:
+            self.errors.append("Variable "+node.name+" not defined")
+    
+    @visitor.when(Params)
+    def visit(self, node: Params):
+        for param in node.param_list:
+            param.variable_scope = node.variable_scope
+            self.visit(param)
+    
+    @visitor.when(BinOp)
+    def visit(self, node: BinOp):
+        node.left.variable_scope = node.variable_scope
+        self.visit(node.left)
+        node.right.variable_scope = node.variable_scope
+        self.visit(node.right)
+        
+    @visitor.when(UnaryOp)
+    def visit(self, node: UnaryOp):
+        node.operand.variable_scope = node.variable_scope
+        self.visit(node.operand)
+        
+    @visitor.when(FunctionCall)
+    def visit(self, node: FunctionCall):
+        fn_name = node.func_id.name+"/"+str(len(node.params.param_list))
+        if fn_name not in node.global_definitions:
+            print(node.global_definitions)
+            self.errors.append("Function "+fn_name+" not defined")
+        node.params.variable_scope = node.variable_scope
+        self.visit(node.params)
+        
+    @visitor.when(ExpressionBlock)
+    def visit(self, node: ExpressionBlock):
+        for exp in node.exp_list:
+            exp.variable_scope = node.variable_scope
+            self.visit(exp)
+        
+    @visitor.when(Let)
+    def visit(self, node: Let):
+        node.variable_scope = node.variable_scope.copy()
+        node.variable_scope[node.assign[0].name.name] = (node.assign[0].name, node.assign[0].value)
+        node.body.variable_scope = node.variable_scope
+        self.visit(node.body)
     
     def get_global_definitions(self, ast_input : Program):
         ast_input.global_definitions["Number"] = "float"
@@ -107,7 +183,7 @@ class ScopeBuilder:
             else:
                 hierarchy_tree[current_type].parent = "Object"
                 hierarchy_tree["Object"].children.append(current_type)
-        print(*[str(x)+str(hierarchy_tree[x].children) for x in hierarchy_tree], sep="\n")
+        # print(*[str(x)+str(hierarchy_tree[x].children) for x in hierarchy_tree], sep="\n")
         err = set_depth(hierarchy_tree, "Object", set())
         if err:
             self.errors.append(err)
@@ -130,17 +206,13 @@ class ScopeBuilder:
     
                 
 def semantic_check(ast: Program):
-    SB = ScopeBuilder()
-    SB.get_global_definitions(ast)
-    HierarchyTypes = SB.hierarchy_tree_build(ast)
-    create_Hierarchy_graph(HierarchyTypes, "HG")
-    
-    SB.check_tree(HierarchyTypes, "Object")
-    # print(LCA(HierarchyTypes, "Canino","Perro","Lobo"))
-    
-    
-    print(SB.errors)
+    scope_visitor = ScopeBuilder()
+    scope_visitor.get_global_definitions(ast)
+    type_hierarchy_tree = scope_visitor.hierarchy_tree_build(ast)
+    scope_visitor.check_tree(type_hierarchy_tree, "Object")
+    scope_visitor.visit(ast)
     # your code here
+    print("ERRORS:" if len(scope_visitor.errors)>0 else "",*scope_visitor.errors, sep="\n")
 
 
 
@@ -151,6 +223,8 @@ if __name__ == "__main__":
                                type Canino inherits Animal{}
                                type Perro inherits Canino {}
                                type Lobo inherits Canino{}
-                               """, create_graph=True)
+                               function asd(a,b,c) => print(a);
+                               let a = 5 in asd(a,a,b);
+                               """)
     semantic_check(ast)
     

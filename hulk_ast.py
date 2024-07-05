@@ -1,13 +1,14 @@
 nodes = {}
+global_definitions = {}
 
 class Node:
     def __init__(self, slf, nm):
         nodes[slf] = nm
-        self.parent = None
+        self.parent : Node = None
         self.static_type = "Object"
         self.ret_point = "ret_point"
         self.variable_scope = {}
-        self.global_definitions = {}
+        self.global_definitions = global_definitions
 
 
 class Program(Node):
@@ -19,7 +20,7 @@ class Program(Node):
         self.functions = list(filter(lambda x: type(x) is FunctionDef, functions_types))
         self.types = list(filter(lambda x: type(x) is TypeDef, functions_types))
         self.protocols = list(filter(lambda x: type(x) is Protocol, functions_types))
-        self.global_exp = global_expression
+        self.global_exp: Node = global_expression
 
     @classmethod
     def add_function_name(cls, name):
@@ -36,9 +37,9 @@ class Program(Node):
 class FunctionDef(Node):
     def __init__(self, func_id, params, body):
         super().__init__(self, "FUNC_DEF")
-        self.func_id = func_id
-        self.params = params
-        self.body = body
+        self.func_id : ID = func_id
+        self.params : Params = params
+        self.body : Node = body
         # Check if the function name already exists
         if Program.function_name_exists(self.func_id):
             raise ValueError(f"Function {self.func_id} is already defined.")
@@ -48,8 +49,8 @@ class FunctionDef(Node):
 class FunctionCall(Node):
     def __init__(self, func_id, params):
         super().__init__(self, "FUNC_CALL")
-        self.func_id = func_id
-        self.params = params
+        self.func_id : ID = func_id
+        self.params : Params = params
 
 
 class Params(Node):
@@ -85,15 +86,15 @@ class Let(Node):
             self.name = f"let_{self.instance_id}"
         Program.add_function_name(self.name)  # Add the function name to the tracker
 
-        self.assign = assign
-        self.body = body
+        self.assign : Assign = assign
+        self.body : Node = body
 
 
 class Assign(Node):  # example: name = var a ,value = 4
     def __init__(self, name, value):
         super().__init__(self, "ASSIGN")
-        self.name = name
-        self.value = value
+        self.name : ID = name
+        self.value : Node = value
 
 
 class ID(Node):
@@ -102,8 +103,8 @@ class ID(Node):
             super().__init__(self, "var " + name)
         else:
             super().__init__(self, annotated_type + " " + name)
-        self.name = name
-        self.annotated_type = annotated_type
+        self.name:str = name
+        self.annotated_type :str = annotated_type
 
 
 class If(Node):
@@ -123,16 +124,16 @@ class If(Node):
 class Case(Node):
     def __init__(self, condition, body, branch):
         super().__init__(self, "IF " + branch)
-        self.condition = condition
-        self.body = body
+        self.condition:Node = condition
+        self.body : Node = body
         self.branch = branch
 
 
 class While(Node):
     def __init__(self, condition, body):
         super().__init__(self, "WHILE")
-        self.condition = condition
-        self.body = body
+        self.condition: Node = condition
+        self.body : Node = body
         Program.instance_count += 1  # Increment the counter for each new instance
         self.instance_id = Program.instance_count
         self.name = f"while_{self.instance_id}"
@@ -146,9 +147,9 @@ class While(Node):
 class For(Node):
     def __init__(self, iterator, iterable, body):
         super().__init__(self, "FOR")
-        self.iterator = iterator
-        self.iterable = iterable
-        self.body = body
+        self.iterator: ID = iterator
+        self.iterable: Node = iterable
+        self.body : Node = body
 
 
 class TrueLiteral(Node):
@@ -164,27 +165,27 @@ class FalseLiteral(Node):
 class TypeDef(Node):
     def __init__(self, id, params, members, inherits):
         super().__init__(self, "TYPE_DEF")
-        self.id = id
+        self.id : ID = id 
         self.variables = list(filter(lambda x: type(x) is Assign, members))
         self.functions = list(filter(lambda x: type(x) is FunctionDef, members))
-        self.params = params
-        self.inherits = inherits
+        self.params : Params = params
+        self.inherits : TypeCall = inherits
 
 
 class TypeCall(Node):
     def __init__(self, id, params):
         super().__init__(self, "TYPE_CALL")
-        self.id = id
-        self.params = params
+        self.id : ID = id
+        self.params : Params = params
 
 
 # region temporal
 class Protocol(Node):
     def __init__(self, id, methods, extends):
         super().__init__(self, "PROTOCOL")
-        self.id = id
+        self.id : ID = id
         self.methods = methods
-        self.extends = extends
+        self.extends : ID = extends
 
 
 class VectorExt(Node):
@@ -196,13 +197,16 @@ class VectorExt(Node):
 class VectorInt(Node):
     def __init__(self, expression, iterator, iterable):
         super().__init__(self, "VECTOR_INT")
+        self.expression : Node = expression
+        self.iterator : ID = iterator
+        self.iterable : Node = iterable
 
 
 class VectorCall(Node):
     def __init__(self, id, index):
         super().__init__(self, "VECTOR_CALL")
-        self.id = id
-        self.index = index
+        self.id : Node = id
+        self.index : Node = index
 
 
 class BinOp(Node):
@@ -226,16 +230,16 @@ class BinOp(Node):
             self.instance_id = Program.instance_count
             self.name = f"bin_op_{self.instance_id}"
         Program.add_function_name(self.name)  # Add the function name to the tracker
-        self.left = left
-        self.op = op
-        self.right = right
+        self.left : Node = left
+        self.op : str = op
+        self.right :Node = right
 
 
 class UnaryOp(Node):
     def __init__(self, op, operand):
         super().__init__(self, str(op))
         self.op = op
-        self.operand = operand
+        self.operand : Node = operand
 
 
 class Num(Node):
@@ -284,38 +288,38 @@ class Print(
             raise ValueError(f"Function {func_name} is already defined.")
         Program.add_function_name(func_name)  # Add the function name to the tracker
         super().__init__(self, "PRINT")
-        self.value = value
+        self.value : Node = value
 
 
 class Sqrt(Node):
     def __init__(self, value):
         super().__init__(self, "SQRT")
-        self.value = value
+        self.value : Node = value
 
 
 class Sin(Node):
     def __init__(self, value):
         super().__init__(self, "SIN")
-        self.value = value
+        self.value : Node = value
 
 
 class Cos(Node):
     def __init__(self, value):
         super().__init__(self, "COS")
-        self.value = value
+        self.value : Node = value
 
 
 class Exp(Node):
     def __init__(self, value):
         super().__init__(self, "EXP")
-        self.value = value
+        self.value : Node = value
 
 
 class Log(Node):
     def __init__(self, value, base):
         super().__init__(self, "LOG")
-        self.base = base
-        self.value = value
+        self.base : Node = base
+        self.value : Node = value
 
 
 class Rand(Node):
