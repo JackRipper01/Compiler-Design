@@ -821,5 +821,4 @@ def hulk_parse(code, create_graph = False, nm = "AST"):
             else:
                 print("Syntax error at EOF")
             # break
-
         return None, None

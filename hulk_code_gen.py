@@ -1,7 +1,9 @@
+from hulk_semantic_check import ScopeBuilder
+from misc import create_AST_graph
 import visitor
 
 from hulk_parser import hulk_parse
-from hulk_ast import (
+from hulk_ast import (nodes,
     Node,
     Program,
     FunctionDef,
@@ -38,9 +40,11 @@ from hulk_ast import (
     Rand,
 )
 
+
 class CodeGen:
     def __init__(self):
         self.errors = []
+        self.global_definitions = {}
 
     @visitor.on("node")
     def visit(self, node):
@@ -79,7 +83,7 @@ class CodeGen:
                     f.write(f"{self.visit(function)[0]}\n\n")
             if node.types:
                 for type in node.types:
-                    f.write(f"{self.visit(type)[0]}\n\n")#revisar si pincho
+                    f.write(f"{self.visit(type)[0]}\n\n")  # revisar si pincho
             f.write("float main() {\n\n")
             f.write(f"{main_def}\n\n")
             f.write(f"return {main_ret};\n")
@@ -166,11 +170,11 @@ class CodeGen:
         {node.static_type} {node.ret_point} = let_{node.instance_id}();
         """
         return c_code, node.ret_point
-    
+
     @visitor.when(ID)
     def visit(self, node):
         return "", node.name
-    
+
     @visitor.when(If)
     def visit(self, node):
         node.static_type = "float"
@@ -227,22 +231,43 @@ class CodeGen:
     @visitor.when(TypeDef)
     def visit(self, node):
         node.static_type = node.id.annotated_type
+        own_plus_parent_variables = []
+        list_func_id_polymorphism = []
+        own_plus_parent_functions =[]
+        parent_inherited=None
 
         # struct definition
         WWWWTTTTFFFF = "float"
         c_code = f"""typedef struct {node.id.name}{{\n"""
 
         if node.inherits:
-            # poner aqui todo lo que este dentro del struct del padre, es decir poner aqui todos los miembros del struct del padre
-            # append a node.variables todas las variables del padre
-            # append a node.functions todas las functions del padre
-            # no hace falta mas nada ya q el padre tendra lo mismo pero de su propio padre,luego este struct tendra todo lo de su padre y todo lo de su abuelo
+            parent_inherited = node.global_definitions[node.inherits.id.name]
+            c_code += f"""char base[] = "{node.inherits.id.name}";\n"""
+            for var in parent_inherited.variables:
+                own_plus_parent_variables.append(var)
+            for func in parent_inherited.functions:
+                founded_polymorphism = False
+                for own_func in node.functions:
+                    if own_func.func_id.name == func.func_id.name:
+                        own_plus_parent_functions.append(own_func)
+                        list_func_id_polymorphism.append(own_func.func_id.name)
+                        founded_polymorphism=True
+                        break
+                if founded_polymorphism:
+                    founded_polymorphism=False
+                    continue
+                own_plus_parent_functions.append(func)
+            own_plus_parent_functions.extend(node.functions)
+        else:
+            c_code += """char base[] = "Object";\n"""
+            own_plus_parent_variables=node.variables
+            own_plus_parent_functions=node.functions
 
-            c_code += f"""{node.inherits.name} base_{node.id.name};"""
-
-        for var in node.variables:
+        for var in own_plus_parent_variables:
             c_code += f"{WWWWTTTTFFFF} {var.name.name};\n"
-        for func in node.functions:
+        for func in own_plus_parent_functions:
+            if func.func_id.name in list_func_id_polymorphism:
+                continue
             c_code += f"""{WWWWTTTTFFFF} (*{func.func_id.name})(void* self"""
             if func.params.param_list:
                 for function_params in func.params.param_list:
@@ -251,13 +276,13 @@ class CodeGen:
         c_code += f"}} {node.id.name};\n"
 
         # functions definition
-        for func in node.functions:
-            def_func, ret_func = self.visit(func)#inventinggggggggggggggggg
+        for func in own_plus_parent_functions:
+            def_func, ret_func = self.visit(func)  
             c_code += f"""{func.static_type} {node.static_type}_{func.func_id.name}(void* self"""
             if func.params.param_list:
                 for function_params in func.params.param_list:
                     c_code += f", {WWWWTTTTFFFF} {function_params.name}"
-            c_code += f"""){{\n{def_func}\nreturn {ret_func};\n}}"""
+            c_code += f"""){{\n{def_func}\nreturn {ret_func};\n}}\n\n"""
 
         # constructor definition
         c_code += f"""{node.static_type}* new_{node.static_type}("""
@@ -266,11 +291,13 @@ class CodeGen:
         c_code = c_code[:-1]
         c_code += f"""){{"""
         c_code += f"""{node.static_type}* obj = ({node.static_type}*)malloc(sizeof({node.static_type}));\n"""
-        for var in node.variables:
-            def_variable_value, ret_variable_value = self.visit(var.value)#inventinggggggggggggggggggg
+
+        for var in own_plus_parent_variables:
+            def_variable_value, ret_variable_value = self.visit(var.value)  
             c_code += f"""{def_variable_value}"""
             c_code += f"""obj->{var.name.name} = {ret_variable_value};\n"""
-        for func in node.functions:
+
+        for func in own_plus_parent_functions:
             c_code += f"""obj->{func.func_id.name} = {node.static_type}_{func.func_id.name};\n"""
         c_code += f"""return obj;"""
         c_code += f"""}}"""
@@ -293,11 +320,14 @@ class CodeGen:
 
         if node.op == ".":
             node.static_type = "Point"
-            node.right.static_type = "float"#ESTO CREEEEEEEEEEEEEEO q VA A DAR ERRORRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR PQ RIGHT>STATICTYPE CREO Q USA SELF>STATICTYPE Y NO NODE>STATIC TYPE
+            node.right.static_type = "float"  # ESTO CREEEEEEEEEEEEEEO q VA A DAR ERRORRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR PQ RIGHT>STATICTYPE CREO Q USA SELF>STATICTYPE Y NO NODE>STATIC TYPE
             # code = f"""{node.right.static_type} bin_op_{node.instance_id}(){{"""
             # code += f"return (({node.static_type}*){left_ret})->{right_ret};\n}}"
             # code += f"{node.right.static_type} {node.ret_point} = bin_op_{node.instance_id}();\n"
             return "", f"""(({node.static_type}*){left_ret})->{right_ret}"""
+
+        # if self.op == "AS":
+        #     return "", f"({right_ret}*){left_ret}"
 
         code = f"""{node.static_type} bin_op_{node.instance_id}(){{
         {left_def}
@@ -318,7 +348,7 @@ class CodeGen:
 
     @visitor.when(UnaryOp)
     def visit(self, node):
-        if node.op == "-": # recuerda el not
+        if node.op == "-":  # recuerda el not
             node.static_type = "float"
             child_def, child_ret = self.visit(node.value)
             node.ret_point = "ret_point_unary_op_" + str(node.instance_id)
@@ -338,15 +368,15 @@ return -{child_ret};
 
     @visitor.when(StringLiteral)
     def visit(self, node):
-        return "",f'"{node.value}"'
+        return "", f'"{node.value}"'
 
     @visitor.when(Pi)
     def visit(self, node):
-        return "","M_PI"
+        return "", "M_PI"
 
     @visitor.when(E)
     def visit(self, node):
-        return "","M_E"
+        return "", "M_E"
 
     @visitor.when(Print)
     def visit(self, node):
@@ -417,7 +447,7 @@ return exp({child_ret});
 
     @visitor.when(Log)
     def visit(self, node):
-        child_def_base,child_ret_base = self.visit(node.base)
+        child_def_base, child_ret_base = self.visit(node.base)
         child_def_value, child_ret_value = self.visit(node.value)
         node.static_type = "float"
         node.ret_point = "ret_point_log_" + str(node.instance_id)
@@ -431,12 +461,13 @@ return log({child_ret_value})/log({child_ret_base});
         return code, node.ret_point
 
     @visitor.when(Rand)
-    def visit(self,node):
-        return "",f"(float)rand()/(float)RAND_MAX" 
+    def visit(self, node):
+        return "", f"(float)rand()/(float)RAND_MAX"
 
 
 if __name__ == "__main__":
-    ast = hulk_parse("""type Point(x,y) {
+    ast,a = hulk_parse(
+        """type Point(x,y) {
     x = x;
     y = y;
 
@@ -446,5 +477,16 @@ if __name__ == "__main__":
     setX(x) => self.x := x;
     setY(y) => self.y := y;
 }
-4;""")
-    CodeGen().visit(ast)
+type Point3D(x,y,z) inherits Point(x,y){
+    z=z;
+
+    getZ() => self.z;
+
+    setZ(z) => self.z := z;
+}
+4;"""
+    )
+    create_AST_graph(nodes, "AST")
+    ScopeBuilder().get_global_definitions(ast)
+    code_gen_instance=CodeGen()
+    code_gen_instance.visit(ast)
