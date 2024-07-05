@@ -1,4 +1,5 @@
 # region temp import 
+from hulk_lexer import errorList as lexerErrors
 from hulk_parser import hulk_parse
 from misc import set_depth, LCA, create_Hierarchy_graph, trasspass_params_to_children
 # endregion
@@ -42,6 +43,11 @@ from hulk_ast import (
     Rand, #NAN
 )
 
+# TypeColector
+# TypeBuilder
+# SemanticCheck
+# TypeCheck?
+
 class HierarchyNode:
     def __init__(self, name, parent, children, depth):
         self.name = name
@@ -53,7 +59,9 @@ class HierarchyNode:
 class ScopeBuilder:
     def __init__(self):
         self.errors = []
-        self.inside_types = False # desarrollar idea
+        self.on_type = False
+        self.on_function = False
+        self.current = "" # desarrollar idea
 
     @visitor.on("node")
     def visit(self, node):
@@ -61,6 +69,9 @@ class ScopeBuilder:
 
     @visitor.when(Program)
     def visit(self, node: Program):
+        
+        
+        
         if node.global_exp:
             node.global_exp.variable_scope = node.variable_scope
             self.visit(node.global_exp)
@@ -125,6 +136,21 @@ class ScopeBuilder:
     def visit(self, node: UnaryOp):
         node.operand.variable_scope = node.variable_scope
         self.visit(node.operand)
+    
+    @visitor.when(VectorExt)
+    def visit(self, node: VectorExt):
+        for item in node.items:
+            item.variable_scope = node.variable_scope
+            self.visit(item)
+    
+    @visitor.when(VectorCall)
+    def visit(self, node: VectorCall):
+        node.id.variable_scope = node.variable_scope
+        self.visit(node.id)
+        
+        for item in node.items:
+            item.variable_scope = node.variable_scope
+            self.visit(item)
         
     @visitor.when(FunctionCall)
     def visit(self, node: FunctionCall):
@@ -153,6 +179,7 @@ class ScopeBuilder:
             
     @visitor.when(Assign)
     def visit(self, node: Assign):
+        self.check_annotation(node.name)
         node.value.variable_scope = node.variable_scope
         self.visit(node.value)
         
@@ -194,7 +221,7 @@ class ScopeBuilder:
         for function in ast_input.functions:
             function_name = function.func_id.name+"/"+str(len(function.params.param_list))
             if function_name in ast_input.global_definitions:
-                self.errors.append("Function "+ function_name +" already defined: ")
+                self.errors.append("Function "+ function_name +" already defined")
             else:
                 ast_input.global_definitions[function_name] = function
         
@@ -246,13 +273,15 @@ class ScopeBuilder:
             visited.add(current)
             for child in i_dict[current].children:
                 if child in visited:
-                    self.errors.append("Error en la definicion del tipo: "+child)
+                    self.errors.append("Error in type definition: "+child)
                 else:
                     qww.append(child)
         if len(visited) != len(i_dict):
-            self.errors.append("Error en la definicion de tipos involucrando a los tipos: "+str(set(i_dict).difference(visited)))
+            self.errors.append("Error in type definition: "+str(set(i_dict).difference(visited)))
     
-    
+    def check_annotation(self, var : ID):
+        if var.annotated_type!="" and var.annotated_type not in var.global_definitions:
+            self.errors.append("Variable '"+var.name+"' annotated type '"+var.annotated_type+"' does not exist in global context")
         
                 
 def semantic_check(ast: Program):
@@ -260,21 +289,33 @@ def semantic_check(ast: Program):
     scope_visitor.get_global_definitions(ast)
     type_hierarchy_tree = scope_visitor.hierarchy_tree_build(ast)
     scope_visitor.check_tree(type_hierarchy_tree, "Object")
-    trasspass_params_to_children(type_hierarchy_tree, "Object",ast)
+    trasspass_params_to_children(type_hierarchy_tree, "Object",ast, set())
     scope_visitor.visit(ast)
+    
+    
+    
+    
+    
     # your code here
-    print("SEMANTIC CHECK FOUND THE FOLLOWING ERRORS:" if len(scope_visitor.errors)>0 else "SUCCESS PERFORMING SEMANTIC CHECKING!!!",*scope_visitor.errors, sep="\n")
-
+    return ast, scope_visitor.errors
+    
 
 if __name__ == "__main__":
-    ast,_ = hulk_parse(r"""type Animal(a){}
+    ast,parsingErrors,_b  = hulk_parse(r"""type Animal(a : int){}
                                type Felino inherits Animal{}
                                type Gato inherits Felino {}
                                type Canino inherits Animal{}
                                type Perro inherits Canino {}
-                               type Lobo inherits Canino{}
+                               type Lobo inherits Perro{}
                                function asd(a,b,c) => print(a);
-                               let a = 5, b = a in {print(new Lobo(2,2));}""")
+                               let a :Number = true, b: Number = a in {print(new Lobo(6));
+                               asd(1, 2, 3);};""")
+    
+    print("LEXER FOUND THE FOLLOWING ERRORS:" if len(lexerErrors)>0 else "LEXING OK!",*lexerErrors, sep="\n - ")
+    print("PARSER FOUND THE FOLLOWING ERRORS:" if len(parsingErrors)>0 else "PARSING OK!!",*parsingErrors, sep="\n - ")
     if (ast):
-        semantic_check(ast)
+        ast, semantic_check_errors = semantic_check(ast)
+        
+        print("SEMANTIC CHECK FOUND THE FOLLOWING ERRORS:" if len(semantic_check_errors)>0 else "SEMANTIC CHECK OK!!!",*semantic_check_errors, sep="\n - ")
+
     

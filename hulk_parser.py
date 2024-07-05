@@ -131,7 +131,7 @@ def p_function_type_list_items_empty(p):
 
 def p_protocol(p):
     "protocol_def : PROTOCOL NAME opt_extends LBRACE protocol_methods RBRACE opt_semi"
-    id = ID(p[2], "protocol")
+    id = ID(p[2], "")
     p[0] = Protocol(id, p[5], p[3])
     id.parent = p[0]
     for i in p[5]:
@@ -142,7 +142,7 @@ def p_protocol(p):
 
 def p_protocol_extends(p):
     "opt_extends : EXTENDS NAME"
-    p[0] = ID(p[2], "extends")
+    p[0] = ID(p[2], "")
 
 
 def p_protocol_extends_e(p):
@@ -198,7 +198,7 @@ def p_exp_func_call(p):
 
 def p_func_call(p):
     "func_call_next : NAME LPAREN cs_exps RPAREN"
-    id = ID(p[1], "func_call")
+    id = ID(p[1], "")
     p[0] = FunctionCall(id, p[3])
     id.parent = p[0]
     p[3].parent = p[0]
@@ -310,7 +310,7 @@ def p_type_def(p):
 
 def p_opt_inheritance(p):
     "opt_inheritance : INHERITS NAME opt_inheritance_params"
-    id = ID(p[2], "inherits")
+    id = ID(p[2], "")
     p[0] = TypeCall(id, p[3])
     p[3].parent = p[0]
     id.parent = p[0]
@@ -804,21 +804,19 @@ def hulk_parse(code, create_graph = False, nm = "AST"):
     parser = yacc.yacc(start="program", method="LALR")
 
     AST = parser.parse(code)
+    
+    errors = []
     if len(sErrorList) == 0:
-        print("SUCCESS PARSING!!")
         nodes = refact_ast(nodes)
         if create_graph:
             create_AST_graph(nodes, nm)
-        return AST, nodes
+        return AST, sErrorList, nodes
     else:
-        print("\nPARSER FOUND THE FOLLOWING ERRORS:")
         for i in sErrorList:
             if i:
-                print(
-                    " - ",
-                    f"Syntax error near '{i.value}' at line {i.lineno}, column {find_column(code,i)}",
-                )
+                errors.append(f"Syntax error near '{i.value}' at line {i.lineno}, column {find_column(code,i)}")
             else:
-                print("Syntax error at EOF")
+                errors.append("Syntax error at EOF")
             # break
-        return None, None
+
+        return None, errors, None
