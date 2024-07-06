@@ -3,7 +3,7 @@
 
 from hulk_ast import *
 
-def check_type(node: Node):
+def check_type(node: Node, infered_type=[]):
     if isinstance(node,Assign):
         return assign_check_type(node)
     elif isinstance(node, Num):
@@ -32,8 +32,53 @@ def check_type(node: Node):
         return sin_check_type(node)
     elif isinstance(node, Sqrt):
         return sqrt_check_type(node)
+    elif isinstance(node, FunctionDef):
+        return function_def_check_type(node)
+    elif isinstance(node, Params):
+        return params_check_type(node)
+    elif isinstance(node, FunctionCall):
+        return function_call_check_type(node)
+    elif isinstance(node, ExpressionBlock):
+        return expression_block_check_type(node)
+    elif isinstance(node, TrueLiteral):
+        return true_check_type(node)
+    elif isinstance(node, FalseLiteral):
+        return false_check_type(node)
     
+
+def true_check_type(node: TrueLiteral,infered_type=[]):
+    return check_and_ret(node,'bool',infered_type)
+  
+def false_check_type(node: FalseLiteral,infered_type=[]):
+    return check_and_ret(node,'bool',infered_type)  
+
+# Not understand ExpressionBlock class
+def expression_block_check_type(node: ExpressionBlock,infered_type=[]):
+    pass
     
+# Check that function is defined before using it
+# How to a FunctionDef node to check params types
+def function_call_check_type(node: FunctionCall,infered_type=[]):
+    # func_id = node.func_id
+    # params=node.params
+    pass
+    
+# Still need to enforce params type in a function
+def params_check_type(node: Params,infered_type=[]):
+    static_type= []
+    for e in nodes.param_list: 
+        static_type.append(check_type(e))
+
+# Clase para citar variables declaradas?
+# Si existe ver forma de usarla, si no crear una variable contexto para el chequeo de tipos
+def function_def_check_type(node: FunctionDef, infered_type=[]):
+    id_type= check_type(node.func_id)
+    params_type= check_type(node.params)
+    infers=[]
+    if id_type: infers=[id_type]
+    static_type= check_type(node.body, infers)
+    return check_and_ret(node,static_type,infers)
+
 def sqrt_check_type(node: Sqrt, infered_type=[]):
     static_type= 'number'
     return check_and_ret(node, static_type, infered_type)
