@@ -230,22 +230,19 @@ class CodeGen:
 
     @visitor.when(TypeDef)
     def visit(self, node):
-        node.static_type = node.id.annotated_type
-        own_plus_parent_variables = []
-        list_func_id_polymorphism = []
-        own_plus_parent_functions =[]
-        parent_inherited=None
 
+        node.static_type = node.id.annotated_type
+        list_func_id_polymorphism = []
+        parent_inherited=None
+        own_plus_parent_functions=[]
         # struct definition
         WWWWTTTTFFFF = "float"
         c_code = f"""typedef struct {node.id.name}{{\n"""
 
         if node.inherits:
             parent_inherited = node.global_definitions[node.inherits.id.name]
-            c_code += f"""char base[] = "{node.inherits.id.name}";\n"""
-            for var in parent_inherited.variables:
-                own_plus_parent_variables.append(var)
-            for func in parent_inherited.functions:
+            c_code += f"""char parent[] = "{node.inherits.id.name}";\n"""
+            for func in parent_inherited.functions:#preparando una lista para definir las funciones debajo del struct
                 founded_polymorphism = False
                 for own_func in node.functions:
                     if own_func.func_id.name == func.func_id.name:
@@ -256,24 +253,47 @@ class CodeGen:
                 if founded_polymorphism:
                     founded_polymorphism=False
                     continue
-                own_plus_parent_functions.append(func)
-            own_plus_parent_functions.extend(node.functions)
+                own_plus_parent_functions.append(func)#luego del for estaran todas las funciones del padre pero con el polimorfismo aplicado
+
+            for var in parent_inherited.variables:#definiendo variables del padre en el struct
+                c_code += f"{WWWWTTTTFFFF} {var.name.name};\n"
+
+            for func in own_plus_parent_functions:#declarando las funciones del padre en el struct pero con el polimorfismo aplicado
+                c_code += f"""{WWWWTTTTFFFF} (*{func.func_id.name})(void* self"""
+                if func.params.param_list:
+                    for function_params in func.params.param_list:
+                        c_code += f", {WWWWTTTTFFFF} {function_params.name}"
+                c_code += ");\n"
+
+            for var in node.variables:#definiendo las variables propias en struct
+                c_code += f"{WWWWTTTTFFFF} {var.name.name};\n"
+            
+            for func in node.functions:#declarando las funciones propias en struct sin incluir la del polimorfismo ya q ya se incluyo junto a las del padre
+                if func.func_id.name in list_func_id_polymorphism:
+                    continue
+                c_code += f"""{WWWWTTTTFFFF} (*{func.func_id.name})(void* self"""
+                if func.params.param_list:
+                    for function_params in func.params.param_list:
+                        c_code += f", {WWWWTTTTFFFF} {function_params.name}"
+                c_code += ");\n"
+                own_plus_parent_functions.append(func)#annadiendo las funciones propias sin incluir la del polimorfismo ya q esta incluida en esta lista
+            
+            c_code += f"}} {node.id.name};\n"#END OF STRUCT
+            
         else:
             c_code += """char base[] = "Object";\n"""
-            own_plus_parent_variables=node.variables
-            own_plus_parent_functions=node.functions
+            for var in node.variables:
+                c_code += f"{WWWWTTTTFFFF} {var.name.name};\n"
 
-        for var in own_plus_parent_variables:
-            c_code += f"{WWWWTTTTFFFF} {var.name.name};\n"
-        for func in own_plus_parent_functions:
-            if func.func_id.name in list_func_id_polymorphism:
-                continue
-            c_code += f"""{WWWWTTTTFFFF} (*{func.func_id.name})(void* self"""
-            if func.params.param_list:
-                for function_params in func.params.param_list:
-                    c_code += f", {WWWWTTTTFFFF} {function_params.name}"
-            c_code += ");\n"
-        c_code += f"}} {node.id.name};\n"
+            for func in node.functions:
+                c_code += f"""{WWWWTTTTFFFF} (*{func.func_id.name})(void* self"""
+                if func.params.param_list:
+                    for function_params in func.params.param_list:
+                        c_code += f", {WWWWTTTTFFFF} {function_params.name}"
+                c_code += ");\n"
+            c_code += f"}} {node.id.name};\n"
+            
+            own_plus_parent_functions=node.functions#esto esta correcto ya q si no hay padre algo+0=algo xd,lee el nombre de la lista y entenderas
 
         # functions definition
         for func in own_plus_parent_functions:
@@ -292,7 +312,11 @@ class CodeGen:
         c_code += f"""){{"""
         c_code += f"""{node.static_type}* obj = ({node.static_type}*)malloc(sizeof({node.static_type}));\n"""
 
-        for var in own_plus_parent_variables:
+        parent_variables=[]
+        if node.inherits:
+            parent_variables =parent_inherited.variables
+            
+        for var in parent_variables+node.variables:
             def_variable_value, ret_variable_value = self.visit(var.value)  
             c_code += f"""{def_variable_value}"""
             c_code += f"""obj->{var.name.name} = {ret_variable_value};\n"""
@@ -321,9 +345,6 @@ class CodeGen:
         if node.op == ".":
             node.static_type = "Point"
             node.right.static_type = "float"  # ESTO CREEEEEEEEEEEEEEO q VA A DAR ERRORRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR PQ RIGHT>STATICTYPE CREO Q USA SELF>STATICTYPE Y NO NODE>STATIC TYPE
-            # code = f"""{node.right.static_type} bin_op_{node.instance_id}(){{"""
-            # code += f"return (({node.static_type}*){left_ret})->{right_ret};\n}}"
-            # code += f"{node.right.static_type} {node.ret_point} = bin_op_{node.instance_id}();\n"
             return "", f"""(({node.static_type}*){left_ret})->{right_ret}"""
 
         # if self.op == "AS":
@@ -466,14 +487,14 @@ return log({child_ret_value})/log({child_ret_base});
 
 
 if __name__ == "__main__":
-    ast,a = hulk_parse(
+    ast,a,b = hulk_parse(
         """type Point(x,y) {
     x = x;
     y = y;
 
     getX() => self.x;
     getY() => self.y;
-
+    asd() => self.x+self.y;
     setX(x) => self.x := x;
     setY(y) => self.y := y;
 }
@@ -483,9 +504,11 @@ type Point3D(x,y,z) inherits Point(x,y){
     getZ() => self.z;
 
     setZ(z) => self.z := z;
+    asd() => self.x*self.x;
 }
 4;"""
     )
+    print(a)
     create_AST_graph(nodes, "AST")
     ScopeBuilder().get_global_definitions(ast)
     code_gen_instance=CodeGen()
