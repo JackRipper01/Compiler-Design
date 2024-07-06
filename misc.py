@@ -1,6 +1,7 @@
 from hulk_parser import *
 import graphviz
 from typing import List
+from hulk_ast import *
 
 # For Hivan Only :
 # Code for Graphviz working in windows 

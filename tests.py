@@ -7,9 +7,54 @@ from typing import Self
 import math
 import random
 import graphviz
+from hulk_parser import hulk_parse
 
-do_test_lexer=True
+# Parsing and creating AST
+tests=[
+    #0
+    '42;',
+    #1
+    'print(42);',
+    #2
+    'print((((1 + 2) ^ 3) * 4) / 5);',
+    #3
+    'print("The meaning of life is " @ 42);',
+    #4
+    'print(sin(2 * PI) ^ 2 + cos(3 * PI / log(4, 64)));',
+    #5
+    '''{
+    print(42);
+    print(sin(PI/2));
+    print("Hello World");
+    }''',
+    #6
+    '''function tan(x) => sin(x) / cos(x);''',
+    #7
+    '''
+    function cot(x) => 1 / tan(x);
+    function tan(x) => sin(x) / cos(x);
+    print(tan(PI) ** 2 + cot(PI) ** 2);
+    ''',
+    #8
+    '''
+    function operate(x, y) {
+    print(x + y);
+    print(x - y);
+    print(x * y);
+    print(x / y);
+    }   
+    operate(4,2);
+    operate(2,3);
+    ''',
+    ]
+
+def run_single_test(index):
+    ast,nodes=hulk_parse(tests[index],True)
+
+# run_single_test(3)
+
 # Testing Lexer
+do_test_lexer=False
 def test_lexer(code):
     lexer = hulk_lexer.lex.lex(module=hulk_lexer)
     lexer.parenthesisCount = 0
