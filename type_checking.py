@@ -90,7 +90,7 @@ class Type_Check():
         # func_id = node.func_id
         # params=node.params
         input_params= Type_Check.check_type(node.params)
-        
+        funct_def= node.global_definitions[f'{node.func_id.name}/{len(node.params)}']
         pass
 
     def params_check_type(node: Params,infered_type=[]):
