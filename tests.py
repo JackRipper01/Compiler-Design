@@ -8,6 +8,7 @@ import math
 import random
 import graphviz
 from hulk_parser import hulk_parse
+from type_checking import Type_Check
 
 # Parsing and creating AST
 tests=[
@@ -43,6 +44,15 @@ tests=[
     print(x * y);
     print(x / y);
     }   
+    ''',
+    #9
+    '''
+    function operate(x, y) {
+    print(x + y);
+    print(x - y);
+    print(x * y);
+    print(x / y);
+    }   
     operate(4,2);
     operate(2,3);
     ''',
@@ -50,8 +60,10 @@ tests=[
 
 def run_single_test(index):
     ast,nodes=hulk_parse(tests[index],True)
+    type_check=Type_Check(nodes)
+    print(nodes[''])
 
-# run_single_test(3)
+run_single_test(8)
 
 # Testing Lexer
 do_test_lexer=False

@@ -9,62 +9,58 @@ class Type_Check():
         self.context= ScopeBuilder.get_global_definitions(ast)
         
     @classmethod
-    def check_type(cls,node: Node, infered_type=[]):
+    def check_type(cls,node: Node, infered_type=[],test_mode=False):
+        t=''
         if isinstance(node,Assign):
-            return cls.assign_check_type(node)
+            t= cls.assign_check_type(node)
         elif isinstance(node, Num):
-            return cls.number_check_type(node)
+            t= cls.number_check_type(node)
         elif isinstance(node, StringLiteral):
-            return cls.string_check_type(node)
+            t= cls.string_check_type(node)
         elif isinstance(node, Let):
-            return cls.let_check_type(node)
+            t= cls.let_check_type(node)
         elif isinstance(node, Print):
-            return cls.print_check_type(node)
+            t= cls.print_check_type(node)
         elif isinstance(node, BinOp):
-            return cls.binop_check_type(node)
+            t= cls.binop_check_type(node)
         elif isinstance(node, Exp):
-            return cls.exp_check_type(node)
+            t= cls.exp_check_type(node)
         elif isinstance(node, Log):
-            return cls.log_check_type(node)
+            t= cls.log_check_type(node)
         elif isinstance(node, Cos):
-            return cls.cos_check_type(node)
+            t= cls.cos_check_type(node)
         elif isinstance(node, Rand):
-            return cls.rand_check_type(node)
+            t= cls.rand_check_type(node)
         elif isinstance(node, Pi):
-            return cls.pi_check_type(node)
+            t= cls.pi_check_type(node)
         elif isinstance(node, E):
-            return cls.e_check_type(node)
+            t= cls.e_check_type(node)
         elif isinstance(node, Sin):
-            return cls.sin_check_type(node)
+            t= cls.sin_check_type(node)
         elif isinstance(node, Sqrt):
-            return cls.sqrt_check_type(node)
+            t= cls.sqrt_check_type(node)
         elif isinstance(node, FunctionDef):
-            return cls.function_def_check_type(node)
+            t= cls.function_def_check_type(node)
         elif isinstance(node, Params):
-            return cls.params_check_type(node)
+            t= cls.params_check_type(node)
         elif isinstance(node, FunctionCall):
-            return cls.function_call_check_type(node)
+            t= cls.function_call_check_type(node)
         elif isinstance(node, ExpressionBlock):
-            return cls.expression_block_check_type(node)
+            t= cls.expression_block_check_type(node)
         elif isinstance(node, TrueLiteral):
-            return cls.true_check_type(node)
+            t= cls.true_check_type(node)
         elif isinstance(node, FalseLiteral):
-            return cls.false_check_type(node)
+            t= cls.false_check_type(node)
         elif isinstance(node,If):
-            return cls.if_check_type(node)
+            t= cls.if_check_type(node)
         elif isinstance(node,Case):
-            return cls.case_check_type(node)
+            t= cls.case_check_type(node)
         elif isinstance(node, While):
-            return cls.while_check_type(node)
-        elif isinstance(node, For):
-            return cls.for_check_type(node)
-       
-       
-    # !!!! Type check that iterable is iterable
-    # How are we treating iterables? 
-    def for_check_type(node: For, infered_type=[]):
-        body_type = Type_Check.check_type(node.body)
-        return Type_Check.check_and_ret(node,body_type,infered_type)
+            t= cls.while_check_type(node)
+        if test_mode:
+            print(f'{node}: {t}')
+        return t
+        
     
     def while_check_type(node: While, infered_type=[]):
         condition_type = Type_Check.check_type(node.condition,['bool'])
@@ -82,7 +78,11 @@ class Type_Check():
         
     # Not understand ExpressionBlock class
     def expression_block_check_type(node: ExpressionBlock,infered_type=[]):
-        pass
+        exp_list= node.exp_list
+        for i in range(len(exp_list)):
+            exp_type=Type_Check.check_type(exp_list[i])
+            if i == len(exp_list)-1:
+                return Type_Check.check_and_ret(node,exp_type,infered_type)        
 
     # Check that function is defined before using it
     # How to a FunctionDef node to check params types !!!!
