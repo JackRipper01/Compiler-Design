@@ -1,12 +1,12 @@
 
 # region Type Checking
-from hulk_semantic_check import ScopeBuilder
+# from hulk_semantic_check import ScopeBuilder
 from hulk_ast import *
 
 class Type_Check():
     
-    def __innit__(self,ast:Program):
-        self.context= ScopeBuilder.get_global_definitions(ast)
+    # def __innit__(self,ast:Program):
+    #     self.context= ScopeBuilder.get_global_definitions(ast)
         
     @classmethod
     def check_type(cls,node: Node, infered_type=[],test_mode=False):

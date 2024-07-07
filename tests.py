@@ -9,6 +9,8 @@ import random
 import graphviz
 from hulk_parser import hulk_parse
 from type_checking import Type_Check
+import hulk_ast
+from misc import flip_dict
 
 # Parsing and creating AST
 tests=[
@@ -60,8 +62,11 @@ tests=[
 
 def run_single_test(index):
     ast,nodes=hulk_parse(tests[index],True)
-    type_check=Type_Check(nodes)
-    print(nodes[''])
+    nodes = flip_dict(nodes)
+    # for e in nodes.keys():
+    #     print(f'{e}: {nodes[e]}')
+    # print(nodes[''])
+    print(Type_Check.check_type(nodes[''],test_mode=True))
 
 run_single_test(8)
 

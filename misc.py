@@ -87,6 +87,11 @@ def create_AST_graph(dict: dict, graph_name):
             dot.edge(str(key.parent), str(key))
     dot.render(directory="output")
 
+def flip_dict(input: dict):
+    res={}
+    for k in input.keys():
+        res[input[k]] = k
+    return res
 # def father_child():
 #     childs_dict = {}
 #     root = None
