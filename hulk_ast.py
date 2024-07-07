@@ -177,6 +177,14 @@ class TypeCall(Node):
         super().__init__(self, "TYPE_CALL")
         self.id : ID = id
         self.params : Params = params
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"{id.name.lower()}_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"{id.name.lower()}_{self.instance_id}"
+        Program.add_function_name(self.name)  # Add the function name to the tracker
 
 
 # region temporal
@@ -192,6 +200,14 @@ class VectorExt(Node):
     def __init__(self, items):
         super().__init__(self, "VECTOR_EXT")
         self.items = items
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"vector_ext_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"vector_ext_{self.instance_id}"
+        Program.add_function_name(self.name)  # Add the function name to the tracker
 
 
 class VectorInt(Node):
@@ -221,15 +237,6 @@ class BinOp(Node):
             self.instance_id = Program.instance_count
             self.name = f"bin_op_{self.instance_id}"
         Program.add_function_name(self.name)  # Add the function name to the tracker
-        super().__init__(self, op)
-        Program.instance_count += 1  # Increment the counter for each new instance
-        self.instance_id = Program.instance_count
-        self.name = f"bin_op_{self.instance_id}"
-        while Program.function_name_exists(self.name):
-            Program.instance_count += 1
-            self.instance_id = Program.instance_count
-            self.name = f"bin_op_{self.instance_id}"
-        Program.add_function_name(self.name)  # Add the function name to the tracker
         self.left : Node = left
         self.op : str = op
         self.right :Node = right
@@ -245,6 +252,14 @@ class UnaryOp(Node):
 class Num(Node):
     def __init__(self, value):
         super().__init__(self, str(value))
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"float_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"float_{self.instance_id}"
+        Program.add_function_name(self.name)  # Add the function name to the tracker
         if isinstance(value, (int, float)):
             self.value = float(value)
         else:
@@ -254,6 +269,14 @@ class Num(Node):
 class StringLiteral(Node):
     def __init__(self, value):
         super().__init__(self, value)
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"string_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"string_{self.instance_id}"
+        Program.add_function_name(self.name)  # Add the function name to the tracker
         # eliminate the ' ' from value
         if value[0] == "'" or value[0] == '"':
             value = value[1:-1]
