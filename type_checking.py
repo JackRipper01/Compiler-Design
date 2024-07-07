@@ -9,8 +9,11 @@ class Type_Check():
     #     self.context= ScopeBuilder.get_global_definitions(ast)
         
     @classmethod
-    def check_type(cls,node: Node, infered_type=[],test_mode=False):
+    def check_type(cls,node: Node, infered_type=[],test_mode=True):
+        # print(type(node))
         t=''
+        if isinstance(node, Program):
+            t= cls.program_check_type(node)
         if isinstance(node,Assign):
             t= cls.assign_check_type(node)
         elif isinstance(node, Num):
@@ -61,6 +64,13 @@ class Type_Check():
             print(f'{node}: {t}')
         return t
         
+    def program_check_type(node: Program, infered_type=[]):
+        functions_type={}
+        for f in node.functions:
+            functions_type[f.func_id]= Type_Check.check_type(f)
+        program_type= Type_Check.check_type(node.global_exp)
+        print(node.functions)
+        return Type_Check.check_and_ret(node,program_type,infered_type)
     
     def while_check_type(node: While, infered_type=[]):
         condition_type = Type_Check.check_type(node.condition,['bool'])
@@ -95,7 +105,7 @@ class Type_Check():
 
     def params_check_type(node: Params,infered_type=[]):
         static_type= []
-        for e in nodes.param_list: 
+        for e in node.param_list: 
             static_type.append(Type_Check.check_type(e))
         return Type_Check.check_and_ret(node,static_type,[])
 
@@ -208,7 +218,8 @@ class Type_Check():
             for e in infers:
                 if(e == type_val):
                     asserted= True
-            if not asserted or len(infers)==0:
+            asserted= asserted or len(infers)==0
+            if not asserted:
                 raise Exception(f'The Type of the object cannot be of type: {type_val}')
     
     def check_and_ret(node,static_type,infers):
