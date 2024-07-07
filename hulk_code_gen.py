@@ -3,7 +3,8 @@ from misc import create_AST_graph
 import visitor
 
 from hulk_parser import hulk_parse
-from hulk_ast import (nodes,
+from hulk_ast import (
+    nodes,
     Node,
     Program,
     FunctionDef,
@@ -59,24 +60,66 @@ class CodeGen:
             f.write("#include <stdlib.h>\n")
             f.write("#include <string.h>\n\n")
             f.write(
-                """//Concatenate two strings
-        char* concatenate_strings(const char* str1, const char* str2) {
-        // Calculate the length needed for the concatenated string
-        int length = strlen(str1) + strlen(str2) + 1; // +1 for the null terminator
+                """
+//Concatenate two strings
+char* concatenate_strings(const char* str1, const char* str2) {
+    // Calculate the length needed for the concatenated string
+    int length = strlen(str1) + strlen(str2) + 1; // +1 for the null terminator
 
-        // Allocate memory for the concatenated string
-        char* result = (char*)malloc(length * sizeof(char));
-        if (result == NULL) {
-            printf("Memory allocation failed");
-            exit(1); // Exit if memory allocation fails
-        }
+    // Allocate memory for the concatenated string
+    char* result = (char*)malloc(length * sizeof(char));
+    if (result == NULL) {
+        printf("Memory allocation failed");
+        exit(1); // Exit if memory allocation fails
+    }
 
-        // Copy the first string and concatenate the second string
-        strcpy(result, str1);
-        strcat(result, str2);
+    // Copy the first string and concatenate the second string
+    strcpy(result, str1);
+    strcat(result, str2);
 
-        return result;
-    }\n\n"""
+    return result;
+}
+
+typedef struct {
+    char* type;
+    int value;
+} BoolObject;
+BoolObject* new_BoolObject(char* type, int value) {
+    BoolObject* obj = (BoolObject*)malloc(sizeof(BoolObject));    
+    int string_len = strlen(type);
+    obj->type = (char*)malloc((string_len + 1) * sizeof(char));
+    strcpy(obj->type, type);
+    obj->value = value;
+    return obj;
+}
+
+typedef struct {
+    char* type;
+    float value;
+} FloatObject;
+FloatObject* new_FloatObject(char* type, float value) {
+    FloatObject* obj = (FloatObject*)malloc(sizeof(FloatObject));    
+    int string_len = strlen(type);
+    obj->type = (char*)malloc((string_len + 1) * sizeof(char));
+    strcpy(obj->type, type);
+    obj->value = value;
+    return obj;
+}
+
+typedef struct {
+    char* type;
+    char* value;
+} StringObject;
+StringObject* new_StringObject(char* type, char* value) {
+    StringObject* obj = (StringObject*)malloc(sizeof(StringObject));    
+    int string_len = strlen(type);
+    obj->type = (char*)malloc((string_len + 1) * sizeof(char));
+    strcpy(obj->type, type);
+    int value_len = strlen(value);
+    obj->value = (char*)malloc((value_len + 1) * sizeof(char));
+    strcpy(obj->value, value);
+    return obj;
+}\n\n"""
             )
             if node.functions:
                 for function in node.functions:
@@ -233,42 +276,59 @@ class CodeGen:
 
         node.static_type = node.id.annotated_type
         list_func_id_polymorphism = []
-        parent_inherited=None
-        own_plus_parent_functions=[]
+        parent_inherited = None
+        own_plus_parent_functions = []
         # struct definition
         WWWWTTTTFFFF = "float"
         c_code = f"""typedef struct {node.id.name}{{\n"""
 
         if node.inherits:
             parent_inherited = node.global_definitions[node.inherits.id.name]
-            c_code += f"""char parent[] = "{node.inherits.id.name}";\n"""
-            for func in parent_inherited.functions:#preparando una lista para definir las funciones debajo del struct
+            for (
+                func
+            ) in (
+                parent_inherited.functions
+            ):  # preparando una lista para definir las funciones debajo del struct
                 founded_polymorphism = False
                 for own_func in node.functions:
                     if own_func.func_id.name == func.func_id.name:
                         own_plus_parent_functions.append(own_func)
                         list_func_id_polymorphism.append(own_func.func_id.name)
-                        founded_polymorphism=True
+                        founded_polymorphism = True
                         break
                 if founded_polymorphism:
-                    founded_polymorphism=False
+                    founded_polymorphism = False
                     continue
-                own_plus_parent_functions.append(func)#luego del for estaran todas las funciones del padre pero con el polimorfismo aplicado
+                own_plus_parent_functions.append(
+                    func
+                )  # luego del for estaran todas las funciones del padre pero con el polimorfismo aplicado
 
-            for var in parent_inherited.variables:#definiendo variables del padre en el struct
+            for (
+                var
+            ) in (
+                parent_inherited.variables
+            ):  # definiendo variables del padre en el struct
                 c_code += f"{WWWWTTTTFFFF} {var.name.name};\n"
 
-            for func in own_plus_parent_functions:#declarando las funciones del padre en el struct pero con el polimorfismo aplicado
+            for (
+                func
+            ) in (
+                own_plus_parent_functions
+            ):  # declarando las funciones del padre en el struct pero con el polimorfismo aplicado
                 c_code += f"""{WWWWTTTTFFFF} (*{func.func_id.name})(void* self"""
                 if func.params.param_list:
                     for function_params in func.params.param_list:
                         c_code += f", {WWWWTTTTFFFF} {function_params.name}"
                 c_code += ");\n"
 
-            for var in node.variables:#definiendo las variables propias en struct
+            for var in node.variables:  # definiendo las variables propias en struct
                 c_code += f"{WWWWTTTTFFFF} {var.name.name};\n"
-            
-            for func in node.functions:#declarando las funciones propias en struct sin incluir la del polimorfismo ya q ya se incluyo junto a las del padre
+
+            for (
+                func
+            ) in (
+                node.functions
+            ):  # declarando las funciones propias en struct sin incluir la del polimorfismo ya q ya se incluyo junto a las del padre
                 if func.func_id.name in list_func_id_polymorphism:
                     continue
                 c_code += f"""{WWWWTTTTFFFF} (*{func.func_id.name})(void* self"""
@@ -276,12 +336,13 @@ class CodeGen:
                     for function_params in func.params.param_list:
                         c_code += f", {WWWWTTTTFFFF} {function_params.name}"
                 c_code += ");\n"
-                own_plus_parent_functions.append(func)#annadiendo las funciones propias sin incluir la del polimorfismo ya q esta incluida en esta lista
-            
-            c_code += f"}} {node.id.name};\n"#END OF STRUCT
-            
+                own_plus_parent_functions.append(
+                    func
+                )  # annadiendo las funciones propias sin incluir la del polimorfismo ya q esta incluida en esta lista
+
+            c_code += f"}} {node.id.name};\n"  # END OF STRUCT
+
         else:
-            c_code += """char base[] = "Object";\n"""
             for var in node.variables:
                 c_code += f"{WWWWTTTTFFFF} {var.name.name};\n"
 
@@ -292,12 +353,14 @@ class CodeGen:
                         c_code += f", {WWWWTTTTFFFF} {function_params.name}"
                 c_code += ");\n"
             c_code += f"}} {node.id.name};\n"
-            
-            own_plus_parent_functions=node.functions#esto esta correcto ya q si no hay padre algo+0=algo xd,lee el nombre de la lista y entenderas
+
+            own_plus_parent_functions = (
+                node.functions
+            )  # esto esta correcto ya q si no hay padre algo+0=algo xd,lee el nombre de la lista y entenderas
 
         # functions definition
         for func in own_plus_parent_functions:
-            def_func, ret_func = self.visit(func)  
+            def_func, ret_func = self.visit(func)
             c_code += f"""{func.static_type} {node.static_type}_{func.func_id.name}(void* self"""
             if func.params.param_list:
                 for function_params in func.params.param_list:
@@ -312,12 +375,12 @@ class CodeGen:
         c_code += f"""){{"""
         c_code += f"""{node.static_type}* obj = ({node.static_type}*)malloc(sizeof({node.static_type}));\n"""
 
-        parent_variables=[]
+        parent_variables = []
         if node.inherits:
-            parent_variables =parent_inherited.variables
-            
-        for var in parent_variables+node.variables:
-            def_variable_value, ret_variable_value = self.visit(var.value)  
+            parent_variables = parent_inherited.variables
+
+        for var in parent_variables + node.variables:
+            def_variable_value, ret_variable_value = self.visit(var.value)
             c_code += f"""{def_variable_value}"""
             c_code += f"""obj->{var.name.name} = {ret_variable_value};\n"""
 
@@ -327,13 +390,54 @@ class CodeGen:
         c_code += f"""}}"""
         return c_code, ""
 
+    @visitor.when(TypeCall)
+    def visit(self, node: TypeCall):
+        params_c_code =""
+        def_call=""
+        for param in node.params.param_list:
+            def_param, ret_param = self.visit(param)
+            def_call+=def_param+"\n"
+            params_c_code+=f"""{ret_param},"""
+        params_c_code=params_c_code[:-1]
+        def_call+= f"""{node.id.name}* {node.name} = new_{node.id.name}({params_c_code});"""
+        ret_call = f"""{node.name}"""
+        return def_call,ret_call
+    
+    
+    @visitor.when(VectorExt)
+    def visit(self, node: VectorExt):
+        # implement this with an array of pointers in C
+        def_vect = f"""void** {node.name}(){{
+                void** array_of_points = (void**)malloc({len(node.items)}*sizeof(void*));"""
+        for i in range(len(node.items)):
+            def_item, ret_item = self.visit(node.items[i])
+            def_vect += {def_item} + "\n"
+            if node.items[i].static_type=="float":
+                def_vect+= f"""malloc(sizeof(float));\n"""
+            def_vect += f"""array_of_points[{i}] = {ret_item};\n"""
+
+            # examples:
+            # points[0] = new_Point(1.0f, 2.0f);
+
+            # // Dynamically allocate memory for points[1] and points[2]
+            # points[1]= new_Point3D((float)1.0f, (float)7.0f, (float)3.0f);
+
+            # points[2] = malloc(sizeof(int));
+            # *(int*)points[2] = 5;
+            # example of using point[2]: *(int*)points[2]
+
+        def_vect += "}"
+        ret_vect = """void** points = vector_ext_1();"""
+
     @visitor.when(TrueLiteral)
     def visit(self, node):
-        return "", "1"
+        def_bool=f"""BoolObject* {node.name} = new_BoolObject("bool",1);"""
+        return def_bool, f"""{node.name}->value"""
 
     @visitor.when(FalseLiteral)
     def visit(self, node):
-        return "", "0"
+        def_bool = f"""BoolObject* {node.name} = new_BoolObject("bool",0);"""
+        return def_bool, f"""{node.name}->value"""
 
     @visitor.when(BinOp)
     def visit(self, node):
@@ -344,7 +448,21 @@ class CodeGen:
 
         if node.op == ".":
             node.static_type = "Point"
-            node.right.static_type = "float"  # ESTO CREEEEEEEEEEEEEEO q VA A DAR ERRORRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR PQ RIGHT>STATICTYPE CREO Q USA SELF>STATICTYPE Y NO NODE>STATIC TYPE
+            node.right.static_type = "float" 
+            if isinstance(node.right,FunctionCall):
+                print("entro aqui")
+                inicio = right_ret.index("(")
+                fin = right_ret.index(")")
+                parametros_actuales = right_ret[inicio+1:fin].strip()
+                if parametros_actuales:
+                    # Si ya existen parámetros, agregar el nuevo al principio separado por coma
+                    nuevos_parametros = left_ret + ", " + parametros_actuales
+                else:
+                    # Si no existen parámetros, simplemente agregar el nuevo
+                    nuevos_parametros = left_ret
+
+                # Reemplazar los parámetros antiguos con los nuevos en el string original
+                right_ret = right_ret[:inicio+1] + nuevos_parametros + right_ret[fin:]
             return "", f"""(({node.static_type}*){left_ret})->{right_ret}"""
 
         # if self.op == "AS":
@@ -385,11 +503,13 @@ return -{child_ret};
 
     @visitor.when(Num)
     def visit(self, node):
-        return "", "(float)" + str(node.value)
+        def_num = f"""FloatObject* {node.name} = new_FloatObject("float",(float){str(node.value)});"""
+        return def_num, f"{node.name}->value"
 
     @visitor.when(StringLiteral)
     def visit(self, node):
-        return "", f'"{node.value}"'
+        def_string= f"""StringObject* {node.name} = new_StringObject("string","{node.value}");"""
+        return def_string, f'"{node.name}->value"'
 
     @visitor.when(Pi)
     def visit(self, node):
@@ -406,7 +526,6 @@ return -{child_ret};
         node.ret_point = "ret_point_print_" + str(node.instance_id)
         code = f"""{node.static_type} print_{node.instance_id}() {{
 {child_def}
-
 printf("%f\\n",{child_ret});
 return {child_ret};
 }}
@@ -487,7 +606,7 @@ return log({child_ret_value})/log({child_ret_base});
 
 
 if __name__ == "__main__":
-    ast,a,b = hulk_parse(
+    ast, error_list, b = hulk_parse(
         """type Point(x,y) {
     x = x;
     y = y;
@@ -498,18 +617,29 @@ if __name__ == "__main__":
     setX(x) => self.x := x;
     setY(y) => self.y := y;
 }
-type Point3D(x,y,z) inherits Point(x,y){
-    z=z;
 
-    getZ() => self.z;
-
-    setZ(z) => self.z := z;
-    asd() => self.x*self.x;
-}
-4;"""
+let p = new Point(4,2) in print(p.getX());"""
     )
-    print(a)
+    print(error_list)
     create_AST_graph(nodes, "AST")
     ScopeBuilder().get_global_definitions(ast)
-    code_gen_instance=CodeGen()
-    code_gen_instance.visit(ast)
+    CodeGen().visit(ast)
+
+# type Point(x,y) {
+#     x = x;
+#     y = y;
+
+#     getX() => self.x;
+#     getY() => self.y;
+#     asd() => self.x+self.y;
+#     setX(x) => self.x := x;
+#     setY(y) => self.y := y;
+# }
+# type Point3D(x,y,z) inherits Point(x,y){
+#     z=z;
+
+#     getZ() => self.z;
+
+#     setZ(z) => self.z := z;
+#     asd() => self.x*self.x;
+# }
