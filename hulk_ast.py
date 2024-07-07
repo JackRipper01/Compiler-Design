@@ -155,11 +155,29 @@ class For(Node):
 class TrueLiteral(Node):
     def __init__(self):
         super().__init__(self, "TRUE")
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"true_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"true_{self.instance_id}"
+        # Add the function name to the tracker
+        Program.add_function_name(self.name)
 
 
 class FalseLiteral(Node):
     def __init__(self):
         super().__init__(self, "FALSE")
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"false_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"false_{self.instance_id}"
+        # Add the function name to the tracker
+        Program.add_function_name(self.name)
 
 
 class TypeDef(Node):

@@ -79,7 +79,12 @@ char* concatenate_strings(const char* str1, const char* str2) {
 
     return result;
 }
-
+int check_types(char* value, char* type) {
+    if (strcmp(value, type) == 0) {
+        return 1;
+    }
+    return 0;
+}
 typedef struct {
     char* type;
     int value;
@@ -127,9 +132,10 @@ StringObject* new_StringObject(char* type, char* value) {
             if node.types:
                 for type in node.types:
                     f.write(f"{self.visit(type)[0]}\n\n")  # revisar si pincho
-            f.write("float main() {\n\n")
-            f.write(f"{main_def}\n\n")
+            f.write("int main() {\n\n")
+            f.write(f"{{\n{main_def}\n\n")
             f.write(f"return {main_ret};\n")
+            f.write("}\nreturn 0;\n")
             f.write("}\n")
 
     @visitor.when(FunctionDef)
@@ -221,7 +227,8 @@ StringObject* new_StringObject(char* type, char* value) {
     @visitor.when(If)
     def visit(self, node):
         node.static_type = "float"
-        node.ret_point = "ret_point_if_" + str(node.instance_id)  # analizar id blabla
+        node.ret_point = "ret_point_if_" + \
+            str(node.instance_id)  # analizar id blabla
         c_code = f"""{node.static_type} if_{node.instance_id}(){{"""
         for case in node.case_list:
             def_case, ret_case = self.visit(case)
@@ -284,11 +291,7 @@ StringObject* new_StringObject(char* type, char* value) {
 
         if node.inherits:
             parent_inherited = node.global_definitions[node.inherits.id.name]
-            for (
-                func
-            ) in (
-                parent_inherited.functions
-            ):  # preparando una lista para definir las funciones debajo del struct
+            for func in parent_inherited.functions:  # preparando una lista para definir las funciones debajo del struct
                 founded_polymorphism = False
                 for own_func in node.functions:
                     if own_func.func_id.name == func.func_id.name:
@@ -299,22 +302,14 @@ StringObject* new_StringObject(char* type, char* value) {
                 if founded_polymorphism:
                     founded_polymorphism = False
                     continue
-                own_plus_parent_functions.append(
-                    func
-                )  # luego del for estaran todas las funciones del padre pero con el polimorfismo aplicado
+                # luego del for estaran todas las funciones del padre pero con el polimorfismo aplicado
+                own_plus_parent_functions.append(func)
 
-            for (
-                var
-            ) in (
-                parent_inherited.variables
-            ):  # definiendo variables del padre en el struct
+            for var in parent_inherited.variables:  # definiendo variables del padre en el struct
                 c_code += f"{WWWWTTTTFFFF} {var.name.name};\n"
 
-            for (
-                func
-            ) in (
-                own_plus_parent_functions
-            ):  # declarando las funciones del padre en el struct pero con el polimorfismo aplicado
+            # declarando las funciones del padre en el struct pero con el polimorfismo aplicado
+            for func in own_plus_parent_functions:
                 c_code += f"""{WWWWTTTTFFFF} (*{func.func_id.name})(void* self"""
                 if func.params.param_list:
                     for function_params in func.params.param_list:
@@ -324,11 +319,7 @@ StringObject* new_StringObject(char* type, char* value) {
             for var in node.variables:  # definiendo las variables propias en struct
                 c_code += f"{WWWWTTTTFFFF} {var.name.name};\n"
 
-            for (
-                func
-            ) in (
-                node.functions
-            ):  # declarando las funciones propias en struct sin incluir la del polimorfismo ya q ya se incluyo junto a las del padre
+            for func in node.functions:  # declarando las funciones propias en struct sin incluir la del polimorfismo ya q ya se incluyo junto a las del padre
                 if func.func_id.name in list_func_id_polymorphism:
                     continue
                 c_code += f"""{WWWWTTTTFFFF} (*{func.func_id.name})(void* self"""
@@ -336,12 +327,8 @@ StringObject* new_StringObject(char* type, char* value) {
                     for function_params in func.params.param_list:
                         c_code += f", {WWWWTTTTFFFF} {function_params.name}"
                 c_code += ");\n"
-                own_plus_parent_functions.append(
-                    func
-                )  # annadiendo las funciones propias sin incluir la del polimorfismo ya q esta incluida en esta lista
-
-            c_code += f"}} {node.id.name};\n"  # END OF STRUCT
-
+                # annadiendo las funciones propias sin incluir la del polimorfismo ya q esta incluida en esta lista
+                own_plus_parent_functions.append(func)
         else:
             for var in node.variables:
                 c_code += f"{WWWWTTTTFFFF} {var.name.name};\n"
@@ -352,12 +339,15 @@ StringObject* new_StringObject(char* type, char* value) {
                     for function_params in func.params.param_list:
                         c_code += f", {WWWWTTTTFFFF} {function_params.name}"
                 c_code += ");\n"
-            c_code += f"}} {node.id.name};\n"
-
+            
             own_plus_parent_functions = (
                 node.functions
-            )  # esto esta correcto ya q si no hay padre algo+0=algo xd,lee el nombre de la lista y entenderas
-
+            )  # esto esta correcto ya q si no hay padre own + (parent=0) = own xd,lee el nombre de la lista y entenderas
+            
+        #end of struct
+        c_code += "\nchar* type;\n"
+        c_code += f"}} {node.id.name};\n"
+        
         # functions definition
         for func in own_plus_parent_functions:
             def_func, ret_func = self.visit(func)
@@ -386,52 +376,51 @@ StringObject* new_StringObject(char* type, char* value) {
 
         for func in own_plus_parent_functions:
             c_code += f"""obj->{func.func_id.name} = {node.static_type}_{func.func_id.name};\n"""
+            
+        c_code+=f"""int string_len = strlen("{node.static_type}");
+        obj -> type = (char*)malloc((string_len + 1) * sizeof(char));
+        strcpy(obj -> type, "{node.static_type}");"""
         c_code += f"""return obj;"""
         c_code += f"""}}"""
         return c_code, ""
 
     @visitor.when(TypeCall)
     def visit(self, node: TypeCall):
-        params_c_code =""
-        def_call=""
+        params_c_code = ""
+        def_call = ""
         for param in node.params.param_list:
             def_param, ret_param = self.visit(param)
-            def_call+=def_param+"\n"
-            params_c_code+=f"""{ret_param},"""
-        params_c_code=params_c_code[:-1]
-        def_call+= f"""{node.id.name}* {node.name} = new_{node.id.name}({params_c_code});"""
+            def_call += def_param+"\n"
+            params_c_code += f"""{ret_param},"""
+        params_c_code = params_c_code[:-1]
+        def_call += f"""{node.id.name}* {node.name} = new_{node.id.name}({params_c_code});"""
         ret_call = f"""{node.name}"""
-        return def_call,ret_call
-    
-    
+        return def_call, ret_call
+
     @visitor.when(VectorExt)
     def visit(self, node: VectorExt):
         # implement this with an array of pointers in C
         def_vect = f"""void** {node.name}(){{
-                void** array_of_points = (void**)malloc({len(node.items)}*sizeof(void*));"""
-        for i in range(len(node.items)):
-            def_item, ret_item = self.visit(node.items[i])
-            def_vect += {def_item} + "\n"
-            if node.items[i].static_type=="float":
-                def_vect+= f"""malloc(sizeof(float));\n"""
+                void** array_of_points = (void**)malloc({len(node.items.param_list)}*sizeof(void*));"""
+        for i in range(len(node.items.param_list)):
+            def_item, ret_item = self.visit(node.items.param_list[i])
+            def_vect += def_item + "\n"
             def_vect += f"""array_of_points[{i}] = {ret_item};\n"""
 
-            # examples:
-            # points[0] = new_Point(1.0f, 2.0f);
+        def_vect += f"""return array_of_points;"""
+        def_vect += "}\n"
+        def_vect += f"""void** {node.ret_point}_{node.instance_id} = {node.name}();"""
+        ret_vect = f"{node.ret_point}_{node.instance_id}"
+        return def_vect, ret_vect
 
-            # // Dynamically allocate memory for points[1] and points[2]
-            # points[1]= new_Point3D((float)1.0f, (float)7.0f, (float)3.0f);
-
-            # points[2] = malloc(sizeof(int));
-            # *(int*)points[2] = 5;
-            # example of using point[2]: *(int*)points[2]
-
-        def_vect += "}"
-        ret_vect = """void** points = vector_ext_1();"""
+    @visitor.when(VectorCall)
+    def visit(self, node: VectorCall):
+        def_index, ret_index = self.visit(node.index)
+        return def_index, f"""({node.id.name}[(int){ret_index}])"""
 
     @visitor.when(TrueLiteral)
     def visit(self, node):
-        def_bool=f"""BoolObject* {node.name} = new_BoolObject("bool",1);"""
+        def_bool = f"""BoolObject* {node.name} = new_BoolObject("bool",1);"""
         return def_bool, f"""{node.name}->value"""
 
     @visitor.when(FalseLiteral)
@@ -448,9 +437,8 @@ StringObject* new_StringObject(char* type, char* value) {
 
         if node.op == ".":
             node.static_type = "Point"
-            node.right.static_type = "float" 
-            if isinstance(node.right,FunctionCall):
-                print("entro aqui")
+            node.right.static_type = "float"
+            if isinstance(node.right, FunctionCall):
                 inicio = right_ret.index("(")
                 fin = right_ret.index(")")
                 parametros_actuales = right_ret[inicio+1:fin].strip()
@@ -462,11 +450,17 @@ StringObject* new_StringObject(char* type, char* value) {
                     nuevos_parametros = left_ret
 
                 # Reemplazar los parámetros antiguos con los nuevos en el string original
-                right_ret = right_ret[:inicio+1] + nuevos_parametros + right_ret[fin:]
+                right_ret = right_ret[:inicio+1] + \
+                    nuevos_parametros + right_ret[fin:]
             return "", f"""(({node.static_type}*){left_ret})->{right_ret}"""
 
-        # if self.op == "AS":
-        #     return "", f"({right_ret}*){left_ret}"
+        if node.op == "as":
+            def_as=f"""{left_def}\n"""
+            return def_as, f"({right_ret}*){left_ret}"
+        if node.op == "is":
+            def_is=f"""{left_def}\n"""
+            def_is+=f"""int {node.ret_point} = check_types({left_ret}->type,"{right_ret}");\n"""
+            return def_is, f"({node.ret_point})"
 
         code = f"""{node.static_type} bin_op_{node.instance_id}(){{
         {left_def}
@@ -484,6 +478,7 @@ StringObject* new_StringObject(char* type, char* value) {
         code += "\n}\n"
         code += f"{node.static_type} {node.ret_point} = bin_op_{node.instance_id}();\n"
         return code, node.ret_point
+    # region ignore_this
 
     @visitor.when(UnaryOp)
     def visit(self, node):
@@ -508,7 +503,7 @@ return -{child_ret};
 
     @visitor.when(StringLiteral)
     def visit(self, node):
-        def_string= f"""StringObject* {node.name} = new_StringObject("string","{node.value}");"""
+        def_string = f"""StringObject* {node.name} = new_StringObject("string","{node.value}");"""
         return def_string, f'"{node.name}->value"'
 
     @visitor.when(Pi)
@@ -605,9 +600,9 @@ return log({child_ret_value})/log({child_ret_base});
         return "", f"(float)rand()/(float)RAND_MAX"
 
 
+# endregion
 if __name__ == "__main__":
-    ast, error_list, b = hulk_parse(
-        """type Point(x,y) {
+    code="""type Point(x,y) {
     x = x;
     y = y;
 
@@ -617,9 +612,17 @@ if __name__ == "__main__":
     setX(x) => self.x := x;
     setY(y) => self.y := y;
 }
+type Point3D(x,y,z) inherits Point(x,y){
+    z=z;
 
-let p = new Point(4,2) in print(p.getX());"""
-    )
+    getZ() => self.z;
+
+    setZ(z) => self.z := z;
+    asd() => self.x*self.x;
+}
+let x:Point3D = new Point3D(1,2,3) in if (x is Point3D) print(1) else print(0); """
+    ast, error_list, b = hulk_parse(code)
+    print(code)
     print(error_list)
     create_AST_graph(nodes, "AST")
     ScopeBuilder().get_global_definitions(ast)
