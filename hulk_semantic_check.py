@@ -65,6 +65,7 @@ class ScopeBuilder:
         self.on_type = False
         self.on_function = False
         self.current = ""  # desarrollar idea
+        self.hierarchy_tree = {}
 
     @visitor.on("node")
     def visit(self, node):
@@ -80,13 +81,14 @@ class ScopeBuilder:
             self.visit(function)
         self.on_function = False
         
-        self.on_type = True
-        for type_item in node.types:
-            type_item : TypeDef
-            type_item.variable_scope = node.variable_scope
-            self.visit(type_item)
-        self.on_type = False
-            
+        self.on_type=True
+        for type_str in self.hierarchy_tree["Object"].children:
+            if not type_str in ["Number", "String", "Boolean"]:
+                node.global_definitions[type_str].variable_scope = node.variable_scope
+                self.current = type_str
+                self.visit(node.global_definitions[type_str])
+        self.current = ""
+        self.on_type = False  
 
         if node.global_exp:
             node.global_exp.variable_scope = node.variable_scope
@@ -97,23 +99,56 @@ class ScopeBuilder:
     @visitor.when(TypeDef)
     def visit(self, node: TypeDef):
         node.variable_scope = node.variable_scope.copy()
+        
         for param in node.params.param_list:
             param: ID
-            node.variable_scope[param.name] = param.annotated_type
+            node.variable_scope[param.name] = param
             self.check_annotation(param)
+        
+        for assign in node.variables:
+            assign: Assign
+            assig_name = self.assign_name_getter(assign, True)
+            if assig_name in node.variable_scope:
+                self.errors.append("Private var '"+assign.name.name+"' already defined in type '"+ self.current+"'")
+            node.variable_scope[assig_name] = assign.name
+        
+        self.on_function = True
+        this_fx_scope = set()
+        for method in node.functions:
+            method: FunctionDef
+            method_name = self.method_name_getter(method, True)
+            if method_name in this_fx_scope:
+                self.errors.append("Method '"+self.method_name_getter(method)+"' already defined in type '"+self.current+"'")
+            this_fx_scope.add(method_name)
+            node.variable_scope[method_name] = method
+        self.on_function = False
         
         for assign in node.variables:
             assign: Assign
             assign.variable_scope = node.variable_scope
             self.visit(assign)
-            node.variable_scope[assign.name.name+"/private"] = (assign.name, assign.value)
         
-        self.on_function = True
-        for method in node.functions:
-            method: FunctionDef
-            self.
-        self.on_function = False
         # print(node.variable_scope)
+        for key in node.variable_scope.copy():
+                key: str
+                if not key.endswith("/private"):
+                    node.variable_scope.pop(key)
+        
+        # self.on_function = True
+        # for method in node.functions:
+        #     method: FunctionDef
+        #     method.variable_scope = node.variable_scope
+            
+        #     method.variable_scope["self"] = node
+        #     self.visit(method)
+        # self.on_function = False
+        
+        for child in self.hierarchy_tree[node.id.name].children:
+            # print(child)
+            node.global_definitions[child].variable_scope = node.variable_scope
+            self.current = child
+            self.visit(node.global_definitions[child])
+        
             
     
     @visitor.when(FunctionDef)
@@ -122,7 +157,7 @@ class ScopeBuilder:
         for param in node.params.param_list:
             param: ID
             self.check_annotation(param)
-            node.variable_scope[param.name] = param.annotated_type
+            node.variable_scope[param.name] = param
         node.body.variable_scope = node.variable_scope
         self.visit(node.body)
 
@@ -159,7 +194,7 @@ class ScopeBuilder:
     @visitor.when(ID)
     def visit(self, node: ID):
         if node.name not in node.variable_scope:
-            self.errors.append("Variable " + node.name + " not defined")
+            self.errors.append("Variable '" + node.name + "' not defined")
 
     @visitor.when(Params)
     def visit(self, node: Params):
@@ -177,12 +212,14 @@ class ScopeBuilder:
             self.visit(node.right)
             
         elif node.op == ".":
-            if self.on_type:
+            node.left.variable_scope = node.variable_scope
+            self.visit(node.left)
+            if self.on_type and self.on_function:
                 pass
                 # check context from class
             else:
                 if not(type(node.right) is FunctionCall):
-                    self.errors.append("Invalid access to private member outside class declaration")
+                    self.errors.append("Invalid access to private member '"+node.right.name+"' outside method class declaration")
                 else:
                     node.left.variable_scope = node.variable_scope
                     self.visit(node.left)
@@ -280,15 +317,14 @@ class ScopeBuilder:
         node.assign[0].variable_scope = node.variable_scope
         self.visit(node.assign[0])
         node.variable_scope = node.variable_scope.copy()
-        node.variable_scope[node.assign[0].name.name] = (
-            node.assign[0].name,
-            node.assign[0].value,
-        )
+        assig_name = self.assign_name_getter(node.assign[0])
+        node.variable_scope[assig_name] = node.assign[0].name
+        
         node.body.variable_scope = node.variable_scope
         self.visit(node.body)
 
     def get_global_definitions(self, ast_input: Program):
-        ast_input.global_definitions["Object"] = "Object"
+        ast_input.global_definitions["Object"] = "void"
         ast_input.global_definitions["Number"] = "float"
         ast_input.global_definitions["String"] = "string"
         ast_input.global_definitions["Boolean"] = "int"
@@ -329,11 +365,14 @@ class ScopeBuilder:
 
             if type_name.inherits:
                 inherits_from = type_name.inherits.id.name
-                if type(ast_root.global_definitions[inherits_from]) is str:
-                    self.errors.append("Cannot inherit from type " + inherits_from)
-                    continue
-                hierarchy_tree[current_type].parent = inherits_from
-                hierarchy_tree[inherits_from].children.append(current_type)
+                if inherits_from in ast_root.global_definitions:
+                    if type(ast_root.global_definitions[inherits_from]) is str:
+                        self.errors.append("Cannot inherit from type " + inherits_from)
+                        continue
+                    hierarchy_tree[current_type].parent = inherits_from
+                    hierarchy_tree[inherits_from].children.append(current_type)
+                else:
+                    self.errors.append("Cannot inherit from "+inherits_from+" because it is not defined")
             else:
                 hierarchy_tree[current_type].parent = "Object"
                 hierarchy_tree["Object"].children.append(current_type)
@@ -371,30 +410,49 @@ class ScopeBuilder:
                 + var.annotated_type
                 + "' does not exist in global context"
             )
-
+    def method_name_getter(self, function, private = False):
+        if private:
+            return function.func_id.name+"/"+str(len(function.params.param_list))+"/private"
+        else:
+            return function.func_id.name+"/"+str(len(function.params.param_list))
+    
+    def assign_name_getter(self, assign: Assign, private = False):
+        if private:
+            return assign.name.name+"/private"
+        else:
+            return assign.name.name
+        
 
 def semantic_check(ast: Program):
     scope_visitor = ScopeBuilder()
     scope_visitor.get_global_definitions(ast)
-    type_hierarchy_tree = scope_visitor.hierarchy_tree_build(ast)
-    scope_visitor.check_tree(type_hierarchy_tree, "Object")
-    trasspass_params_to_children(type_hierarchy_tree, "Object", ast, set())
+    scope_visitor.hierarchy_tree = scope_visitor.hierarchy_tree_build(ast)
+    scope_visitor.check_tree(scope_visitor.hierarchy_tree, "Object")
+    trasspass_params_to_children(scope_visitor.hierarchy_tree, "Object", ast, set())
     scope_visitor.visit(ast)
 
     # your code here
+    
     return ast, scope_visitor.errors
 
 
 if __name__ == "__main__":
     ast, parsingErrors, _b = hulk_parse(
-        r"""type Animal(x : Object){
-            y = x;
-            x = {{{{{{{{x;}}}}};}}}
+        r"""type Animal(){
+            x = {{{{{{{{2;}}}}};}}}
+            asd(y) => print(self.y);
+            
         };
             type Felino inherits Animal{}
-            type Gato inherits Felino {}
-            type Canino inherits Animal{}
-            type Perro inherits Canino {}
+            type Gato inherits Felino () {x = member.x;}
+            type Canino(x : Object) inherits Animal{
+                asd(y) => print(self.y);
+                x = x + 2;
+            }
+            protocol Corrible {
+                a():Numberu;
+            }
+            type Perro inherits Corrible {}
             type Lobo inherits Perro{}
             function asd(a,b,c) => print(b);
             let a :Number = true, b: Number = a in {print(new Lobo(6).x());
