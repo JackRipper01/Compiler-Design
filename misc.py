@@ -13,6 +13,12 @@ from hulk_ast import (
     BinOp,
 )
 
+class ColumnFinder:
+    def __init__(self) -> None:
+        self.code = ""
+    def add_line_column(self, token):
+        return f" at line {token.lineno}, column {find_column(self.code, token)}"
+
 def refact_ast(nodes_dict : dict):
     "esto convierte el for en el while equivalente y los let en los let con una sola asignacion concatenados equivalentes"
     for_expressions : List[For] = list(filter(lambda x: type(x) is For, nodes_dict.keys()))
@@ -114,6 +120,14 @@ def set_depth(i_dict:dict, key: str, visited):
         else:
             pass
         
+def get_descendancy(ast, name):
+    descendancy = set()
+    descendancy.add(name)
+    for child in ast.hierarchy_tree[name].children:
+        descendancy = descendancy.union(get_descendancy(ast, child))
+    return descendancy
+        
+        
 def LCA_BI(i_dict:dict, A, B):
     if i_dict[A].depth == i_dict[B].depth:
         if A == B:
@@ -136,28 +150,19 @@ def LCA(i_dict, *params):
         lca = LCA_BI(i_dict, lca, LCA_BI(i_dict, params[i], params[i+1]))
     return lca
 
-def trasspass_params_to_children(i_dict, name:str, ast, visited):
-    forb = ["Object", "String", "Number", "Boolean"]
-    
-    if name in visited:
-        return "Error in type definition: "+name+" appeared in class hierarchy twice"
-    visited.add(name)
-    
-    if name not in forb:
-        father_instance = ast.global_definitions[name]
-        for child in i_dict[name].children:
-            if child in forb:
-                continue
-            child_inst = ast.global_definitions[child]
-            if len(child_inst.params.param_list)==0 and len(child_inst.inherits.params.param_list)==0:
-                child_inst.params.param_list = father_instance.params.param_list.copy()
-                new_params = []
-                for i in child_inst.params.param_list:
-                    new_params.append(ID(i.name, ""))
-                child_inst.inherits.params.param_list = new_params
-    
-    for child in i_dict[name].children:
-        trasspass_params_to_children(i_dict,child, ast, visited)
+
         
-    
-    
+def find_column(input, token):
+    "busca la columna del token que da error"
+    line_start = input.rfind("\n", 0, token.lexpos) + 1
+    if line_start < 0:
+        line_start = 0
+    return (token.lexpos - line_start) + 1
+
+class StringToken(str):
+    def __init__(self, strv) -> None:
+        super().__init__()
+        self.strv = strv
+        self.lineno = 0
+        self.lexpos = 0
+

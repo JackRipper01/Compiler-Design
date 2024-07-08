@@ -2,7 +2,9 @@
 from ast import Param
 from hulk_lexer import errorList as lexerErrors
 from hulk_parser import hulk_parse
-from misc import set_depth, LCA, create_Hierarchy_graph, trasspass_params_to_children
+from misc import set_depth, LCA, create_Hierarchy_graph, ColumnFinder, get_descendancy
+
+from ply.yacc import YaccSymbol
 
 # endregion
 
@@ -50,6 +52,7 @@ from hulk_ast import (
 # SemanticCheck
 # TypeCheck?
 
+cf =ColumnFinder()
 
 class HierarchyNode:
     def __init__(self, name, parent, children, depth):
@@ -65,7 +68,6 @@ class ScopeBuilder:
         self.on_type = False
         self.on_function = False
         self.current = ""  # desarrollar idea
-        self.hierarchy_tree = {}
 
     @visitor.on("node")
     def visit(self, node):
@@ -74,83 +76,93 @@ class ScopeBuilder:
     @visitor.when(Program)
     def visit(self, node: Program):
 
+        self.get_global_definitions(node)
+        self.hierarchy_tree_build(node)
+        self.check_tree(node, "Object")
+        self.trasspass_params_to_children(node, "Object", set())
+        print([x for x in get_descendancy(node, "Object")])
+        
         self.on_function = True
         for function in node.functions:
             function: FunctionDef
             function.variable_scope = node.variable_scope
             self.visit(function)
         self.on_function = False
-        
-        self.on_type=True
-        for type_str in self.hierarchy_tree["Object"].children:
+
+        self.on_type = True
+        for type_str in node.hierarchy_tree["Object"].children:
             if not type_str in ["Number", "String", "Boolean"]:
                 node.global_definitions[type_str].variable_scope = node.variable_scope
                 self.current = type_str
                 self.visit(node.global_definitions[type_str])
         self.current = ""
-        self.on_type = False  
+        self.on_type = False
 
         if node.global_exp:
             node.global_exp.variable_scope = node.variable_scope
             self.visit(node.global_exp)
         else:
-            self.errors.append("Global Expression required")
+            self.errors.append(("Missing Global Expression"))
 
     @visitor.when(TypeDef)
     def visit(self, node: TypeDef):
         node.variable_scope = node.variable_scope.copy()
-        
+
         for param in node.params.param_list:
             param: ID
             node.variable_scope[param.name] = param
             self.check_annotation(param)
+
+        if node.inherits:
+            node.inherits.variable_scope = node.variable_scope
+            self.visit(node.inherits)
+        
         
         for assign in node.variables:
             assign: Assign
             assig_name = self.assign_name_getter(assign, True)
             if assig_name in node.variable_scope:
-                self.errors.append("Private var '"+assign.name.name+"' already defined in type '"+ self.current+"'")
+                self.errors.append(
+                    f"Private var '{assign.name.name}' already defined in type '{self.current}'{cf.add_line_column(assign.name.name)}"
+            )
             node.variable_scope[assig_name] = assign.name
-        
+
         self.on_function = True
         this_fx_scope = set()
         for method in node.functions:
             method: FunctionDef
             method_name = self.method_name_getter(method, True)
             if method_name in this_fx_scope:
-                self.errors.append("Method '"+self.method_name_getter(method)+"' already defined in type '"+self.current+"'")
+                self.errors.append(
+                    f"Method '{self.method_name_getter(method)}' already defined in type '{self.current}'"+cf.add_line_column(method.func_id.name)
+                )
             this_fx_scope.add(method_name)
             node.variable_scope[method_name] = method
         self.on_function = False
-        
+
         for assign in node.variables:
             assign: Assign
             assign.variable_scope = node.variable_scope
             self.visit(assign)
-        
-        # print(node.variable_scope)
         for key in node.variable_scope.copy():
-                key: str
-                if not key.endswith("/private"):
-                    node.variable_scope.pop(key)
-        
+            key: str
+            if not key.endswith("/private"):
+                node.variable_scope.pop(key)
+
         # self.on_function = True
         # for method in node.functions:
         #     method: FunctionDef
         #     method.variable_scope = node.variable_scope
-            
+
         #     method.variable_scope["self"] = node
         #     self.visit(method)
         # self.on_function = False
-        
-        for child in self.hierarchy_tree[node.id.name].children:
-            # print(child)
+
+        for child in node.hierarchy_tree[node.id.name].children:
             node.global_definitions[child].variable_scope = node.variable_scope
             self.current = child
             self.visit(node.global_definitions[child])
-        
-            
-    
+
     @visitor.when(FunctionDef)
     def visit(self, node: FunctionDef):
         node.variable_scope = node.variable_scope.copy()
@@ -194,7 +206,7 @@ class ScopeBuilder:
     @visitor.when(ID)
     def visit(self, node: ID):
         if node.name not in node.variable_scope:
-            self.errors.append("Variable '" + node.name + "' not defined")
+            self.errors.append("Variable '" + node.name + "' not defined"+cf.add_line_column(node.name))
 
     @visitor.when(Params)
     def visit(self, node: Params):
@@ -204,13 +216,30 @@ class ScopeBuilder:
 
     @visitor.when(BinOp)
     def visit(self, node: BinOp):
-        
-        if node.op in ["+", "-", "*", "/", "%", ">", "<", ">=", "<=", "==", "!=", "^", "**", "AD"]:
+
+        if node.op in [
+            "+",
+            "-",
+            "*",
+            "/",
+            "%",
+            ">",
+            "<",
+            ">=",
+            "<=",
+            "==",
+            "!=",
+            "^",
+            "**",
+            "AD",
+            "@",
+            "@@",
+        ]:
             node.left.variable_scope = node.variable_scope
             self.visit(node.left)
             node.right.variable_scope = node.variable_scope
             self.visit(node.right)
-            
+
         elif node.op == ".":
             node.left.variable_scope = node.variable_scope
             self.visit(node.left)
@@ -218,19 +247,25 @@ class ScopeBuilder:
                 pass
                 # check context from class
             else:
-                if not(type(node.right) is FunctionCall):
-                    self.errors.append("Invalid access to private member '"+node.right.name+"' outside method class declaration")
+                if not (type(node.right) is FunctionCall):
+                    self.errors.append(
+                        "Invalid access to private member '"
+                        + node.right.name
+                        + "' outside method class declaration"+cf.add_line_column(node.right.name)
+                    )
                 else:
                     node.left.variable_scope = node.variable_scope
                     self.visit(node.left)
                     node.right.params.variable_scope = node.variable_scope
                     self.visit(node.right.params)
-                        
-                
+        elif node.op in ["is","as"]:
+            if node.right.annotated_type not in node.hierarchy_tree:
+                self.errors.append("Type '"+node.right.annotated_type+"' undefined"+cf.add_line_column(node.right.name))
+            node.left.variable_scope = node.variable_scope
+            self.visit(node.left)
         else:
             node.right.variable_scope = node.variable_scope
             self.visit(node.right)
-                
 
     @visitor.when(UnaryOp)
     def visit(self, node: UnaryOp):
@@ -242,6 +277,18 @@ class ScopeBuilder:
         for item in node.items:
             item.variable_scope = node.variable_scope
             self.visit(item)
+    
+    @visitor.when(VectorInt)
+    def visit(self, node: VectorInt):
+        node.variable_scope = node.variable_scope.copy()
+        
+        node.iterable.variable_scope = node.variable_scope
+        self.visit(node.iterable)
+        
+        node.variable_scope[node.iterator.name] = node.iterator
+        
+        node.expression.variable_scope = node.variable_scope
+        self.visit(node.expression)      
 
     @visitor.when(VectorCall)
     def visit(self, node: VectorCall):
@@ -255,7 +302,6 @@ class ScopeBuilder:
     def visit(self, node: FunctionCall):
         fn_name = node.func_id.name + "/" + str(len(node.params.param_list))
         if fn_name not in node.global_definitions:
-            # print(node.global_definitions)
             self.errors.append("Function " + fn_name + " not defined")
         node.params.variable_scope = node.variable_scope
         self.visit(node.params)
@@ -271,9 +317,9 @@ class ScopeBuilder:
                     + node.id.name
                     + " ("
                     + str(len(node.global_definitions[node.id.name].params.param_list))
-                    + ") and its instanstiation ("
+                    + f") (line {node.global_definitions[node.id.name].id.name.lineno}) and its instanstiation ("
                     + str(len(node.params.param_list))
-                    + ")"
+                    + ")"+cf.add_line_column(node.id.name)
                 )
             node.params.variable_scope = node.variable_scope
             self.visit(node.params)
@@ -319,7 +365,7 @@ class ScopeBuilder:
         node.variable_scope = node.variable_scope.copy()
         assig_name = self.assign_name_getter(node.assign[0])
         node.variable_scope[assig_name] = node.assign[0].name
-        
+
         node.body.variable_scope = node.variable_scope
         self.visit(node.body)
 
@@ -346,7 +392,7 @@ class ScopeBuilder:
                 ast_input.global_definitions[type_name] = type_def
 
     def hierarchy_tree_build(self, ast_root: Program):
-        hierarchy_tree = {}
+        hierarchy_tree = ast.hierarchy_tree
         hierarchy_tree["Object"] = HierarchyNode("Object", None, [], 0)
         hierarchy_tree["Number"] = HierarchyNode("Number", "Object", [], 1)
         hierarchy_tree["String"] = HierarchyNode("String", "Object", [], 1)
@@ -366,23 +412,32 @@ class ScopeBuilder:
             if type_name.inherits:
                 inherits_from = type_name.inherits.id.name
                 if inherits_from in ast_root.global_definitions:
-                    if type(ast_root.global_definitions[inherits_from]) is str:
-                        self.errors.append("Cannot inherit from type " + inherits_from)
+                    if (
+                        type(ast_root.global_definitions[inherits_from]) is str
+                        or inherits_from not in hierarchy_tree
+                    ):
+                        self.errors.append(
+                            "Cannot inherit from '" + inherits_from + f"' at line {type_name.id.name.lineno}"
+                        )
                         continue
                     hierarchy_tree[current_type].parent = inherits_from
                     hierarchy_tree[inherits_from].children.append(current_type)
                 else:
-                    self.errors.append("Cannot inherit from "+inherits_from+" because it is not defined")
+                    self.errors.append(
+                        "Cannot inherit from "
+                        + inherits_from
+                        + " because it is not defined at line "+str(type_name.id.name.lineno)
+                    )
             else:
                 hierarchy_tree[current_type].parent = "Object"
                 hierarchy_tree["Object"].children.append(current_type)
-        # print(*[str(x)+str(hierarchy_tree[x].children) for x in hierarchy_tree], sep="\n")
         err = set_depth(hierarchy_tree, "Object", set())
         if err:
             self.errors.append(err)
         return hierarchy_tree
 
-    def check_tree(self, i_dict, root):
+    def check_tree(self, ast_root: Program, root):
+        i_dict = ast_root.hierarchy_tree
         qww = [root]
         visited = set()
         while len(qww) > 0:
@@ -391,6 +446,7 @@ class ScopeBuilder:
             for child in i_dict[current].children:
                 if child in visited:
                     self.errors.append("Error in type definition: " + child)
+                    break
                 else:
                     qww.append(child)
         if len(visited) != len(i_dict):
@@ -410,53 +466,76 @@ class ScopeBuilder:
                 + var.annotated_type
                 + "' does not exist in global context"
             )
-    def method_name_getter(self, function, private = False):
+
+    def method_name_getter(self, function, private=False):
         if private:
-            return function.func_id.name+"/"+str(len(function.params.param_list))+"/private"
+            return (
+                function.func_id.name
+                + "/"
+                + str(len(function.params.param_list))
+                + "/private"
+            )
         else:
-            return function.func_id.name+"/"+str(len(function.params.param_list))
-    
-    def assign_name_getter(self, assign: Assign, private = False):
+            return function.func_id.name + "/" + str(len(function.params.param_list))
+
+    def assign_name_getter(self, assign: Assign, private=False):
         if private:
-            return assign.name.name+"/private"
+            return assign.name.name + "/private"
         else:
             return assign.name.name
+    
+    def trasspass_params_to_children(self, ast, name:str, visited):
+        forb = ["Object", "String", "Number", "Boolean"]
         
+        if name in visited:
+            return "Error in type definition: "+name+" appeared in class hierarchy twice"
+        visited.add(name)
+        
+        if name not in forb:
+            father_instance = ast.global_definitions[name]
+            for child in ast.hierarchy_tree[name].children:
+                if child in forb:
+                    continue
+                child_inst = ast.global_definitions[child]
+                if len(child_inst.params.param_list)==0 and len(child_inst.inherits.params.param_list)==0:
+                    child_inst.params.param_list = father_instance.params.param_list.copy()
+                    new_params = []
+                    for i in child_inst.params.param_list:
+                        new_params.append(ID(i.name, ""))
+                    child_inst.inherits.params.param_list = new_params
+        
+        for child in ast.hierarchy_tree[name].children:
+            self.trasspass_params_to_children(ast,child, visited)
+
 
 def semantic_check(ast: Program):
     scope_visitor = ScopeBuilder()
-    scope_visitor.get_global_definitions(ast)
-    scope_visitor.hierarchy_tree = scope_visitor.hierarchy_tree_build(ast)
-    scope_visitor.check_tree(scope_visitor.hierarchy_tree, "Object")
-    trasspass_params_to_children(scope_visitor.hierarchy_tree, "Object", ast, set())
     scope_visitor.visit(ast)
-
-    # your code here
     
+    # your code here
+
     return ast, scope_visitor.errors
 
 
 if __name__ == "__main__":
     ast, parsingErrors, _b = hulk_parse(
         r"""type Animal(){
-            x = {{{{{{{{2;}}}}};}}}
+            x = {{{{{2;}}}}};
             asd(y) => print(self.y);
             
         };
-            type Felino inherits Animal{}
-            type Gato inherits Felino () {x = member.x;}
+            type Felino(x) inherits Animal(){}
+            type Gato(x) inherits Felino(x) {}
             type Canino(x : Object) inherits Animal{
                 asd(y) => print(self.y);
-                x = x + 2;
             }
-            protocol Corrible {
-                a():Numberu;
-            }
-            type Perro inherits Corrible {}
+            
+            type Perro inherits Canino {}
             type Lobo inherits Perro{}
             function asd(a,b,c) => print(b);
             let a :Number = true, b: Number = a in {print(new Lobo(6).x());
-            asd(1, 2, 3);}"""
+            asd(1, 2, 3); [a || x in b];(2+2); 2 is Number;}""",
+            cf
     )
 
     print(

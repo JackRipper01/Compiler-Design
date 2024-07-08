@@ -1,5 +1,8 @@
 nodes = {}
 global_definitions = {}
+hierarchy_tree = {}
+
+from ply.yacc import YaccProduction
 
 class Node:
     def __init__(self, slf, nm):
@@ -9,6 +12,7 @@ class Node:
         self.ret_point = "ret_point"
         self.variable_scope = {}
         self.global_definitions = global_definitions
+        self.hierarchy_tree = hierarchy_tree
 
 
 class Program(Node):
