@@ -2,7 +2,7 @@
 from ast import Param
 from hulk_lexer import errorList as lexerErrors
 from hulk_parser import hulk_parse
-from misc import set_depth, LCA, create_Hierarchy_graph, ColumnFinder, get_descendancy
+from misc import set_depth, LCA, create_Hierarchy_graph, ColumnFinder, get_descendancy, conforms
 
 from ply.yacc import YaccSymbol
 
@@ -80,7 +80,6 @@ class ScopeBuilder:
         self.hierarchy_tree_build(node)
         self.check_tree(node, "Object")
         self.trasspass_params_to_children(node, "Object", set())
-        print([x for x in get_descendancy(node, "Object")])
         
         self.on_function = True
         for function in node.functions:
@@ -149,14 +148,13 @@ class ScopeBuilder:
             if not key.endswith("/private"):
                 node.variable_scope.pop(key)
 
-        # self.on_function = True
-        # for method in node.functions:
-        #     method: FunctionDef
-        #     method.variable_scope = node.variable_scope
-
-        #     method.variable_scope["self"] = node
-        #     self.visit(method)
-        # self.on_function = False
+        self.on_function = True
+        for method in node.functions:
+            method: FunctionDef
+            method.variable_scope = node.variable_scope.copy()
+            method.variable_scope["self"] = node
+            self.visit(method)
+        self.on_function = False
 
         for child in node.hierarchy_tree[node.id.name].children:
             node.global_definitions[child].variable_scope = node.variable_scope
@@ -527,7 +525,7 @@ if __name__ == "__main__":
             type Felino(x) inherits Animal(){}
             type Gato(x) inherits Felino(x) {}
             type Canino(x : Object) inherits Animal{
-                asd(y) => print(self.y);
+                asd(y,x) => print(self.y + x);
             }
             
             type Perro inherits Canino {}

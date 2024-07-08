@@ -126,6 +126,15 @@ def get_descendancy(ast, name):
     for child in ast.hierarchy_tree[name].children:
         descendancy = descendancy.union(get_descendancy(ast, child))
     return descendancy
+
+def conforms(ast, A, B):
+    if A == B:
+        return True
+    else:
+        if ast.hierarchy_tree[A].parent:
+            return conforms(ast, ast.hierarchy_tree[A].parent, B)
+        else:
+            return False
         
         
 def LCA_BI(i_dict:dict, A, B):
