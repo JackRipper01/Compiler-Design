@@ -392,7 +392,7 @@ class ScopeBuilder:
                 ast_input.global_definitions[type_name] = type_def
 
     def hierarchy_tree_build(self, ast_root: Program):
-        hierarchy_tree = ast.hierarchy_tree
+        hierarchy_tree = ast_root.hierarchy_tree
         hierarchy_tree["Object"] = HierarchyNode("Object", None, [], 0)
         hierarchy_tree["Number"] = HierarchyNode("Number", "Object", [], 1)
         hierarchy_tree["String"] = HierarchyNode("String", "Object", [], 1)
