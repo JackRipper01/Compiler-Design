@@ -120,21 +120,25 @@ def set_depth(i_dict:dict, key: str, visited):
         else:
             pass
         
-def get_descendancy(ast, name):
-    descendancy = []
+def get_descendancy(ast, name, descendancy):
+    if name in descendancy:
+        return descendancy
     descendancy.append(name)
     for child in ast.hierarchy_tree[name].children:
-        descendancy.extend(get_descendancy(ast, child))
+        get_descendancy(ast, child, descendancy)
     return descendancy
 
+# def conforms(ast, A, B):
+#     if A == B:
+#         return True
+#     else:
+#         if ast.hierarchy_tree[A].parent:
+#             return conforms(ast, ast.hierarchy_tree[A].parent, B)
+#         else:
+#             return False
+        
 def conforms(ast, A, B):
-    if A == B:
-        return True
-    else:
-        if ast.hierarchy_tree[A].parent:
-            return conforms(ast, ast.hierarchy_tree[A].parent, B)
-        else:
-            return False
+    return A in get_descendancy(ast, B, [])
         
         
 def LCA_BI(i_dict:dict, A, B):

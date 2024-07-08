@@ -4,8 +4,6 @@ from hulk_lexer import errorList as lexerErrors
 from hulk_parser import hulk_parse
 from misc import set_depth, LCA, create_Hierarchy_graph, ColumnFinder, get_descendancy, conforms
 
-from ply.yacc import YaccSymbol
-
 # endregion
 
 import visitor
