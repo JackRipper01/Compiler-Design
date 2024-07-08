@@ -1,7 +1,9 @@
-from hulk_semantic_check import ScopeBuilder
+from ast import List
+from scipy import misc
+from hulk_semantic_check import HierarchyNode, ScopeBuilder
 from misc import create_AST_graph
 import visitor
-
+import misc
 from hulk_parser import hulk_parse
 from hulk_ast import (
     nodes,
@@ -53,6 +55,8 @@ class CodeGen:
 
     @visitor.when(Program)
     def visit(self, node):
+        #reordenar node.types para que esten en orden herarquico,tengo node.global_definitions dictionary y node.hierarchy_tree dictionary
+        
         main_def, main_ret = self.visit(node.global_exp)
         with open("./out.c", "w") as f:
             f.write("#include <stdio.h>\n")
@@ -130,12 +134,22 @@ StringObject* new_StringObject(char* type, char* value) {
                 for function in node.functions:
                     f.write(f"{self.visit(function)[0]}\n\n")
             if node.types:
+                #ordenando node.types segun la herencia
+                list_of_descendients=misc.get_descendancy(node,"Object")
+                node_types_reorder=[]
+                for i in range(len(node.types)):
+                    node_types_reorder.append((node.types[i],list_of_descendients.index(node.types[i].id.name)))
+                node_types_reorder.sort(key=lambda x: x[1])
+                for i in range(len(node_types_reorder)):
+                    node.types[i]=node_types_reorder[i][0]
+                            
                 for type in node.types:
-                    f.write(f"{self.visit(type)[0]}\n\n")  # revisar si pincho
+                    f.write(f"{self.visit(type)[0]}\n\n")  
+                    
             f.write("int main() {\n\n")
-            f.write(f"{{\n{main_def}\n\n")
+            f.write(f"{main_def}\n\n")
             f.write(f"return {main_ret};\n")
-            f.write("}\nreturn 0;\n")
+            f.write("return 0;\n")
             f.write("}\n")
 
     @visitor.when(FunctionDef)
@@ -369,7 +383,8 @@ StringObject* new_StringObject(char* type, char* value) {
         if node.inherits:
             parent_variables = parent_inherited.variables
 
-        for var in parent_variables + node.variables:
+        all_variables = node.variables + parent_variables
+        for var in all_variables:
             def_variable_value, ret_variable_value = self.visit(var.value)
             c_code += f"""{def_variable_value}"""
             c_code += f"""obj->{var.name.name} = {ret_variable_value};\n"""
@@ -382,6 +397,9 @@ StringObject* new_StringObject(char* type, char* value) {
         strcpy(obj -> type, "{node.static_type}");"""
         c_code += f"""return obj;"""
         c_code += f"""}}"""
+        #adding variables and functions of parent to self for the descendants to have it
+        node.variables =all_variables
+        node.functions = own_plus_parent_functions
         return c_code, ""
 
     @visitor.when(TypeCall)
@@ -602,7 +620,16 @@ return log({child_ret_value})/log({child_ret_base});
 
 # endregion
 if __name__ == "__main__":
-    code="""type Point(x,y) {
+    code="""
+    type Point3D(x,y,z) inherits Point(x,y){
+    z=z;
+
+    getZ() => self.z;
+
+    setZ(z) => self.z := z;
+    asd() => self.x*self.x;
+}
+type Point(x,y) {
     x = x;
     y = y;
 
@@ -612,20 +639,24 @@ if __name__ == "__main__":
     setX(x) => self.x := x;
     setY(y) => self.y := y;
 }
-type Point3D(x,y,z) inherits Point(x,y){
-    z=z;
 
-    getZ() => self.z;
+type Point5D(x,y,z,a,b) inherits Point3D(x,y,z){
+    a=a;
+    b=b;
+    
+    getA() => self.a;
+    getB() => self.b;
 
-    setZ(z) => self.z := z;
-    asd() => self.x*self.x;
+    setA(a) => self.a := a;
+    setB(b) => self.b := b;
 }
-let x:Point3D = new Point3D(1,2,3) in if (x is Point3D) print(1) else print(0); """
+print(Point5D(1,2,3,4,5).asd());"""
+    import hulk_semantic_check
     ast, error_list, b = hulk_parse(code)
     print(code)
     print(error_list)
     create_AST_graph(nodes, "AST")
-    ScopeBuilder().get_global_definitions(ast)
+    hulk_semantic_check.semantic_check(ast)
     CodeGen().visit(ast)
 
 # type Point(x,y) {
