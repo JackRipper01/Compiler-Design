@@ -942,12 +942,12 @@ def p_if_hl(p):
                 p[i] = StringToken(p[i])
                 p[i].lineno = p.lineno(i)
                 p[i].lexpos = p.lexpos(i)
-    first = Case(p[2], p[3], "if")
+    first = Case(p[2], p[3], p[1])
     p[2].parent = first
     p[3].parent = first
 
     else_cond = TrueLiteral()
-    last = Case(else_cond, p[6], "else")
+    last = Case(else_cond, p[6], p[5])
     else_cond.parent = last
     p[6].parent = last
 
@@ -969,12 +969,12 @@ def p_if_exp(p):
                 p[i] = StringToken(p[i])
                 p[i].lineno = p.lineno(i)
                 p[i].lexpos = p.lexpos(i)
-    first = Case(p[2], p[3], "if")
+    first = Case(p[2], p[3], p[1])
     p[2].parent = first
     p[3].parent = first
 
     else_cond = TrueLiteral()
-    last = Case(else_cond, p[6], "else")
+    last = Case(else_cond, p[6], p[5])
     else_cond.parent = last
     p[6].parent = last
 
@@ -993,7 +993,7 @@ def p_opt_elifs(p):
                 p[i] = StringToken(p[i])
                 p[i].lineno = p.lineno(i)
                 p[i].lexpos = p.lexpos(i)
-    elif_cond = Case(p[2], p[3], "elif")
+    elif_cond = Case(p[2], p[3], p[1])
     p[2].parent = elif_cond
     p[3].parent = elif_cond
     p[0] = [elif_cond] + p[4]

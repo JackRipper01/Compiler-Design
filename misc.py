@@ -13,6 +13,20 @@ from hulk_ast import (
     BinOp,
 )
 
+class StringToken(str):
+    def __init__(self, strv) -> None:
+        super().__init__()
+        self.strv = strv
+        self.lineno = 0
+        self.lexpos = 0
+
+class HierarchyNode:
+    def __init__(self, name, parent, children, depth):
+        self.name = name
+        self.parent = parent
+        self.children = children
+        self.depth = depth
+        
 class ColumnFinder:
     def __init__(self) -> None:
         self.code = ""
@@ -120,12 +134,20 @@ def set_depth(i_dict:dict, key: str, visited):
         else:
             pass
         
-def get_descendancy(ast, name, descendancy):
+def get_descendancy(ast_node, name, descendancy):
     if name in descendancy:
         return descendancy
     descendancy.append(name)
-    for child in ast.hierarchy_tree[name].children:
-        get_descendancy(ast, child, descendancy)
+    for child in ast_node.hierarchy_tree[name].children:
+        get_descendancy(ast_node, child, descendancy)
+    return descendancy
+
+def get_descendancy_set(ast_node, name, descendancy):
+    if name in descendancy:
+        return descendancy
+    descendancy.add(name)
+    for child in ast_node.hierarchy_tree[name].children:
+        get_descendancy_set(ast_node, child, descendancy)
     return descendancy
 
 # def conforms(ast, A, B):
@@ -137,8 +159,8 @@ def get_descendancy(ast, name, descendancy):
 #         else:
 #             return False
         
-def conforms(ast, A, B):
-    return A in get_descendancy(ast, B, [])
+def conforms(ast_node, A, B):
+    return A in get_descendancy_set(ast_node, B, set())
         
         
 def LCA_BI(i_dict:dict, A, B):
@@ -157,7 +179,8 @@ def LCA_BI(i_dict:dict, A, B):
             B = i_dict[B].parent
             return LCA_BI(i_dict, A, B)
         
-def LCA(i_dict, *params):
+def LCA(ast_node, *params):
+    i_dict = ast_node.hierarchy_tree
     lca = LCA_BI(i_dict, params[0], params[1])
     for i in range(1, len(params)-1):
         lca = LCA_BI(i_dict, lca, LCA_BI(i_dict, params[i], params[i+1]))
@@ -171,11 +194,4 @@ def find_column(input, token):
     if line_start < 0:
         line_start = 0
     return (token.lexpos - line_start) + 1
-
-class StringToken(str):
-    def __init__(self, strv) -> None:
-        super().__init__()
-        self.strv = strv
-        self.lineno = 0
-        self.lexpos = 0
 
