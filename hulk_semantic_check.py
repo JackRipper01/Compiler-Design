@@ -81,8 +81,6 @@ class ScopeBuilder:
         self.check_tree(node, "Object")
         self.trasspass_params_to_children(node, "Object", set())
         
-        print([x for x in get_descendancy(node, "Object")])
-        
         self.on_function = True
         for function in node.functions:
             function: FunctionDef
@@ -92,7 +90,7 @@ class ScopeBuilder:
 
         self.on_type = True
         for type_str in node.hierarchy_tree["Object"].children:
-            if not type_str in ["Number", "String", "Boolean"]:
+            if not type_str in ["Number", "String", "Boolean"," Vector"]:
                 node.global_definitions[type_str].variable_scope = node.variable_scope
                 self.current = type_str
                 self.visit(node.global_definitions[type_str])
@@ -229,6 +227,8 @@ class ScopeBuilder:
             "<=",
             "==",
             "!=",
+            "|",
+            "&",
             "^",
             "**",
             "AD",
@@ -244,20 +244,19 @@ class ScopeBuilder:
             node.left.variable_scope = node.variable_scope
             self.visit(node.left)
             if self.on_type and self.on_function:
-                pass
-                # check context from class
+                if type(node.right) is FunctionCall:
+                    node.right.params.variable_scope = node.variable_scope
+                    self.visit(node.right.params)
             else:
-                if not (type(node.right) is FunctionCall):
+                if type(node.right) is FunctionCall:
+                    node.right.params.variable_scope = node.variable_scope
+                    self.visit(node.right.params)
+                else:
                     self.errors.append(
                         "Invalid access to private member '"
                         + node.right.name
                         + "' outside method class declaration"+cf.add_line_column(node.right.name)
                     )
-                else:
-                    node.left.variable_scope = node.variable_scope
-                    self.visit(node.left)
-                    node.right.params.variable_scope = node.variable_scope
-                    self.visit(node.right.params)
         elif node.op in ["is","as"]:
             if node.right.annotated_type not in node.hierarchy_tree:
                 self.errors.append("Type '"+node.right.annotated_type+"' undefined"+cf.add_line_column(node.right.name))
@@ -302,7 +301,7 @@ class ScopeBuilder:
     def visit(self, node: FunctionCall):
         fn_name = node.func_id.name + "/" + str(len(node.params.param_list))
         if fn_name not in node.global_definitions:
-            self.errors.append("Function " + fn_name + " not defined")
+            self.errors.append("Function " + fn_name + " not defined"+cf.add_line_column(node.func_id.name))
         node.params.variable_scope = node.variable_scope
         self.visit(node.params)
 
@@ -374,20 +373,21 @@ class ScopeBuilder:
         ast_input.global_definitions["Number"] = "float"
         ast_input.global_definitions["String"] = "string"
         ast_input.global_definitions["Boolean"] = "int"
+        ast_input.global_definitions["Vector"] = "vec"
 
         for function in ast_input.functions:
             function_name = (
                 function.func_id.name + "/" + str(len(function.params.param_list))
             )
             if function_name in ast_input.global_definitions:
-                self.errors.append("Function " + function_name + " already defined")
+                self.errors.append("Function " + function_name + " already defined"+cf.add_line_column(ast_input.global_definitions[function_name].func_id.name))
             else:
                 ast_input.global_definitions[function_name] = function
 
         for type_def in list(ast_input.types) + list(ast_input.protocols):
             type_name = type_def.id.name
             if type_name in ast_input.global_definitions:
-                self.errors.append("Type " + type_name + " already defined: ")
+                self.errors.append("Type " + type_name + " already defined"+cf.add_line_column(type_def.id.name))
             else:
                 ast_input.global_definitions[type_name] = type_def
 
@@ -435,6 +435,53 @@ class ScopeBuilder:
         if err:
             self.errors.append(err)
         return hierarchy_tree
+    
+    def protocol_hierarchy_build(self, ast_root: Program):
+        hierarchy_tree = ast.protocol_hierarchy
+        hierarchy_tree["Object"] = HierarchyNode("Object", None, [], 0)
+        hierarchy_tree["Number"] = HierarchyNode("Number", "Object", [], 1)
+        hierarchy_tree["String"] = HierarchyNode("String", "Object", [], 1)
+        hierarchy_tree["Boolean"] = HierarchyNode("Boolean", "Object", [], 1)
+        hierarchy_tree["Vector"] = HierarchyNode("Vector", "Object", [], 1)
+        hierarchy_tree["Object"].children.append("Number")
+        hierarchy_tree["Object"].children.append("String")
+        hierarchy_tree["Object"].children.append("Boolean")
+        hierarchy_tree["Object"].children.append("Vector")
+
+        for type_name in ast_root.types:
+            hierarchy_tree[type_name.id.name] = HierarchyNode(
+                type_name.id.name, None, [], 0
+            )
+
+        for type_name in ast_root.types:
+            current_type = type_name.id.name
+
+            if type_name.inherits:
+                inherits_from = type_name.inherits.id.name
+                if inherits_from in ast_root.global_definitions:
+                    if (
+                        type(ast_root.global_definitions[inherits_from]) is str
+                        or inherits_from not in hierarchy_tree
+                    ):
+                        self.errors.append(
+                            "Cannot inherit from '" + inherits_from + f"' at line {type_name.id.name.lineno}"
+                        )
+                        continue
+                    hierarchy_tree[current_type].parent = inherits_from
+                    hierarchy_tree[inherits_from].children.append(current_type)
+                else:
+                    self.errors.append(
+                        "Cannot inherit from "
+                        + inherits_from
+                        + " because it is not defined at line "+str(type_name.id.name.lineno)
+                    )
+            else:
+                hierarchy_tree[current_type].parent = "Object"
+                hierarchy_tree["Object"].children.append(current_type)
+        err = set_depth(hierarchy_tree, "Object", set())
+        if err:
+            self.errors.append(err)
+        return hierarchy_tree
 
     def check_tree(self, ast_root: Program, root):
         i_dict = ast_root.hierarchy_tree
@@ -446,12 +493,11 @@ class ScopeBuilder:
             for child in i_dict[current].children:
                 if child in visited:
                     self.errors.append("Error in type definition: " + child)
-                    break
                 else:
                     qww.append(child)
         if len(visited) != len(i_dict):
             self.errors.append(
-                "Error in type definition: " + str(set(i_dict).difference(visited))
+                "Error in type definitions: " + str([str(x) for x in set(i_dict).difference(visited)]).removeprefix("[").removesuffix("]")
             )
 
     def check_annotation(self, var: ID):
@@ -484,11 +530,11 @@ class ScopeBuilder:
         else:
             return assign.name.name
     
-    def trasspass_params_to_children(self, ast, name:str, visited):
-        forb = ["Object", "String", "Number", "Boolean"]
+    def trasspass_params_to_children(self, ast: Program, name:str, visited):
+        forb = ["Object", "String", "Number", "Boolean", "Vector"]
         
         if name in visited:
-            return "Error in type definition: "+name+" appeared in class hierarchy twice"
+            self.errors.append("Error in type definition: "+name+" appeared in class hierarchy twice"+cf.add_line_column(ast.global_definitions[name].id.name))
         visited.add(name)
         
         if name not in forb:
@@ -527,12 +573,16 @@ if __name__ == "__main__":
             type Felino(x) inherits Animal(){}
             type Gato(x) inherits Felino(x) {}
             type Canino(x : Object) inherits Animal{
-                asd(y,x) => print(self.y + x);
+                asd(y,x) => print(self.y + a.x(b));
             }
             
             type Lobo inherits Canino{}
             type Perro inherits Lobo {}
             function asd(a,b,c) => print(b);
+            type A inherits B {}
+            type C inherits A {}
+            type B inherits C {}
+            type B inherits C {}
             let a :Number = true, b: Number = a in {print(new Lobo(6).x());
             asd(1, 2, 3); [a || x in b];(2+2); 2 is Number;}""",
             cf

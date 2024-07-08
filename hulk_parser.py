@@ -1517,13 +1517,13 @@ def p_error(p):
     # print(sErrorList[-1])
 
 
-def hulk_parse(code, cf, create_graph = False, nm = "AST"):
+def hulk_parse(code, cf = None, create_graph = False, nm = "AST"):
     "parsea el codigo de hulk, retornando la raiz del ast"
     nodes = hulk_ast.nodes
     
     parser = yacc.yacc(start="program", method="LALR")
 
-    AST = parser.parse(code, tracking = True)
+    AST = parser.parse(code)
     
     errors = []
     if len(sErrorList) == 0:
@@ -1531,7 +1531,8 @@ def hulk_parse(code, cf, create_graph = False, nm = "AST"):
         if create_graph:
             create_AST_graph(nodes, nm)
         AST.input = code
-        cf.code = code
+        if cf:
+            cf.code = code
         return AST, sErrorList, nodes
     else:
         for i in sErrorList:

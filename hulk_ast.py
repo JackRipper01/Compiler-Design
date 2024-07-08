@@ -1,6 +1,7 @@
 nodes = {}
 global_definitions = {}
 hierarchy_tree = {}
+protocol_hierarchy = {}
 
 from ply.yacc import YaccProduction
 
@@ -13,6 +14,7 @@ class Node:
         self.variable_scope = {}
         self.global_definitions = global_definitions
         self.hierarchy_tree = hierarchy_tree
+        self.protocol_hierarchy = protocol_hierarchy
 
 
 class Program(Node):
