@@ -81,6 +81,8 @@ class ScopeBuilder:
         self.check_tree(node, "Object")
         self.trasspass_params_to_children(node, "Object", set())
         
+        print([x for x in get_descendancy(node, "Object")])
+        
         self.on_function = True
         for function in node.functions:
             function: FunctionDef
@@ -528,8 +530,8 @@ if __name__ == "__main__":
                 asd(y,x) => print(self.y + x);
             }
             
-            type Perro inherits Canino {}
-            type Lobo inherits Perro{}
+            type Lobo inherits Canino{}
+            type Perro inherits Lobo {}
             function asd(a,b,c) => print(b);
             let a :Number = true, b: Number = a in {print(new Lobo(6).x());
             asd(1, 2, 3); [a || x in b];(2+2); 2 is Number;}""",

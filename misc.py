@@ -121,10 +121,10 @@ def set_depth(i_dict:dict, key: str, visited):
             pass
         
 def get_descendancy(ast, name):
-    descendancy = set()
-    descendancy.add(name)
+    descendancy = []
+    descendancy.append(name)
     for child in ast.hierarchy_tree[name].children:
-        descendancy = descendancy.union(get_descendancy(ast, child))
+        descendancy.extend(get_descendancy(ast, child))
     return descendancy
 
 def conforms(ast, A, B):
