@@ -236,6 +236,15 @@ class VectorExt(Node):
 
 class VectorInt(Node):
     def __init__(self, expression, iterator, iterable):
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"vect_int_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"vect_int_{self.instance_id}"
+        # Add the function name to the tracker
+        Program.add_function_name(self.name)
         super().__init__(self, "VECTOR_INT")
         self.expression : Node = expression
         self.iterator : ID = iterator
@@ -268,6 +277,15 @@ class BinOp(Node):
 
 class UnaryOp(Node):
     def __init__(self, op, operand):
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"unary_op_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"unary_op_{self.instance_id}"
+        # Add the function name to the tracker
+        Program.add_function_name(self.name)
         super().__init__(self, str(op))
         self.op = op
         self.operand : Node = operand
@@ -308,14 +326,30 @@ class StringLiteral(Node):
 
 
 class Pi(Node):
-
     def __init__(self):
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"PI_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"PI_{self.instance_id}"
+        # Add the function name to the tracker
+        Program.add_function_name(self.name)
         super().__init__(self, "PI")
 
 
 class E(Node):
-
     def __init__(self):
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"E_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"E_{self.instance_id}"
+        # Add the function name to the tracker
+        Program.add_function_name(self.name)
         super().__init__(self, "E")
 
 
@@ -326,44 +360,90 @@ class Print(
     instance_count = 0  # Class variable to keep track of the number of instances
 
     def __init__(self, value):
-        Print.instance_count += 1  # Increment the counter for each new instance
-        self.instance_id = Print.instance_count
-        # Construct the function name
-        func_name = f"print_{self.instance_id}"
-        # Check if the function name already exists
-        if Program.function_name_exists(func_name):
-            raise ValueError(f"Function {func_name} is already defined.")
-        Program.add_function_name(func_name)  # Add the function name to the tracker
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"print_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"print_{self.instance_id}"
+        # Add the function name to the tracker
+        Program.add_function_name(self.name)
         super().__init__(self, "PRINT")
         self.value : Node = value
 
 
 class Sqrt(Node):
     def __init__(self, value):
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"sqrt_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"sqrt_{self.instance_id}"
+        # Add the function name to the tracker
+        Program.add_function_name(self.name)
         super().__init__(self, "SQRT")
         self.value : Node = value
 
 
 class Sin(Node):
     def __init__(self, value):
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"sin_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"sin_{self.instance_id}"
+        # Add the function name to the tracker
+        Program.add_function_name(self.name)
         super().__init__(self, "SIN")
         self.value : Node = value
 
 
 class Cos(Node):
     def __init__(self, value):
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"cos_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"cos_{self.instance_id}"
+        # Add the function name to the tracker
+        Program.add_function_name(self.name)
         super().__init__(self, "COS")
         self.value : Node = value
 
 
 class Exp(Node):
     def __init__(self, value):
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"exp_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"exp_{self.instance_id}"
+        # Add the function name to the tracker
+        Program.add_function_name(self.name)
         super().__init__(self, "EXP")
         self.value : Node = value
 
 
 class Log(Node):
     def __init__(self, value, base):
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"log_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"log_{self.instance_id}"
+        # Add the function name to the tracker
+        Program.add_function_name(self.name)
         super().__init__(self, "LOG")
         self.base : Node = base
         self.value : Node = value
