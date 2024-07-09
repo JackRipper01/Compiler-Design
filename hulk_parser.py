@@ -1125,6 +1125,7 @@ def p_expression_binop(p:yacc.YaccProduction):
     | expression LESS expression
     | expression GREATER expression
     | destroyable ASSDESTROYER expression
+    | vector_call ASSDESTROYER expression
     | member_resolute ASSDESTROYER expression
     | expression IS type_test
     | expression AS type_test
@@ -1162,6 +1163,7 @@ def p_expression_binop_hl(p):
     | expression LESS hl_expression
     | expression GREATER hl_expression
     | destroyable ASSDESTROYER hl_expression
+    | vector_call ASSDESTROYER hl_expression
     | member_resolute ASSDESTROYER hl_expression
     """ #tag_replace
     if type(p) is yacc.YaccProduction:
@@ -1359,8 +1361,19 @@ def p_vector_int(p):
     p[6].parent = p[0]
 
 
+def p_expression_vector_ind_pa(p):
+    "expression :  vector_call" #tag_replace
+    if type(p) is yacc.YaccProduction:
+
+        for i in range(len(p)):
+            if type(p[i]) is str:
+                p[i] = StringToken(p[i])
+                p[i].lineno = p.lineno(i)
+                p[i].lexpos = p.lexpos(i)
+    p[0] = p[1]
+    
 def p_expression_vector_ind_pare(p):
-    "expression :  expression LSQB expression RSQB" #tag_replace
+    "vector_call :  expression LSQB expression RSQB" #tag_replace
     if type(p) is yacc.YaccProduction:
 
         for i in range(len(p)):

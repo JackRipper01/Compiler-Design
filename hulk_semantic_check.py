@@ -2,14 +2,13 @@
 from ast import Param
 from hulk_lexer import errorList as lexerErrors
 from hulk_parser import hulk_parse
-from misc import ColumnFinder, HierarchyNode, set_depth, LCA, conforms, get_descendancy_set
+from misc import ColumnFinder, HierarchyNode, StringToken, set_depth, LCA, conforms, get_descendancy_set
 
 # endregion
 
 import visitor
 
 from hulk_ast import (
-    Node,  # NAN
     Program,
     FunctionDef,
     FunctionCall,
@@ -21,9 +20,8 @@ from hulk_ast import (
     If,
     Case,
     While,
-    For,  # NAN
-    TrueLiteral,  # NAN
-    FalseLiteral,  # NAN
+    TrueLiteral,
+    FalseLiteral,
     TypeDef,
     TypeCall,
     Protocol,
@@ -32,17 +30,17 @@ from hulk_ast import (
     VectorCall,
     BinOp,
     UnaryOp,
-    Num,  # NAN
-    StringLiteral,  # NAN
-    Pi,  # NAN
-    E,  # NAN
+    Num,
+    StringLiteral,
+    Pi,
+    E,
     Print,
     Sqrt,
     Sin,
     Cos,
     Exp,
     Log,
-    Rand,  # NAN
+    Rand,
 )
 
 # TypeColector
@@ -85,7 +83,7 @@ class ScopeBuilder:
 
         self.on_type = True
         for type_str in node.hierarchy_tree["Object"].children:
-            if not type_str in ["Number", "String", "Boolean"," Vector"]:
+            if not type_str in ["Number", "String", "Boolean", "Vector"]:
                 node.global_definitions[type_str].variable_scope = node.variable_scope
                 self.current = type_str
                 self.visit(node.global_definitions[type_str])
@@ -273,7 +271,7 @@ class ScopeBuilder:
 
     @visitor.when(VectorExt)
     def visit(self, node: VectorExt):
-        for item in node.items:
+        for item in node.items.param_list:
             item.variable_scope = node.variable_scope
             self.visit(item)
     
@@ -397,9 +395,11 @@ class ScopeBuilder:
         hierarchy_tree["Number"] = HierarchyNode("Number", "Object", [], 1)
         hierarchy_tree["String"] = HierarchyNode("String", "Object", [], 1)
         hierarchy_tree["Boolean"] = HierarchyNode("Boolean", "Object", [], 1)
+        hierarchy_tree["Vector"] = HierarchyNode("Vector", "Object", [], 1)
         hierarchy_tree["Object"].children.append("Number")
         hierarchy_tree["Object"].children.append("String")
         hierarchy_tree["Object"].children.append("Boolean")
+        hierarchy_tree["Object"].children.append("Vector")
 
         for type_name in ast_root.types:
             hierarchy_tree[type_name.id.name] = HierarchyNode(
@@ -568,7 +568,7 @@ class TypeInfChk:
     def visit(self, node: Program):
         self.visit(node.global_exp)
         node.static_type = node.global_exp.static_type
-        print("Global Expression returned:", node.static_type)
+        print("Global Expression returned:", node.static_type+("."+node.static_type.T+"."+node.static_type.T.T if node.static_type == "Vector" else ""))
         
     @visitor.when(Let)
     def visit(self, node: Let):
@@ -589,7 +589,7 @@ class TypeInfChk:
             case: Case
             self.visit(case)
             case_types.add(case.static_type)
-        node.static_type = LCA(node, *case_types)
+        node.static_type = LCA(node, *case_types) if len(case_types)>1 else case_types.pop()
             
             
     @visitor.when(Case)
@@ -670,6 +670,49 @@ class TypeInfChk:
             self.errors.append(f"EXP operation expect 'Number' argument, but received '{node.value.static_type}'")
         node.static_type = "Number"
         
+    @visitor.when(Sqrt)
+    def visit(self, node: Sqrt):
+        expect = "Number"
+        self.visit(node.value)
+        if not conforms(node, node.value.static_type, expect):
+            self.errors.append(f"SQRT operation expect 'Number' argument, but received '{node.value.static_type}'")
+        node.static_type = "Number"
+        
+    @visitor.when(Sin)
+    def visit(self, node: Sin):
+        expect = "Number"
+        self.visit(node.value)
+        if not conforms(node, node.value.static_type, expect):
+            self.errors.append(f"SIN operation expect 'Number' argument, but received '{node.value.static_type}'")
+        node.static_type = "Number"
+        
+    @visitor.when(Cos)
+    def visit(self, node: Cos):
+        expect = "Number"
+        self.visit(node.value)
+        if not conforms(node, node.value.static_type, expect):
+            self.errors.append(f"COS operation expect 'Number' argument, but received '{node.value.static_type}'")
+        node.static_type = "Number"
+    
+    @visitor.when(Log)
+    def visit(self, node: Log):
+        expect = "Number"
+        self.visit(node.base)
+        self.visit(node.value)
+        if not (conforms(node, node.value.static_type, expect) and conforms(node, node.base.static_type, expect)):
+            self.errors.append(f"LOG operation expect 'Number' arguments, but received '{node.value.static_type}' and '{node.base.static_type}'")
+        node.static_type = "Number"
+    
+    @visitor.when(VectorExt)
+    def visit(self, node: VectorExt):
+        typs = set()
+        for item in node.items.param_list:
+            self.visit(item)
+            typs.add(item.static_type)
+        static_type_internal = LCA(node, *typs) if len(typs)>1 else (typs.pop() if len(typs) == 1 else "Object")
+        node.static_type = StringToken("Vector")
+        node.static_type.T = static_type_internal
+        
     @visitor.when(BinOp)
     def visit(self, node: BinOp):
         if node.op not in ["AD",".","is","as"]:
@@ -694,11 +737,14 @@ class TypeInfChk:
                 self.errors.append(f"Binary operation '{node.op}' expected '{expected}' and received '('{node.left.static_type}', '{node.right.static_type}')'"+cf.add_line_column(node.op))
             
             node.static_type = expected_return
+            
         if node.op in ["as", "is"]:
             self.visit(node.left)
             expect = node.right.name
             if (not conforms(node, node.left.static_type, expect) and expect not in get_descendancy_set(node, node.left.static_type,set())):
                 self.errors.append(f"Do not even try to cast '{node.left.static_type}' to '{expect}'"+cf.add_line_column(node.op))
+            if node.op == "is":
+                expect = "Boolean"
             node.static_type = expect
         elif node.op == "AD":
             self.visit(node.left)
@@ -736,7 +782,7 @@ if __name__ == "__main__":
             type Lobo inherits Canino{}
             type Perro inherits Lobo {}
             function asd(a,b,c) => print(b);
-            let a:Object = 123 in print(exp(a as Number)); """,
+            [[1], [9] , [[2]]];""",
             cf, create_graph=True
     )
 

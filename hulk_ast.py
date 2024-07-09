@@ -1,20 +1,20 @@
+from typing import List
+
 nodes = {}
 global_definitions = {}
 hierarchy_tree = {}
 protocol_hierarchy = {}
 
-from ply.yacc import YaccProduction
-
 class Node:
     def __init__(self, slf, nm):
         nodes[slf] = nm
         self.parent : Node = None
-        self.static_type = "Object"
-        self.ret_point = "ret_point"
-        self.variable_scope = {}
-        self.global_definitions = global_definitions
-        self.hierarchy_tree = hierarchy_tree
-        self.protocol_hierarchy = protocol_hierarchy
+        self.global_definitions : dict = global_definitions
+        self.variable_scope :dict = {}
+        self.hierarchy_tree :dict = hierarchy_tree
+        self.protocol_hierarchy :dict = protocol_hierarchy
+        self.static_type : str = "Object"
+        self.ret_point :str = "ret_point"
 
 
 class Program(Node):
@@ -62,7 +62,7 @@ class FunctionCall(Node):
 class Params(Node):
     def __init__(self, param_list):
         super().__init__(self, "params")
-        self.param_list = param_list
+        self.param_list : List[Node] = param_list
 
 
 # endregion
@@ -77,7 +77,7 @@ class ExpressionBlock(Node):
             self.instance_id = Program.instance_count
             self.name = f"expression_block_{self.instance_id}"
         Program.add_function_name(self.name)  # Add the function name to the tracker
-        self.exp_list = exps
+        self.exp_list : List[Node] = exps
 
 
 class Let(Node):
@@ -92,7 +92,7 @@ class Let(Node):
             self.name = f"let_{self.instance_id}"
         Program.add_function_name(self.name)  # Add the function name to the tracker
 
-        self.assign = assign
+        self.assign : List[Assign] = assign
         self.body : Node = body
 
 
@@ -124,7 +124,7 @@ class If(Node):
             self.instance_id = Program.instance_count
             self.name = f"if_{self.instance_id}"
         Program.add_function_name(self.name)  # Add the function name to the tracker
-        self.case_list = case_list
+        self.case_list : List[Case] = case_list
 
 
 class Case(Node):
@@ -132,7 +132,7 @@ class Case(Node):
         super().__init__(self, "IF " + branch)
         self.condition:Node = condition
         self.body : Node = body
-        self.branch = branch
+        self.branch :str = branch
 
 
 class While(Node):

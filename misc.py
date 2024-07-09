@@ -19,6 +19,7 @@ class StringToken(str):
         self.strv = strv
         self.lineno = 0
         self.lexpos = 0
+        self.T = "Object"
 
 class HierarchyNode:
     def __init__(self, name, parent, children, depth):
