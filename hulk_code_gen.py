@@ -1,7 +1,7 @@
 from ast import List
 from scipy import misc
 from hulk_semantic_check import HierarchyNode, ScopeBuilder
-from misc import create_AST_graph
+from misc import create_AST_graph, get_descendancy_set
 import visitor
 import misc
 from hulk_parser import hulk_parse
@@ -55,8 +55,8 @@ class CodeGen:
 
     @visitor.when(Program)
     def visit(self, node):
-        #reordenar node.types para que esten en orden herarquico,tengo node.global_definitions dictionary y node.hierarchy_tree dictionary
-        
+        # reordenar node.types para que esten en orden herarquico,tengo node.global_definitions dictionary y node.hierarchy_tree dictionary
+
         main_def, main_ret = self.visit(node.global_exp)
         with open("./out.c", "w") as f:
             f.write("#include <stdio.h>\n")
@@ -90,62 +90,103 @@ int check_types(char* value, char* type) {
     return 0;
 }
 typedef struct {
+       char *type;
+       char* string;   
+}Object;
+Object* new_Object() {
+    Object* obj = (Object*)malloc(sizeof(Object));    
+    int string_len = strlen("Object");
+    obj->type = (char*)malloc((string_len + 1) * sizeof(char));
+    strcpy(obj->type, "Object");
+
+    char memory_address_str[20]; // Assuming a maximum of 20 characters for the address string
+    sprintf(memory_address_str, "%p", (void *)obj);
+    strcpy(obj->string, concatenate_strings("Object at ", memory_address_str));
+    return obj;
+}
+typedef struct {
     char* type;
+    char* string;
     int value;
 } BoolObject;
-BoolObject* new_BoolObject(char* type, int value) {
+BoolObject* new_BoolObject(int value) {
     BoolObject* obj = (BoolObject*)malloc(sizeof(BoolObject));    
-    int string_len = strlen(type);
+    int string_len = strlen("bool");
     obj->type = (char*)malloc((string_len + 1) * sizeof(char));
-    strcpy(obj->type, type);
+    strcpy(obj->type, "bool");
+
     obj->value = value;
+
+    if (value == 1) {
+        obj->string = (char *)malloc((strlen("TRUE")) * sizeof(char));
+        strcpy(obj->string, "TRUE");
+    } else {
+        obj->string = (char *)malloc((strlen("FALSE")) * sizeof(char));
+        strcpy(obj->string, "FALSE");
+    }
     return obj;
 }
 
 typedef struct {
     char* type;
+    char* string;
     float value;
 } FloatObject;
-FloatObject* new_FloatObject(char* type, float value) {
+FloatObject* new_FloatObject(float value) {
     FloatObject* obj = (FloatObject*)malloc(sizeof(FloatObject));    
-    int string_len = strlen(type);
+    int string_len = strlen("float");
     obj->type = (char*)malloc((string_len + 1) * sizeof(char));
-    strcpy(obj->type, type);
+    strcpy(obj->type, "float");
+    
     obj->value = value;
+    char buff[32];
+    gcvt(value,10,buff);
+    int value_len = strlen(buff);
+    obj->string = (char *)malloc((10) * sizeof(char));
+    strcpy(obj->string, buff);
     return obj;
 }
 
 typedef struct {
     char* type;
+    char* string;
     char* value;
 } StringObject;
-StringObject* new_StringObject(char* type, char* value) {
+StringObject* new_StringObject(char* value) {
     StringObject* obj = (StringObject*)malloc(sizeof(StringObject));    
-    int string_len = strlen(type);
+    int string_len = strlen("string");
     obj->type = (char*)malloc((string_len + 1) * sizeof(char));
-    strcpy(obj->type, type);
+    strcpy(obj->type, "string");
     int value_len = strlen(value);
     obj->value = (char*)malloc((value_len + 1) * sizeof(char));
     strcpy(obj->value, value);
+    obj->string = (char *)malloc(7 * sizeof(char));
+    strcpy(obj->string,obj->value);
     return obj;
-}\n\n"""
+}
+
+typedef struct {
+    void** data;
+    int len;
+} VectorExt;\n\n"""
             )
             if node.functions:
                 for function in node.functions:
                     f.write(f"{self.visit(function)[0]}\n\n")
             if node.types:
-                #ordenando node.types segun la herencia
-                list_of_descendients=misc.get_descendancy(node,"Object")
-                node_types_reorder=[]
+                # ordenando node.types segun la herencia
+                list_of_descendients = misc.get_descendancy(node, "Object")
+                node_types_reorder = []
                 for i in range(len(node.types)):
-                    node_types_reorder.append((node.types[i],list_of_descendients.index(node.types[i].id.name)))
+                    node_types_reorder.append(
+                        (node.types[i], list_of_descendients.index(node.types[i].id.name)))
                 node_types_reorder.sort(key=lambda x: x[1])
                 for i in range(len(node_types_reorder)):
-                    node.types[i]=node_types_reorder[i][0]
-                            
+                    node.types[i] = node_types_reorder[i][0]
+
                 for type in node.types:
-                    f.write(f"{self.visit(type)[0]}\n\n")  
-                    
+                    f.write(f"{self.visit(type)[0]}\n\n")
+
             f.write("int main() {\n\n")
             f.write(f"{main_def}\n\n")
             f.write(f"return {main_ret};\n")
@@ -258,7 +299,7 @@ StringObject* new_StringObject(char* type, char* value) {
         def_condition, ret_condition = self.visit(node.condition)
         def_body, ret_body = self.visit(node.body)
         c_code += f"""{def_condition}"""
-        c_code += f"""if ((int){ret_condition}){{
+        c_code += f"""if ((int){ret_condition}->value){{
             {def_body}
             return {ret_body};
             }}"""
@@ -276,7 +317,7 @@ StringObject* new_StringObject(char* type, char* value) {
             {node.static_type} {node.ret_point} = 0;"""
         c_code += f"{def_condition}"
         c_code += f"""
-            if ((int){ret_condition}){{
+            if ((int){ret_condition}->value){{
             while_body_executed = 1;
             {def_body}
             {node.ret_point} = {ret_body};
@@ -353,15 +394,15 @@ StringObject* new_StringObject(char* type, char* value) {
                     for function_params in func.params.param_list:
                         c_code += f", {WWWWTTTTFFFF} {function_params.name}"
                 c_code += ");\n"
-            
+
             own_plus_parent_functions = (
                 node.functions
             )  # esto esta correcto ya q si no hay padre own + (parent=0) = own xd,lee el nombre de la lista y entenderas
-            
-        #end of struct
+
+        # end of struct
         c_code += "\nchar* type;\n"
         c_code += f"}} {node.id.name};\n"
-        
+
         # functions definition
         for func in own_plus_parent_functions:
             def_func, ret_func = self.visit(func)
@@ -391,14 +432,14 @@ StringObject* new_StringObject(char* type, char* value) {
 
         for func in own_plus_parent_functions:
             c_code += f"""obj->{func.func_id.name} = {node.static_type}_{func.func_id.name};\n"""
-            
-        c_code+=f"""int string_len = strlen("{node.static_type}");
+
+        c_code += f"""int string_len = strlen("{node.static_type}");
         obj -> type = (char*)malloc((string_len + 1) * sizeof(char));
         strcpy(obj -> type, "{node.static_type}");"""
         c_code += f"""return obj;"""
         c_code += f"""}}"""
-        #adding variables and functions of parent to self for the descendants to have it
-        node.variables =all_variables
+        # adding variables and functions of parent to self for the descendants to have it
+        node.variables = all_variables
         node.functions = own_plus_parent_functions
         return c_code, ""
 
@@ -417,34 +458,35 @@ StringObject* new_StringObject(char* type, char* value) {
 
     @visitor.when(VectorExt)
     def visit(self, node: VectorExt):
+        size_of_vect = len(node.items.param_list)
         # implement this with an array of pointers in C
-        def_vect = f"""void** {node.name}(){{
-                void** array_of_points = (void**)malloc({len(node.items.param_list)}*sizeof(void*));"""
-        for i in range(len(node.items.param_list)):
+        def_vect = f"""VectorExt* {node.name}(){{
+                VectorExt* vector = (VectorExt*)malloc(sizeof(VectorExt));
+                void** points = (void**)malloc({size_of_vect}*sizeof(void*));\n"""
+        for i in range(size_of_vect):
             def_item, ret_item = self.visit(node.items.param_list[i])
             def_vect += def_item + "\n"
             def_vect += f"""array_of_points[{i}] = {ret_item};\n"""
 
-        def_vect += f"""return array_of_points;"""
+        def_vect += f"""vector -> data = points;\n"""
+        def_vect += f"vector -> len = {size_of_vect};\n"
+
+        def_vect += f"""return vector;"""
         def_vect += "}\n"
-        def_vect += f"""void** {node.ret_point}_{node.instance_id} = {node.name}();"""
+        def_vect += f"""VectorExt* {node.ret_point}_{node.instance_id} = {node.name}();"""
         ret_vect = f"{node.ret_point}_{node.instance_id}"
         return def_vect, ret_vect
 
     @visitor.when(VectorCall)
     def visit(self, node: VectorCall):
         def_index, ret_index = self.visit(node.index)
-        return def_index, f"""({node.id.name}[(int){ret_index}])"""
-
-    @visitor.when(TrueLiteral)
-    def visit(self, node):
-        def_bool = f"""BoolObject* {node.name} = new_BoolObject("bool",1);"""
-        return def_bool, f"""{node.name}->value"""
-
-    @visitor.when(FalseLiteral)
-    def visit(self, node):
-        def_bool = f"""BoolObject* {node.name} = new_BoolObject("bool",0);"""
-        return def_bool, f"""{node.name}->value"""
+        def_call = def_index
+        def_call += f"""if ({node.id.name}->len < {ret_index}){{
+                printf("Index out of bounds: %d, length: %d\\n", {ret_index}, {node.id.name}->len);
+                exit(-1);
+                
+                }}"""
+        return def_call, f"""({node.id.name}->data[(int){ret_index}])"""
 
     @visitor.when(BinOp)
     def visit(self, node):
@@ -470,31 +512,47 @@ StringObject* new_StringObject(char* type, char* value) {
                 # Reemplazar los parámetros antiguos con los nuevos en el string original
                 right_ret = right_ret[:inicio+1] + \
                     nuevos_parametros + right_ret[fin:]
+            else:
+                raise TypeError(
+                    f"Error in bin op {left_ret}.{right_ret},not a FunctionCall")
             return "", f"""(({node.static_type}*){left_ret})->{right_ret}"""
 
-        if node.op == "as":
-            def_as=f"""{left_def}\n"""
-            return def_as, f"({right_ret}*){left_ret}"
         if node.op == "is":
-            def_is=f"""{left_def}\n"""
-            def_is+=f"""int {node.ret_point} = check_types({left_ret}->type,"{right_ret}");\n"""
+            def_is = f"""{node.static_type} bin_op_{node.instance_id}(){{\n"""
+            def_is += f"""{left_def}\n{right_def}\n"""
+            def_is += f"""int result=0;"""
+            list_of_desc = get_descendancy_set(node, node.static_type)
+            for desc in list_of_desc:
+                def_is += f"""if check_types({left_ret}->type,{desc}){{\n result = 1;\nreturn result;\n}}\n"""
+            def_is += f"""return result;"""
+            code += "\n}\n"
+            code += f"{node.static_type} {node.ret_point}->value = bin_op_{node.instance_id}();\n"
             return def_is, f"({node.ret_point})"
+
+        if node.op == "as":
+            def_as = f"""{left_def}\n"""
+            return def_as, f"({right_ret}*){left_ret}"
+
+        if node.op == "AD":
+            code = f"""{left_def}
+            {right_def}\n"""
+            code += f"{left_ret} = {right_ret};"
+            ret_code = f"""{left_ret}"""
+            return code, ret_code
 
         code = f"""{node.static_type} bin_op_{node.instance_id}(){{
         {left_def}
         {right_def}"""
         if node.op in ["+", "-", "*", "/", "%"]:
-            code += f"\nreturn (float)({left_ret} {node.op} {right_ret});\n"
+            code += f"\nreturn (float)({left_ret}->value {node.op} {right_ret}->value);\n"
         elif node.op in [">", "<", ">=", "<=", "==", "!="]:
             code += f"\nreturn (int)({left_ret} {node.op} {right_ret});\n"
         elif node.op in ["^", "**"]:
             code += f"\nreturn = (pow({left_ret}, {right_ret});\n"
-        elif node.op == "AD":
-            code += f"return {left_ret} = {right_ret};"
         else:
             raise TypeError(f"Unknown operator {node.op}")
         code += "\n}\n"
-        code += f"{node.static_type} {node.ret_point} = bin_op_{node.instance_id}();\n"
+        code += f"{node.static_type} {node.ret_point}->value = bin_op_{node.instance_id}();\n"
         return code, node.ret_point
     # region ignore_this
 
@@ -514,15 +572,25 @@ return -{child_ret};
         else:
             raise TypeError(f"Unknown unary operator {node.op}")
 
+    @visitor.when(TrueLiteral)
+    def visit(self, node):
+        def_bool = f"""BoolObject* {node.name} = new_BoolObject("bool",1);"""
+        return def_bool, f"""{node.name}"""
+
+    @visitor.when(FalseLiteral)
+    def visit(self, node):
+        def_bool = f"""BoolObject* {node.name} = new_BoolObject("bool",0);"""
+        return def_bool, f"""{node.name}"""
+
     @visitor.when(Num)
     def visit(self, node):
         def_num = f"""FloatObject* {node.name} = new_FloatObject("float",(float){str(node.value)});"""
-        return def_num, f"{node.name}->value"
+        return def_num, f"{node.name}"
 
     @visitor.when(StringLiteral)
     def visit(self, node):
         def_string = f"""StringObject* {node.name} = new_StringObject("string","{node.value}");"""
-        return def_string, f'"{node.name}->value"'
+        return def_string, f'"{node.name}"'
 
     @visitor.when(Pi)
     def visit(self, node):
@@ -538,11 +606,22 @@ return -{child_ret};
         node.static_type = "float"
         node.ret_point = "ret_point_print_" + str(node.instance_id)
         code = f"""{node.static_type} print_{node.instance_id}() {{
-{child_def}
-printf("%f\\n",{child_ret});
-return {child_ret};
-}}
-{node.static_type} {node.ret_point} = print_{node.instance_id}();
+{child_def}\n"""
+        if node.static_type == "bool":
+            code += f"""if ({child_ret}){{\n"""
+            code += f"""      printf(%s,"TRUE");\n}}\n"""
+            code += f"""else {{\n     printf(%s,"FALSE");\n}}\n"""
+
+        elif node.static_type == "string":
+            code += f"""printf(%s.{child_ret});\n"""
+        elif node.static_type == "number":
+            code += f"""printf(%f.{child_ret});\n"""
+        else:
+            code += f"""printf(%s\n,{child_ret}->type);\n"""
+
+        code += f"""return {child_ret};
+}}"""
+        code += f"""{node.static_type} {node.ret_point} = print_{node.instance_id}();
 """
         return code, node.ret_point
 
@@ -620,7 +699,7 @@ return log({child_ret_value})/log({child_ret_base});
 
 # endregion
 if __name__ == "__main__":
-    code="""
+    code = """
     type Point3D(x,y,z) inherits Point(x,y){
     z=z;
 
