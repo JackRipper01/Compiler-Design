@@ -109,9 +109,9 @@ typedef struct {
     char* type;
     char* string;
     int value;
-} BoolObject;
-BoolObject* new_BoolObject(int value) {
-    BoolObject* obj = (BoolObject*)malloc(sizeof(BoolObject));    
+} Boolean;
+Boolean* new_Boolean(int value) {
+    Boolean* obj = (Boolean*)malloc(sizeof(Boolean));    
     int string_len = strlen("bool");
     obj->type = (char*)malloc((string_len + 1) * sizeof(char));
     strcpy(obj->type, "bool");
@@ -141,9 +141,9 @@ Number* new_Number(float value) {
     
     obj->value = value;
     char buff[32];
-    gcvt(value,10,buff);
+    sprintf(buff, "%.7f", value);
     int value_len = strlen(buff);
-    obj->string = (char *)malloc((10) * sizeof(char));
+    obj->string = (char *)malloc((value_len + 1) * sizeof(char));
     strcpy(obj->string, buff);
     return obj;
 }
@@ -152,9 +152,9 @@ typedef struct {
     char* type;
     char* string;
     char* value;
-} StringObject;
-StringObject* new_StringObject(char* value) {
-    StringObject* obj = (StringObject*)malloc(sizeof(StringObject));    
+} String;
+String* new_String(char* value) {
+    String* obj = (String*)malloc(sizeof(String));    
     int string_len = strlen("string");
     obj->type = (char*)malloc((string_len + 1) * sizeof(char));
     strcpy(obj->type, "string");
@@ -190,18 +190,19 @@ typedef struct {
 
             f.write("int main() {\n\n")
             f.write(f"{main_def}\n\n")
-            f.write(f"return {main_ret};\n")
+            f.write(f"Object* result = (Object*){main_ret};\n")
+            f.write(f"""printf("%s\\n", result->string);\n""")
             f.write("return 0;\n")
             f.write("}\n")
 
     @visitor.when(FunctionDef)
     def visit(self, node):
-        node.static_type = "Number*"
+        node.static_type = "Number"
         node.ret_point = "ret_point_" + node.func_id.name
         list_params = []
         body_def, body_ret = self.visit(node.body)
         for param in node.params.param_list:
-            list_params.append(("Number*", param.name))
+            list_params.append((node.static_type+"*", param.name))
         params_c_code = ""
         for param_code in list_params:
             params_c_code += f"{param_code[0]} {param_code[1]},"
@@ -209,11 +210,11 @@ typedef struct {
         
         
         if node.func_id.name == "tan":
-            code = f"""{node.static_type} p_{node.func_id.name}({params_c_code}){{{body_def}
+            code = f"""{node.static_type}* p_{node.func_id.name}({params_c_code}){{{body_def}
             return {body_ret};
         }}"""
         else:
-            code = f"""{node.static_type} {node.func_id.name}({params_c_code}){{{body_def}
+            code = f"""{node.static_type}* {node.func_id.name}({params_c_code}){{{body_def}
             return {body_ret};
         }}"""
 
@@ -250,11 +251,9 @@ typedef struct {
 
     @visitor.when(ExpressionBlock)
     def visit(self, node):
-        node.static_type = "Number*"
-        node.ret_point = "ret_point_expression_block_" + str(
-            node.instance_id
-        )  # analizar lo del id pa q no haya lio
-        code = f"""{node.static_type} {node.name}() {{
+        node.static_type = "Number"
+        node.ret_point = "ret_point_expression_block_" + str(node.instance_id)  
+        code = f"""{node.static_type}* {node.name}() {{
         """
         for exp, i in zip(node.exp_list, range(len(node.exp_list))):
             body_def, body_ret = self.visit(exp)
@@ -262,28 +261,28 @@ typedef struct {
             if i == len(node.exp_list) - 1:
                 code += f"return {body_ret};\n"
         code += "}"
-        code += f"""{node.static_type} {node.ret_point} = expression_block_{node.instance_id}();"""
+        code += f"""{node.static_type}* {node.ret_point} = expression_block_{node.instance_id}();"""
         return code, node.ret_point
 
     @visitor.when(Let)
     def visit(self, node):
-        node.static_type = "Number*"
+        node.static_type = "Number"
         assign_def, assign_ret = self.visit(node.assign[0].value)
         var_name = node.assign[0].name.name
         var_type = node.assign[0].name.static_type
-        var_type = "Number*"  # temporal
+        var_type = "Number"  # temporal
         body_def, body_ret = self.visit(node.body)
         node.ret_point = "ret_point_let_" + str(
             node.instance_id
         )  # analizar instance id
 
-        c_code = f"""{node.static_type} let_{node.instance_id}(){{
+        c_code = f"""{node.static_type}* let_{node.instance_id}(){{
         {assign_def}
-        {var_type} {var_name} = {assign_ret};
+        {var_type}* {var_name} = {assign_ret};
         {body_def}
         return {body_ret};
         }}
-        {node.static_type} {node.ret_point} = let_{node.instance_id}();
+        {node.static_type}* {node.ret_point} = let_{node.instance_id}();
         """
         return c_code, node.ret_point
 
@@ -293,16 +292,16 @@ typedef struct {
 
     @visitor.when(If)
     def visit(self, node):
-        node.static_type = "BoolObject*"
+        node.static_type = "Boolean"
         node.ret_point = "ret_point_if_" + \
             str(node.instance_id)  # analizar id blabla
-        c_code = f"""{node.static_type} if_{node.instance_id}(){{"""
+        c_code = f"""{node.static_type}* if_{node.instance_id}(){{"""
         for case in node.case_list:
             def_case, ret_case = self.visit(case)
             c_code += f"{def_case}"
             c_code += "\n"
         c_code += "}\n"
-        c_code += f"{node.static_type} {node.ret_point} = if_{node.instance_id}();"
+        c_code += f"{node.static_type}* {node.ret_point} = if_{node.instance_id}();"
         return c_code, node.ret_point
 
     @visitor.when(Case)
@@ -319,14 +318,14 @@ typedef struct {
 
     @visitor.when(While)
     def visit(self, node):
-        node.static_type = "Number*"
+        node.static_type = "Number"
         node.ret_point = "ret_point_while_" + str(node.instance_id)
         def_condition, ret_condition = self.visit(node.condition)
         def_body, ret_body = self.visit(node.body)
-        c_code = f"""{node.static_type} while_{node.instance_id}(){{
+        c_code = f"""{node.static_type}* while_{node.instance_id}(){{
             while(1){{
             int while_body_executed = 0;
-            {node.static_type} {node.ret_point} = 0;"""
+            {node.static_type}* {node.ret_point} = 0;"""#  ================================= W   R   O   N   G
         c_code += f"{def_condition}"
         c_code += f"""
             if ((int){ret_condition}->value){{
@@ -342,7 +341,7 @@ typedef struct {
             }}"""
         c_code += "}\n}\n"
 
-        c_code += f"{node.static_type} {node.ret_point} = while_{node.instance_id}();"
+        c_code += f"{node.static_type}* {node.ret_point} = while_{node.instance_id}();"
         return c_code, node.ret_point
 
     @visitor.when(TypeDef)
@@ -353,7 +352,7 @@ typedef struct {
         parent_inherited = None
         own_plus_parent_functions = []
         # struct definition
-        WWWWTTTTFFFF = "Number*"
+        WWWWTTTTFFFF = "Number"
         c_code = f"""typedef struct {node.id.name}{{\n"""
 
         if node.inherits:
@@ -503,14 +502,14 @@ typedef struct {
 
     @visitor.when(BinOp)
     def visit(self, node):
-        node.static_type = "Number*"
+        node.static_type = "Number"
         left_def, left_ret = self.visit(node.left)
         right_def, right_ret = self.visit(node.right)
         node.ret_point = "ret_point_bin_op_" + str(node.instance_id)
 
         if node.op == ".":
             node.static_type = "Point"
-            node.right.static_type = "Number*"
+            node.right.static_type = "Number"
             if isinstance(node.right, FunctionCall):
                 inicio = right_ret.index("(")
                 fin = right_ret.index(")")
@@ -531,7 +530,7 @@ typedef struct {
             return "", f"""(({node.static_type}*){left_ret})->{right_ret}"""
 
         if node.op == "is":
-            def_is = f"""{node.static_type} bin_op_{node.instance_id}(){{\n"""
+            def_is = f"""{node.static_type}* bin_op_{node.instance_id}(){{\n"""
             def_is += f"""{left_def}\n{right_def}\n"""
             def_is += f"""int result=0;"""
             list_of_desc = get_descendancy_set(node, node.static_type)
@@ -539,7 +538,7 @@ typedef struct {
                 def_is += f"""if check_types({left_ret}->type,{desc}){{\n result = 1;\nreturn result;\n}}\n"""
             def_is += f"""return result;"""
             code += "\n}\n"
-            code += f"{node.static_type} {node.ret_point}->value = bin_op_{node.instance_id}();\n"
+            code += f"{node.static_type}* {node.ret_point}->value = bin_op_{node.instance_id}();\n"
             return def_is, f"({node.ret_point})"
 
         if node.op == "as":
@@ -553,35 +552,24 @@ typedef struct {
             ret_code = f"""{left_ret}"""
             return code, ret_code
 
-        if node.op in ["@", "@@"]:
-            node.static_type = "StringObject*"
-            constructor_name = node.static_type[:-1]
-       
-        type_bin_op=""
-        if node.op in ["+", "-", "*", "/", "%", "^", "**"]:
-            type_bin_op = "float"
-        elif node.op in [">", "<", ">=", "<=", "==", "!="]:
-            type_bin_op = "int"
-        else:
-            raise TypeError(f"Unknown operator {node.op}")
         
-        code = f"""{type_bin_op} bin_op_{node.instance_id}(){{
+        
+        code = f"""{node.static_type}* bin_op_{node.instance_id}(){{
         {left_def}
-        {right_def}"""
+        {right_def}\n"""
         if node.op in ["+", "-", "*", "/", "%"]:
-            code += f"\nreturn (float)({left_ret}->value {node.op} {right_ret}->value);\n"
+            code += f"return new_{node.static_type}(({left_ret}->value {node.op} {right_ret}->value));\n"
         elif node.op in [">", "<", ">=", "<=", "==", "!="]:
-            code += f"\nreturn (int)({left_ret}->value {node.op} {right_ret}->value);\n"
+            code += f"\nreturn new_{node.static_type}(({left_ret}->value {node.op} {right_ret}->value));\n"
         elif node.op in ["^", "**"]:
-            code += f"\nreturn pow({left_ret}->value, {right_ret}->value);\n"
+            code += f"\nreturn new_{node.static_type}(pow({left_ret}->value, {right_ret}->value));\n"
+        elif node.op in ["@", "@@"]:
+            code += f"""return new_{node.static_type}(concatenate_strings({left_ret}->string, {right_ret}->string));\n"""
         else:
             raise TypeError(f"Unknown operator {node.op}")
         code += "\n}\n"
         
-        # PPPPPPPPPPPPPPPP IIIIIIIIIIIIIIIIIIIIIII EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
-        node.static_type = "Number*"
-        constructor_name=node.static_type[:-1]
-        code += f"{node.static_type} {node.ret_point} = new_{constructor_name}(bin_op_{node.instance_id}());\n"
+        code += f"{node.static_type}* {node.ret_point} = bin_op_{node.instance_id}();\n"
         
         return code, node.ret_point
     # region ignore_this
@@ -592,11 +580,11 @@ typedef struct {
             node.static_type = "float"
             child_def, child_ret = self.visit(node.value)
             node.ret_point = "ret_point_unary_op_" + str(node.instance_id)
-            code = f"""{node.static_type} unary_op_{node.instance_id}() {{
+            code = f"""{node.static_type}* unary_op_{node.instance_id}() {{
 {child_def}
 return -{child_ret};
 }}
-{node.static_type} {node.ret_point} = unary_op_{node.instance_id}();
+{node.static_type}* {node.ret_point} = unary_op_{node.instance_id}();
 """
             return code, node.ret_point
         else:
@@ -604,12 +592,12 @@ return -{child_ret};
 
     @visitor.when(TrueLiteral)
     def visit(self, node):
-        def_bool = f"""BoolObject* {node.name} = new_BoolObject(1);"""
+        def_bool = f"""Boolean* {node.name} = new_Boolean(1);"""
         return def_bool, f"""{node.name}"""
 
     @visitor.when(FalseLiteral)
     def visit(self, node):
-        def_bool = f"""BoolObject* {node.name} = new_BoolObject(0);"""
+        def_bool = f"""Boolean* {node.name} = new_Boolean(0);"""
         return def_bool, f"""{node.name}"""
 
     @visitor.when(Num)
@@ -619,8 +607,8 @@ return -{child_ret};
 
     @visitor.when(StringLiteral)
     def visit(self, node):
-        def_string = f"""StringObject* {node.name} = new_StringObject("{node.value}");"""
-        return def_string, f'"{node.name}"'
+        def_string = f"""String* {node.name} = new_String("{node.value}");"""
+        return def_string, f"{node.name}"
 
     @visitor.when(Pi)
     def visit(self, node):
@@ -635,97 +623,59 @@ return -{child_ret};
     @visitor.when(Print)
     def visit(self, node):
         child_def, child_ret = self.visit(node.value)
-        node.static_type = "Number*"
+        node.static_type = "Object"##################################?????????????????????????
         node.ret_point = "ret_point_print_" + str(node.instance_id)
-        code = f"""{node.static_type} print_{node.instance_id}() {{
+        code = f"""{node.static_type}* print_{node.instance_id}() {{
 {child_def}\n"""
-        # if node.static_type == "bool":
-        #     code += f"""if ({child_ret}){{\n"""
-        #     code += f"""      printf(%s,"TRUE");\n}}\n"""
-        #     code += f"""else {{\n     printf(%s,"FALSE");\n}}\n"""
-
-        # elif node.static_type == "string":
-        #     code += f"""printf("%s",{child_ret});\n"""
-        # elif node.static_type == "Number*":
-        #     code += f"""printf("%f",{child_ret}->value);\n"""
-        # else:
         code += f"""printf("%s\\n",{child_ret}->string);\n"""
 
         code += f"""return {child_ret};
 }}"""
-        code += f"""{node.static_type} {node.ret_point} = print_{node.instance_id}();
+        code += f"""{node.static_type}* {node.ret_point} = print_{node.instance_id}();
 """
         return code, node.ret_point
 
     @visitor.when(Sqrt)
     def visit(self, node):
         child_def, child_ret = self.visit(node.value)
-        node.static_type = "float"
+        node.static_type = "Number"############################################################
         node.ret_point = "ret_point_sqrt_" + str(node.instance_id)
-#         code = f"""{node.static_type} sqrt_{node.instance_id}() {{
-# {child_def}
-# return sqrt({child_ret});
-# }}
-# {node.static_type} {node.ret_point} = sqrt_{node.instance_id}();
-# """
-        code = f"""{child_def}\n{node.static_type} {node.ret_point}->value = sqrt({child_ret}->value);"""
+
+        code = f"""{child_def}\n{node.static_type}* {node.ret_point} = new_Number(sqrt({child_ret}->value));"""
         return code, node.ret_point
 
     @visitor.when(Sin)
     def visit(self, node):
         child_def, child_ret = self.visit(node.value)
-        node.static_type = "Number*"
+        node.static_type = "Number"###############################################
         node.ret_point = "ret_point_sin_" + str(node.instance_id)
-#         code = f"""{node.static_type} sin_{node.instance_id}() {{
-# {child_def}
-# return sin({child_ret});
-# }}
-# {node.static_type} {node.ret_point} = sin_{node.instance_id}();
-# """   
-        code = f"""{child_def}\n{node.static_type} {node.ret_point} = new_Number(sin({child_ret}->value));"""
-        # code = f"""{child_def}\n{node.static_type} {node.ret_point}->value = sin({child_ret}->value);"""
+        code = f"""{child_def}\n{node.static_type}* {node.ret_point} = new_Number(sin({child_ret}->value));"""
         return code, node.ret_point
 
     @visitor.when(Cos)
     def visit(self, node):
         child_def, child_ret = self.visit(node.value)
-        node.static_type = "Number*"
+        node.static_type = "Number"##############################################
         node.ret_point = "ret_point_cos_" + str(node.instance_id)
-#         code = f"""{node.static_type} cos_{node.instance_id}() {{
-# {child_def}
-# return cos({child_ret});
-# }}
-# {node.static_type} {node.ret_point} = cos_{node.instance_id}();
-# """   
-        code = f"""{child_def}\n{node.static_type} {node.ret_point} = new_Number(cos({child_ret}->value));"""
+        code = f"""{child_def}\n{node.static_type}* {node.ret_point} = new_Number(cos({child_ret}->value));"""
         return code, node.ret_point
 
     @visitor.when(Exp)
     def visit(self, node):
         child_def, child_ret = self.visit(node.value)
-        node.static_type = "float"
+        node.static_type = "Number"###############################################
         node.ret_point = "ret_point_exp_" + str(node.instance_id)
-        code = f"""{node.static_type} exp_{node.instance_id}() {{
-{child_def}
-return exp({child_ret});
-}}
-{node.static_type} {node.ret_point} = exp_{node.instance_id}();
-"""
+        code = f"""{child_def}\n{node.static_type}* {node.ret_point} = new_Number(exp({child_ret}->value));"""
         return code, node.ret_point
 
     @visitor.when(Log)
     def visit(self, node):
         child_def_base, child_ret_base = self.visit(node.base)
         child_def_value, child_ret_value = self.visit(node.value)
-        node.static_type = "float"
+        node.static_type = "Number"##############################################3
         node.ret_point = "ret_point_log_" + str(node.instance_id)
-        code = f"""{node.static_type} log_{node.instance_id}() {{
-{child_def_base}
-{child_def_value}
-return log({child_ret_value})/log({child_ret_base});
-}}
-{node.static_type} {node.ret_point} = log_{node.instance_id}();
-"""
+        code = f"""{child_def_base}\n{child_def_value}\n{node.static_type}* {node.ret_point} = new_Number(log({child_ret_value}->value)/log({child_ret_base}->value));"""
+
         return code, node.ret_point
 
     @visitor.when(Rand)
@@ -735,14 +685,7 @@ return log({child_ret_value})/log({child_ret_base});
 
 # endregion
 if __name__ == "__main__":
-    code = """
-
-function sum(x,y) => x + y; 
-function concat(x,y) => x@y@" Candelozki";
-let a=4 in a+4+5+6;
-
-
-"""
+    code = """print(sin(2 * PI) ^ 2 + cos(3 * PI / log(4, 64)));"""
     import hulk_semantic_check
     ast, error_list, b = hulk_parse(code)
     print(code)
@@ -751,6 +694,9 @@ let a=4 in a+4+5+6;
     hulk_semantic_check.semantic_check(ast)
     CodeGen().visit(ast)
 # let x = true in print(x@" Candelozki");
+# function concat(x, y) = > x@y@" Candelozki"
+# let a = true in print(concat(a, "PINGA"))
+
 # type Point3D(x, y, z) inherits Point(x, y){
 #     z = z
 
