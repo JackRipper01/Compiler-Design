@@ -15,6 +15,7 @@ class Node:
         self.protocol_hierarchy :dict = protocol_hierarchy
         self.static_type : str = "Object"
         self.ret_point :str = "ret_point"
+        self.tk = None
 
 
 class Program(Node):

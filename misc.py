@@ -33,7 +33,10 @@ class ColumnFinder:
     def __init__(self) -> None:
         self.code = ""
     def add_line_column(self, token):
-        return f" at line {token.lineno}, column {find_column(self.code, token)}"
+        try:
+            return f" at line {token.lineno}, column {find_column(self.code, token)}"
+        except:
+            return ""
 
 def refact_ast(nodes_dict : dict):
     "esto convierte el for en el while equivalente y los let en los let con una sola asignacion concatenados equivalentes"
@@ -162,7 +165,11 @@ def get_descendancy_set(ast_node, name, descendancy):
 #             return False
         
 def conforms(ast_node, A, B):
-    return A in get_descendancy_set(ast_node, B, set())
+    try:
+        return A in get_descendancy_set(ast_node, B, set())
+    except:
+        print(A,"or",B, "its a protocol, do it again")
+        return False # by now
         
         
 def LCA_BI(i_dict:dict, A, B):

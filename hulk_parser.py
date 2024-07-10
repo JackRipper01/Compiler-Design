@@ -1067,6 +1067,8 @@ def p_while_hl(p):
     p[0] = While(p[2], p[3])
     p[2].parent = p[0]
     p[3].parent = p[0]
+    p[0].tk = p[1]
+    print(p[0].tk)
 
 
 def p_while(p):
@@ -1081,6 +1083,8 @@ def p_while(p):
     p[0] = While(p[2], p[3])
     p[2].parent = p[0]
     p[3].parent = p[0]
+    p[0].tk = p[1]
+    
 
 
 def p_expression_group(p):

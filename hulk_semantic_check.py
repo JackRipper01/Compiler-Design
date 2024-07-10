@@ -12,9 +12,11 @@ from misc import (
     get_descendancy_set,
     method_name_getter,
     assign_name_getter,
-    typeof
+    typeof,
+    create_Hierarchy_graph
 )
 import io
+
 # endregion
 
 import visitor
@@ -157,6 +159,15 @@ class ScopeBuilder:
             method: FunctionDef
             method.variable_scope = node.variable_scope.copy()
             method.variable_scope["self"] = node
+            if node.inherits:
+                method_name = method_name_getter(method, True)
+                if (
+                    method_name
+                    in node.global_definitions[node.inherits.id.name].variable_scope
+                ):
+                    method.variable_scope["base/0"] = node.global_definitions[
+                        node.inherits.id.name
+                    ].variable_scope[method_name]
             self.visit(method)
         self.on_function = False
 
@@ -320,13 +331,29 @@ class ScopeBuilder:
     @visitor.when(FunctionCall)
     def visit(self, node: FunctionCall):
         fn_name = node.func_id.name + "/" + str(len(node.params.param_list))
-        if fn_name not in node.global_definitions:
-            self.errors.append(
-                "Function "
-                + fn_name
-                + " not defined"
-                + cf.add_line_column(node.func_id.name)
-            )
+        if self.on_type and self.on_function:
+            if (
+                fn_name not in node.variable_scope
+                and fn_name not in node.global_definitions
+            ):
+                self.errors.append(
+                    "Function "
+                    + fn_name
+                    + " not defined"
+                    + cf.add_line_column(node.func_id.name)
+                )
+        else:
+            if fn_name not in node.global_definitions:
+                if (
+                    fn_name not in node.variable_scope
+                    and fn_name not in node.global_definitions
+                ):
+                    self.errors.append(
+                        "Function "
+                        + fn_name
+                        + " not defined"
+                        + cf.add_line_column(node.func_id.name)
+                    )
         node.params.variable_scope = node.variable_scope
         self.visit(node.params)
 
@@ -368,7 +395,6 @@ class ScopeBuilder:
         for case_item in node.case_list:
             case_item.variable_scope = node.variable_scope
             self.visit(case_item)
-            
 
     @visitor.when(While)
     def visit(self, node: While):
@@ -551,7 +577,7 @@ class ScopeBuilder:
             )
 
     def check_annotation(self, var: ID):
-        
+
         if (
             var.annotated_type != ""
             and var.annotated_type not in var.global_definitions
@@ -614,41 +640,56 @@ class TypeInfChk:
     def visit(self, node: Program):
         for function in node.functions:
             function: FunctionDef
-            function.static_type = function.func_id.annotated_type if function.func_id.annotated_type != "" else "Object"
-            
+            function.static_type = (
+                function.func_id.annotated_type
+                if function.func_id.annotated_type != ""
+                else "Object"
+            )
+
         for function in node.functions:
             function: FunctionDef
             self.visit(function)
-        
+
         self.visit(node.global_exp)
         node.static_type = node.global_exp.static_type
 
     @visitor.when(FunctionCall)
-    def visit(self, node: FunctionCall): 
+    def visit(self, node: FunctionCall):
         name = method_name_getter(node, False)
         if name in node.global_definitions:
             node.static_type = node.global_definitions[name].static_type
-            for e_param, r_param in zip(node.global_definitions[name].params.param_list , node.params.param_list):
+            for e_param, r_param in zip(
+                node.global_definitions[name].params.param_list, node.params.param_list
+            ):
                 expect = e_param.static_type
                 self.visit(r_param)
                 if not conforms(node, r_param.static_type, expect):
-                    self.errors.append(f"Function '{node.func_id.name}' param '{e_param.name}' expected '{expect}', but received '{r_param.static_type}'"+cf.add_line_column(node.func_id.name))
-                    
+                    self.errors.append(
+                        f"Function '{node.func_id.name}' param '{e_param.name}' expected '{expect}', but received '{r_param.static_type}'"
+                        + cf.add_line_column(node.func_id.name)
+                    )
+
         else:
-            self.errors.append(f"Function '{name}' doesnt exist"+cf.add_line_column(node.func_id.name))
-    
+            self.errors.append(
+                f"Function '{name}' doesnt exist"
+                + cf.add_line_column(node.func_id.name)
+            )
+
     @visitor.when(FunctionDef)
     def visit(self, node: FunctionDef):
         for param in node.params.param_list:
             param: ID
-            param.static_type = param.annotated_type if param.annotated_type != "" else "Object"
-            
+            param.static_type = (
+                param.annotated_type if param.annotated_type != "" else "Object"
+            )
+
         expect = node.static_type
         self.visit(node.body)
         if not conforms(node, node.body.static_type, expect):
-            self.errors.append(f"Function '{node.func_id.name}' expect return type '{expect}', but its body returns {node.body.static_type}"+cf.add_line_column(node.func_id.name))
-        
-
+            self.errors.append(
+                f"Function '{node.func_id.name}' expect return type '{expect}', but its body returns {node.body.static_type}"
+                + cf.add_line_column(node.func_id.name)
+            )
 
     @visitor.when(Let)
     def visit(self, node: Let):
@@ -670,16 +711,17 @@ class TypeInfChk:
             self.visit(case)
             case_types.append(case.static_type)
         node.static_type = LCA(node, *case_types)
-        
+
     @visitor.when(While)
     def visit(self, node: While):
-        case_types = []
-        for case in node.case_list:
-            case: Case
-            self.visit(case)
-            case_types.append(case.static_type)
-        node.static_type = LCA(node, *case_types)
+        condition_expect = "Boolean"
+        self.visit(node.condition)
+        if not conforms(node, node.condition.static_type, condition_expect):
+            self.errors.append(f"Condition of while returned {node.condition.static_type} while expecting {condition_expect}"+cf.add_line_column(node.tk))
 
+        self.visit(node.body)
+        node.static_type = node.body.static_type
+        
     @visitor.when(Case)
     def visit(self, node: Case):
         condition_expect = "Boolean"
@@ -698,6 +740,7 @@ class TypeInfChk:
         self.visit(node.value)
         if expect:
             node.name.static_type = expect
+            node.static_type = expect
             if not conforms(node, node.value.static_type, expect):
                 self.errors.append(
                     f"'{node.value.static_type}' not conforms to '{expect}'"
@@ -705,6 +748,7 @@ class TypeInfChk:
                 )
         else:
             node.name.static_type = node.value.static_type
+            node.static_type = node.value.static_type
 
     @visitor.when(Num)
     def visit(self, node: Num):
@@ -818,7 +862,7 @@ class TypeInfChk:
         for item in node.items.param_list:
             self.visit(item)
             typs.append(item.static_type)
-            
+
         # [[[1]],[[2]],[[4]]]
         static_type_internal = LCA(node, *typs)
         node.static_type = StringToken("Vector")
@@ -862,7 +906,7 @@ class TypeInfChk:
                 )
 
             node.static_type = expect_return
-            
+
         elif node.op in ["as", "is"]:
             self.visit(node.left)
             expect = node.right.name
@@ -876,24 +920,27 @@ class TypeInfChk:
             if node.op == "is":
                 expect = "Boolean"
             node.static_type = expect
-            
+
         elif node.op == "AD":
             self.visit(node.left)
             expect = node.left.static_type
             self.visit(node.right)
             if not conforms(node, node.right.static_type, expect):
                 self.errors.append(
-                    f"Cannot ':=' '{node.right.static_type}' to item with type '{expect}'"+cf.add_line_column(node.op)
+                    f"Cannot ':=' '{node.right.static_type}' to item with type '{expect}'"
+                    + cf.add_line_column(node.op)
                 )
             node.static_type = expect
-        
+
         elif node.op == ".":
             self.visit(node.left)
             context_from = node.left.static_type
-            if context_from in set(node.global_definitions).difference(set(["Vector", "Number", "Boolean", "String", "Object"])):
+            if context_from in set(node.global_definitions).difference(
+                set(["Vector", "Number", "Boolean", "String", "Object"])
+            ):
                 context = node.global_definitions[context_from].variable_scope.copy()
                 if type(node.right) is ID:
-                    name = node.right.name+"/private"
+                    name = node.right.name + "/private"
                     token = name
                 else:
                     name = method_name_getter(node.right, True)
@@ -901,19 +948,30 @@ class TypeInfChk:
                 if name in context:
                     node.static_type = context[name].static_type
                     if type(node.right) is FunctionCall:
-                        function : FunctionDef = context[name]
-                        for e_param, r_param in zip(function.params.param_list, node.right.params.param_list):
+                        function: FunctionDef = context[name]
+                        for e_param, r_param in zip(
+                            function.params.param_list, node.right.params.param_list
+                        ):
                             expect = e_param.static_type
                             self.visit(r_param)
                             if not conforms(node, r_param.static_type, expect):
-                                self.errors.append(f"Function '{node.right.func_id.name}' param '{e_param.name}' expected '{expect}', but received '{r_param.static_type}'"+cf.add_line_column(node.right.func_id.name))
-                            
+                                self.errors.append(
+                                    f"Function '{node.right.func_id.name}' param '{e_param.name}' expected '{expect}', but received '{r_param.static_type}'"
+                                    + cf.add_line_column(node.right.func_id.name)
+                                )
+
                 else:
-                    self.errors.append(f"Type {context_from} has no member {name}"+cf.add_line_column(token))
+                    self.errors.append(
+                        f"Type {context_from} has no member {name}"
+                        + cf.add_line_column(token)
+                    )
             else:
-                self.errors.append(f"Cannot obtain members from type '{context_from}'"+cf.add_line_column(node.op))
-                
-            
+                self.errors.append(
+                    f"Cannot obtain members from type '{context_from}'"
+                    + cf.add_line_column(node.op)
+                )
+
+
 def semantic_check(ast: Program, column_finder):
     cf = column_finder
     errors = []
@@ -925,42 +983,41 @@ def semantic_check(ast: Program, column_finder):
         type_chk.sb = scope_visitor
         type_chk.visit(ast)
         errors.extend(type_chk.errors)
-        
+
     # your code here
     return ast, errors
 
 
-
 if __name__ == "__main__":
-#     ast, parsingErrors, _b = hulk_parse(
-# r"""
-# type Animal(){
-# x = {{{{{2;}}}}};
-# x(a: Object,b,c) => print(self.y);
+    #     ast, parsingErrors, _b = hulk_parse(
+    # r"""
+    # type Animal(){
+    # x = {{{{{2;}}}}};
+    # x(a: Object,b,c) => print(self.y);
 
-# };
-# type Felino(x) inherits Animal(){}
-# type Gato(x) inherits Felino(x) {}
-# type Canino(x) inherits Animal{
-#     asd(y,x) => print(self.y + self.a(1));
-# }
+    # };
+    # type Felino(x) inherits Animal(){}
+    # type Gato(x) inherits Felino(x) {}
+    # type Canino(x) inherits Animal{
+    #     asd(y,x) => print(self.y + self.a(1));
+    # }
 
-# type Lobo inherits Canino{}
-# type Perro inherits Lobo {}
-# function asd(a: Animal,b,c) => print(b);
-# let a  = new Animal() in {
-# print(a);
-# 2;
-# asd(1,2,3);
+    # type Lobo inherits Canino{}
+    # type Perro inherits Lobo {}
+    # function asd(a: Animal,b,c) => print(b);
+    # let a  = new Animal() in {
+    # print(a);
+    # 2;
+    # asd(1,2,3);
 
-# }
-# """,
-#         cf,
-#         create_graph=True,
-#     )
+    # }
+    # """,
+    #         cf,
+    #         create_graph=True,
+    #     )
 
-    ast, parsingErrors, _b = hulk_parse(io.open("input/custom_test.hulk").read(), cf)
-    
+    ast, parsingErrors, _b = hulk_parse(io.open("input/custom_test.hulk").read(), cf, True)
+
     print(
         "LEXER FOUND THE FOLLOWING ERRORS:" if len(lexerErrors) > 0 else "LEXING OK!",
         *lexerErrors,
@@ -987,5 +1044,5 @@ if __name__ == "__main__":
             *semantic_check_errors,
             sep="\n - ",
         )
+        create_Hierarchy_graph(ast.hierarchy_tree, "ht")
         print("\nGlobal Expression returned:", typeof(ast.global_exp))
-        
