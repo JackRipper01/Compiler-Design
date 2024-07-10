@@ -1,6 +1,7 @@
 from ast import List
+import imp
 from hulk_semantic_check import HierarchyNode, ScopeBuilder
-from misc import create_AST_graph, get_descendancy_set
+from misc import create_AST_graph, get_descendancy_set, typeof
 import visitor
 import misc
 from hulk_parser import hulk_parse
@@ -321,22 +322,33 @@ typedef struct {
         node.ret_point = "ret_point_while_" + str(node.instance_id)
         def_condition, ret_condition = self.visit(node.condition)
         def_body, ret_body = self.visit(node.body)
+        
         c_code = f"""{node.static_type}* while_{node.instance_id}(){{
             while(1){{
             int while_body_executed = 0;
-            {node.static_type}* {node.ret_point} = 0;"""#  ================================= W   R   O   N   G
+            {node.static_type}* {node.ret_point} = ({node.static_type}*)malloc(sizeof({node.static_type})));"""
         c_code += f"{def_condition}"
         c_code += f"""
             if ((int){ret_condition}->value){{
             while_body_executed = 1;
             {def_body}
+            {node.static_type}* temporal = {node.ret_point};
             {node.ret_point} = {ret_body};
+            free(temporal);
             }}
             else{{
                 if (while_body_executed == 1)
                     return {node.ret_point};
                 else
-                break;//que carajo retorno
+                {{
+                    if(strcmp("{node.static_type}","Object")==0)
+                        {{Object* obj = new_Object();
+                        strcpy(obj->string, "None");
+                        return obj; }}
+                        
+                    printf("While body not executed,None type does not match {node.static_type} type\\n");
+                    exit(-1);
+                }}
             }}"""
         c_code += "}\n}\n"
 
@@ -684,13 +696,19 @@ return -{child_ret};
 
 # endregion
 if __name__ == "__main__":
-    code = """print(sin(2 * PI) ^ 2 + cos(3 * PI / log(4, 64)));"""
-    import hulk_semantic_check
-    ast, error_list, b = hulk_parse(code)
+    code = """let a = 42, mod = a % 3 in
+    print(
+        if (mod == 0) "Magic"
+        elif (mod % 3 == 1) "Woke"
+        else "Dumb"
+    );"""
+    from hulk_semantic_check import semantic_check
+    from hulk_lexer import errorList as lexerErrors
+    ast, parsingErrors, _b = hulk_parse(
+        code, cf)
     print(code)
-    print(error_list)
+    print(parsingErrors)
     create_AST_graph(nodes, "AST")
-    hulk_semantic_check.semantic_check(ast)
     CodeGen().visit(ast)
 # let x = true in print(x@" Candelozki");
 # function concat(x, y) = > x@y@" Candelozki"
@@ -725,3 +743,31 @@ if __name__ == "__main__":
 #     setA(a) = > self.a := a
 #     setB(b) = > self.b := b
 # }
+print(
+    "LEXER FOUND THE FOLLOWING ERRORS:" if len(
+        lexerErrors) > 0 else "LEXING OK!",
+    *lexerErrors,
+    sep="\n - ",
+)
+print(
+    (
+        "PARSER FOUND THE FOLLOWING ERRORS:"
+        if len(parsingErrors) > 0
+        else "PARSING OK!!"
+    ),
+    *parsingErrors,
+    sep="\n - ",
+)
+if ast:
+    ast, semantic_check_errors = semantic_check(ast)
+
+    print(
+        (
+            "SEMANTIC CHECK FOUND THE FOLLOWING ERRORS:"
+            if len(semantic_check_errors) > 0
+            else "SEMANTIC CHECK OK!!!"
+        ),
+        *semantic_check_errors,
+        sep="\n - ",
+    )
+    print("\nGlobal Expression returned:", typeof(ast.global_exp))
