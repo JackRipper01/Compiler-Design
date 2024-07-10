@@ -174,9 +174,9 @@ typedef struct {
                 for function in node.functions:
                     f.write(f"{self.visit(function)[0]}\n\n")
             if node.types:
-                #ordenando node.types segun la herencia
-                list_of_descendients=misc.get_descendancy(node,"Object",[])
-                node_types_reorder=[]
+                # ordenando node.types segun la herencia
+                list_of_descendients = misc.get_descendancy(node, "Object", [])
+                node_types_reorder = []
                 for i in range(len(node.types)):
                     node_types_reorder.append(
                         (node.types[i], list_of_descendients.index(node.types[i].id.name)))
@@ -206,8 +206,7 @@ typedef struct {
         for param_code in list_params:
             params_c_code += f"{param_code[0]} {param_code[1]},"
         params_c_code = params_c_code[:-1]
-        
-        
+
         if node.func_id.name == "tan":
             code = f"""{node.static_type}* p_{node.func_id.name}({params_c_code}){{{body_def}
             return {body_ret};
@@ -242,16 +241,16 @@ typedef struct {
             params_ret_c_code += param_ret_code[1] + ","
 
         params_ret_c_code = params_ret_c_code[:-1]
-        
+
         if node.func_id.name == "tan":
             return f"{params_def_code}", f"""p_{node.func_id.name}({params_ret_c_code})"""
-        
+
         return f"{params_def_code}", f"""{node.func_id.name}({params_ret_c_code})"""
 
     @visitor.when(ExpressionBlock)
     def visit(self, node):
         node.static_type = "Number"
-        node.ret_point = "ret_point_expression_block_" + str(node.instance_id)  
+        node.ret_point = "ret_point_expression_block_" + str(node.instance_id)
         code = f"""{node.static_type}* {node.name}() {{
         """
         for exp, i in zip(node.exp_list, range(len(node.exp_list))):
@@ -321,7 +320,7 @@ typedef struct {
         node.ret_point = "ret_point_while_" + str(node.instance_id)
         def_condition, ret_condition = self.visit(node.condition)
         def_body, ret_body = self.visit(node.body)
-        
+
         c_code = f"""{node.static_type}* while_{node.instance_id}(){{
             while(1){{
             int while_body_executed = 0;
@@ -562,8 +561,6 @@ typedef struct {
             ret_code = f"""{left_ret}"""
             return code, ret_code
 
-        
-        
         code = f"""{node.static_type}* bin_op_{node.instance_id}(){{
         {left_def}
         {right_def}\n"""
@@ -578,9 +575,9 @@ typedef struct {
         else:
             raise TypeError(f"Unknown operator {node.op}")
         code += "\n}\n"
-        
+
         code += f"{node.static_type}* {node.ret_point} = bin_op_{node.instance_id}();\n"
-        
+
         return code, node.ret_point
     # region ignore_this
 
@@ -633,7 +630,7 @@ return -{child_ret};
     @visitor.when(Print)
     def visit(self, node):
         child_def, child_ret = self.visit(node.value)
-        node.static_type = "Object"##################################?????????????????????????
+        node.static_type = "Object"  # ?????????????????????????
         node.ret_point = "ret_point_print_" + str(node.instance_id)
         code = f"""{node.static_type}* print_{node.instance_id}() {{
 {child_def}\n"""
@@ -648,7 +645,7 @@ return -{child_ret};
     @visitor.when(Sqrt)
     def visit(self, node):
         child_def, child_ret = self.visit(node.value)
-        node.static_type = "Number"############################################################
+        node.static_type = "Number"
         node.ret_point = "ret_point_sqrt_" + str(node.instance_id)
 
         code = f"""{child_def}\n{node.static_type}* {node.ret_point} = new_Number(sqrt({child_ret}->value));"""
@@ -657,7 +654,7 @@ return -{child_ret};
     @visitor.when(Sin)
     def visit(self, node):
         child_def, child_ret = self.visit(node.value)
-        node.static_type = "Number"###############################################
+        node.static_type = "Number"
         node.ret_point = "ret_point_sin_" + str(node.instance_id)
         code = f"""{child_def}\n{node.static_type}* {node.ret_point} = new_Number(sin({child_ret}->value));"""
         return code, node.ret_point
@@ -665,7 +662,7 @@ return -{child_ret};
     @visitor.when(Cos)
     def visit(self, node):
         child_def, child_ret = self.visit(node.value)
-        node.static_type = "Number"##############################################
+        node.static_type = "Number"
         node.ret_point = "ret_point_cos_" + str(node.instance_id)
         code = f"""{child_def}\n{node.static_type}* {node.ret_point} = new_Number(cos({child_ret}->value));"""
         return code, node.ret_point
@@ -673,7 +670,7 @@ return -{child_ret};
     @visitor.when(Exp)
     def visit(self, node):
         child_def, child_ret = self.visit(node.value)
-        node.static_type = "Number"###############################################
+        node.static_type = "Number"
         node.ret_point = "ret_point_exp_" + str(node.instance_id)
         code = f"""{child_def}\n{node.static_type}* {node.ret_point} = new_Number(exp({child_ret}->value));"""
         return code, node.ret_point
@@ -682,7 +679,7 @@ return -{child_ret};
     def visit(self, node):
         child_def_base, child_ret_base = self.visit(node.base)
         child_def_value, child_ret_value = self.visit(node.value)
-        node.static_type = "Number"##############################################3
+        node.static_type = "Number"  # 3
         node.ret_point = "ret_point_log_" + str(node.instance_id)
         code = f"""{child_def_base}\n{child_def_value}\n{node.static_type}* {node.ret_point} = new_Number(log({child_ret_value}->value)/log({child_ret_base}->value));"""
 
