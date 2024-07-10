@@ -2,14 +2,16 @@
 # region Type Checking
 # from hulk_semantic_check import ScopeBuilder
 from hulk_ast import *
+from hulk_semantic_check import *
 
 class Type_Check():
     
     # def __innit__(self,ast:Program):
     #     self.context= ScopeBuilder.get_global_definitions(ast)
+    #     print(self.context)
         
     @classmethod
-    def check_type(cls,node: Node, infered_type=[],test_mode=True):
+    def check_type(cls,node: Node, infered_type=[],vars={},test_mode=True):
         # print(type(node))
         t=''
         if isinstance(node, Program):
@@ -86,7 +88,7 @@ class Type_Check():
     def if_check_type(node: If, infered_type=[]):
         pass
         
-    # Not understand ExpressionBlock class
+        
     def expression_block_check_type(node: ExpressionBlock,infered_type=[]):
         exp_list= node.exp_list
         for i in range(len(exp_list)):
@@ -100,14 +102,15 @@ class Type_Check():
         # func_id = node.func_id
         # params=node.params
         input_params= Type_Check.check_type(node.params)
-        funct_def= node.global_definitions[f'{node.func_id.name}/{len(node.params)}']
+        funct_type= Type_Check.check_type(node.func_id)
+        # body_type= Type_Check.check_type(node.)
         pass
 
     def params_check_type(node: Params,infered_type=[]):
-        static_type= []
+        static_type= {}
         for e in node.param_list: 
-            static_type.append(Type_Check.check_type(e))
-        return Type_Check.check_and_ret(node,static_type,[])
+            static_type[e.name]=(Type_Check.check_type(e))
+        return static_type
 
     # Clase para citar variables declaradas?
     # Si existe ver forma de usarla, si no crear una variable contexto para el chequeo de tipos
@@ -116,7 +119,7 @@ class Type_Check():
         params_type= Type_Check.check_type(node.params)
         infers=[]
         if id_type: infers=[id_type]
-        static_type= Type_Check.check_type(node.body, infers)
+        static_type= Type_Check.check_type(node.body, infers, vars=params_type)
         return Type_Check.check_and_ret(node,static_type,infers)
 
     def true_check_type(node: TrueLiteral,infered_type=[]):
@@ -199,8 +202,27 @@ class Type_Check():
         node.name.annotated_type = type
         return type
 
-    def id_check_type(node:ID,infered_types=[]):
-        return node.annotated_type
+    def id_check_type(node:ID,infered_types=[],vars={}):
+        # make id get the type from the inference
+        if not node.annotated_type:
+            if node.name in vars.keys() and len(infered_types)==0:
+                if len(vars[node.name])==1:
+                    return Type_Check.check_and_ret(node,vars[node.name][0])
+            if node.name in vars.keys() and len(infered_types)!=0:
+                removal=[]
+                for var in vars[node.name]:
+                    if not var in infered_types:
+                        removal.append(var)
+                for e in removal:
+                    vars[node.name].remove(e)
+                if len(vars[node.name]) == 0:
+                    raise Exception('El tipo de la variable no pudo ser resuelto.')
+            if not node.name in vars.keys() and len(infered_types)==0:
+                pass
+            if not node.name in vars.keys() and len(infered_types)!=0:
+                pass
+        else:
+            return node.annotated_type
 
     def number_check_type(node: Num,infered_types=[]):
         node.static_type= 'number'
@@ -222,7 +244,7 @@ class Type_Check():
             if not asserted:
                 raise Exception(f'The Type of the object cannot be of type: {type_val}')
     
-    def check_and_ret(node,static_type,infers):
+    def check_and_ret(node,static_type,infers=[]):
         Type_Check.check_inference(static_type, infers)
         node.static_type= static_type
         return static_type

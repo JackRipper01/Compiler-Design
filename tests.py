@@ -67,6 +67,7 @@ def run_single_test(index):
     # for e in nodes.keys():
     #     print(f'{e}: {nodes[e]}')
     # print(nodes[''])
+    # t= Type_Check(nodes[''])
     Type_Check.check_type(nodes[''],test_mode=True)
 
 run_single_test(8)

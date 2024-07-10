@@ -1,7 +1,7 @@
 # region temp import 
 from hulk_lexer import errorList as lexerErrors
 from hulk_parser import hulk_parse
-from misc import set_depth, LCA, create_Hierarchy_graph, trasspass_params_to_children
+from misc import trasspass_params_to_children
 # endregion
 
 import visitor
@@ -259,9 +259,9 @@ class ScopeBuilder:
                 hierarchy_tree[current_type].parent = "Object"
                 hierarchy_tree["Object"].children.append(current_type)
         # print(*[str(x)+str(hierarchy_tree[x].children) for x in hierarchy_tree], sep="\n")
-        err = set_depth(hierarchy_tree, "Object", set())
-        if err:
-            self.errors.append(err)
+        # err = set_depth(hierarchy_tree, "Object", set())
+        # if err:
+        #     self.errors.append(err)
         return hierarchy_tree
 
         
