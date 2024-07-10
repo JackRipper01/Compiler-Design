@@ -1,7 +1,6 @@
 from ast import List
-import imp
 from hulk_semantic_check import HierarchyNode, ScopeBuilder
-from misc import create_AST_graph, get_descendancy_set, typeof
+from misc import create_AST_graph, get_descendancy_set, typeof, ColumnFinder
 import visitor
 import misc
 from hulk_parser import hulk_parse
@@ -42,7 +41,7 @@ from hulk_ast import (
     Log,
     Rand,
 )
-
+from hulk_lexer import errorList as lexerErrors
 
 class CodeGen:
     def __init__(self):
@@ -702,12 +701,12 @@ if __name__ == "__main__":
         elif (mod % 3 == 1) "Woke"
         else "Dumb"
     );"""
+    cf = ColumnFinder()
     from hulk_semantic_check import semantic_check
     from hulk_lexer import errorList as lexerErrors
     ast, parsingErrors, _b = hulk_parse(
         code, cf)
     print(code)
-    print(parsingErrors)
     create_AST_graph(nodes, "AST")
     CodeGen().visit(ast)
 # let x = true in print(x@" Candelozki");
@@ -759,7 +758,7 @@ print(
     sep="\n - ",
 )
 if ast:
-    ast, semantic_check_errors = semantic_check(ast)
+    ast, semantic_check_errors = semantic_check(ast, cf)
 
     print(
         (

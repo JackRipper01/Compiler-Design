@@ -368,6 +368,7 @@ class ScopeBuilder:
         for case_item in node.case_list:
             case_item.variable_scope = node.variable_scope
             self.visit(case_item)
+            
 
     @visitor.when(While)
     def visit(self, node: While):
@@ -669,6 +670,15 @@ class TypeInfChk:
             self.visit(case)
             case_types.append(case.static_type)
         node.static_type = LCA(node, *case_types)
+        
+    @visitor.when(While)
+    def visit(self, node: While):
+        case_types = []
+        for case in node.case_list:
+            case: Case
+            self.visit(case)
+            case_types.append(case.static_type)
+        node.static_type = LCA(node, *case_types)
 
     @visitor.when(Case)
     def visit(self, node: Case):
@@ -904,7 +914,8 @@ class TypeInfChk:
                 self.errors.append(f"Cannot obtain members from type '{context_from}'"+cf.add_line_column(node.op))
                 
             
-def semantic_check(ast: Program):
+def semantic_check(ast: Program, column_finder):
+    cf = column_finder
     errors = []
     scope_visitor = ScopeBuilder()
     scope_visitor.visit(ast)
@@ -948,7 +959,7 @@ if __name__ == "__main__":
 #         create_graph=True,
 #     )
 
-    ast, parsingErrors, _b = hulk_parse(io.open("input/custom_test.hulk").read(),cf)
+    ast, parsingErrors, _b = hulk_parse(io.open("input/custom_test.hulk").read(), cf)
     
     print(
         "LEXER FOUND THE FOLLOWING ERRORS:" if len(lexerErrors) > 0 else "LEXING OK!",
@@ -965,7 +976,7 @@ if __name__ == "__main__":
         sep="\n - ",
     )
     if ast:
-        ast, semantic_check_errors = semantic_check(ast)
+        ast, semantic_check_errors = semantic_check(ast, cf)
 
         print(
             (
