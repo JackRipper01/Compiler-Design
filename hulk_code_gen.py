@@ -196,7 +196,7 @@ typedef struct {
 
     @visitor.when(FunctionDef)
     def visit(self, node):
-        node.static_type = "Number"
+        # node.static_type = "Number"
         node.ret_point = "ret_point_" + node.func_id.name
         list_params = []
         body_def, body_ret = self.visit(node.body)
@@ -249,7 +249,7 @@ typedef struct {
 
     @visitor.when(ExpressionBlock)
     def visit(self, node):
-        node.static_type = "Number"
+        # node.static_type = "Number"
         node.ret_point = "ret_point_expression_block_" + str(node.instance_id)
         code = f"""{node.static_type}* {node.name}() {{
         """
@@ -259,16 +259,16 @@ typedef struct {
             if i == len(node.exp_list) - 1:
                 code += f"return {body_ret};\n"
         code += "}"
-        code += f"""{node.static_type}* {node.ret_point} = expression_block_{node.instance_id}();"""
+        code += f"""{node.static_type}* {node.ret_point} = {node.name}();"""
         return code, node.ret_point
 
     @visitor.when(Let)
     def visit(self, node):
-        node.static_type = "Number"
+        # node.static_type = "Number"
         assign_def, assign_ret = self.visit(node.assign[0].value)
         var_name = node.assign[0].name.name
         var_type = node.assign[0].name.static_type
-        var_type = "Number"  # temporal
+        # var_type = "Number"  # temporal
         body_def, body_ret = self.visit(node.body)
         node.ret_point = "ret_point_let_" + str(
             node.instance_id
@@ -290,7 +290,7 @@ typedef struct {
 
     @visitor.when(If)
     def visit(self, node):
-        node.static_type = "Boolean"
+        # node.static_type = "Boolean"
         node.ret_point = "ret_point_if_" + \
             str(node.instance_id)  # analizar id blabla
         c_code = f"""{node.static_type}* if_{node.instance_id}(){{"""
@@ -299,7 +299,7 @@ typedef struct {
             c_code += f"{def_case}"
             c_code += "\n"
         c_code += "}\n"
-        c_code += f"{node.static_type}* {node.ret_point} = if_{node.instance_id}();"
+        c_code += f"{node.static_type}* {node.ret_point} = ({node.static_type}*)if_{node.instance_id}();"
         return c_code, node.ret_point
 
     @visitor.when(Case)
@@ -316,7 +316,7 @@ typedef struct {
 
     @visitor.when(While)
     def visit(self, node):
-        node.static_type = "Number"
+        # node.static_type = "Number"
         node.ret_point = "ret_point_while_" + str(node.instance_id)
         def_condition, ret_condition = self.visit(node.condition)
         def_body, ret_body = self.visit(node.body)
@@ -336,7 +336,7 @@ typedef struct {
             }}
             else{{
                 if (while_body_executed == 1)
-                    return {node.ret_point};
+                    return ({node.static_type}*){node.ret_point};
                 else
                 {{
                     if(strcmp("{node.static_type}","Object")==0)
@@ -511,7 +511,7 @@ typedef struct {
 
     @visitor.when(BinOp)
     def visit(self, node):
-        node.static_type = "Number"
+        # node.static_type = "Number"
         left_def, left_ret = self.visit(node.left)
         right_def, right_ret = self.visit(node.right)
         node.ret_point = "ret_point_bin_op_" + str(node.instance_id)
@@ -564,7 +564,7 @@ typedef struct {
         code = f"""{node.static_type}* bin_op_{node.instance_id}(){{
         {left_def}
         {right_def}\n"""
-        if node.op in ["+", "-", "*", "/", "%"]:
+        if node.op in ["+", "-", "*", "/"]:
             code += f"return new_{node.static_type}(({left_ret}->value {node.op} {right_ret}->value));\n"
         elif node.op in [">", "<", ">=", "<=", "==", "!="]:
             code += f"\nreturn new_{node.static_type}(({left_ret}->value {node.op} {right_ret}->value));\n"
@@ -572,6 +572,8 @@ typedef struct {
             code += f"\nreturn new_{node.static_type}(pow({left_ret}->value, {right_ret}->value));\n"
         elif node.op in ["@", "@@"]:
             code += f"""return new_{node.static_type}(concatenate_strings({left_ret}->string, {right_ret}->string));\n"""
+        elif node.op == "%":
+            code+=f"""return new_{node.static_type}((float)fmodf({left_ret}->value, {right_ret}->value));\n"""
         else:
             raise TypeError(f"Unknown operator {node.op}")
         code += "\n}\n"
@@ -599,44 +601,44 @@ return -{child_ret};
 
     @visitor.when(TrueLiteral)
     def visit(self, node):
-        def_bool = f"""Boolean* {node.name} = new_Boolean(1);"""
+        def_bool = f"""{node.static_type}* {node.name} = new_Boolean(1);"""
         return def_bool, f"""{node.name}"""
 
     @visitor.when(FalseLiteral)
     def visit(self, node):
-        def_bool = f"""Boolean* {node.name} = new_Boolean(0);"""
+        def_bool = f"""{node.static_type}* {node.name} = new_Boolean(0);"""
         return def_bool, f"""{node.name}"""
 
     @visitor.when(Num)
     def visit(self, node):
-        def_num = f"""Number* {node.name} = new_Number((float){str(node.value)});"""
+        def_num = f"""{node.static_type}* {node.name} = new_Number((float){str(node.value)});"""
         return def_num, f"{node.name}"
 
     @visitor.when(StringLiteral)
     def visit(self, node):
-        def_string = f"""String* {node.name} = new_String("{node.value}");"""
+        def_string = f"""{node.static_type}* {node.name} = new_String("{node.value}");"""
         return def_string, f"{node.name}"
 
     @visitor.when(Pi)
     def visit(self, node):
-        def_num = f"""Number* {node.name} = new_Number((float)M_PI);"""
+        def_num = f"""{node.static_type}* {node.name} = new_Number((float)M_PI);"""
         return def_num, f"{node.name}"
 
     @visitor.when(E)
     def visit(self, node):
-        def_num = f"""Number* {node.name} = new_Number((float)M_E);"""
+        def_num = f"""{node.static_type}* {node.name} = new_Number((float)M_E);"""
         return def_num, f"{node.name}"
 
     @visitor.when(Print)
     def visit(self, node):
         child_def, child_ret = self.visit(node.value)
-        node.static_type = "Object"  # ?????????????????????????
+        # node.static_type = "Object"  # ?????????????????????????
         node.ret_point = "ret_point_print_" + str(node.instance_id)
         code = f"""{node.static_type}* print_{node.instance_id}() {{
 {child_def}\n"""
         code += f"""printf("%s\\n",{child_ret}->string);\n"""
 
-        code += f"""return {child_ret};
+        code += f"""return ({node.static_type}*){child_ret};
 }}"""
         code += f"""{node.static_type}* {node.ret_point} = print_{node.instance_id}();
 """
@@ -645,7 +647,7 @@ return -{child_ret};
     @visitor.when(Sqrt)
     def visit(self, node):
         child_def, child_ret = self.visit(node.value)
-        node.static_type = "Number"
+        # node.static_type = "Number"
         node.ret_point = "ret_point_sqrt_" + str(node.instance_id)
 
         code = f"""{child_def}\n{node.static_type}* {node.ret_point} = new_Number(sqrt({child_ret}->value));"""
@@ -654,7 +656,7 @@ return -{child_ret};
     @visitor.when(Sin)
     def visit(self, node):
         child_def, child_ret = self.visit(node.value)
-        node.static_type = "Number"
+        # node.static_type = "Number"
         node.ret_point = "ret_point_sin_" + str(node.instance_id)
         code = f"""{child_def}\n{node.static_type}* {node.ret_point} = new_Number(sin({child_ret}->value));"""
         return code, node.ret_point
@@ -662,7 +664,7 @@ return -{child_ret};
     @visitor.when(Cos)
     def visit(self, node):
         child_def, child_ret = self.visit(node.value)
-        node.static_type = "Number"
+        # node.static_type = "Number"
         node.ret_point = "ret_point_cos_" + str(node.instance_id)
         code = f"""{child_def}\n{node.static_type}* {node.ret_point} = new_Number(cos({child_ret}->value));"""
         return code, node.ret_point
@@ -670,7 +672,7 @@ return -{child_ret};
     @visitor.when(Exp)
     def visit(self, node):
         child_def, child_ret = self.visit(node.value)
-        node.static_type = "Number"
+        # node.static_type = "Number"
         node.ret_point = "ret_point_exp_" + str(node.instance_id)
         code = f"""{child_def}\n{node.static_type}* {node.ret_point} = new_Number(exp({child_ret}->value));"""
         return code, node.ret_point
@@ -679,7 +681,7 @@ return -{child_ret};
     def visit(self, node):
         child_def_base, child_ret_base = self.visit(node.base)
         child_def_value, child_ret_value = self.visit(node.value)
-        node.static_type = "Number"  # 3
+        # node.static_type = "Number"  # 3
         node.ret_point = "ret_point_log_" + str(node.instance_id)
         code = f"""{child_def_base}\n{child_def_value}\n{node.static_type}* {node.ret_point} = new_Number(log({child_ret_value}->value)/log({child_ret_base}->value));"""
 
@@ -692,12 +694,12 @@ return -{child_ret};
 
 # endregion
 if __name__ == "__main__":
-    code = """let a = 42, mod = a % 3 in
-    print(
-        if (mod == 0) "Magic"
-        elif (mod % 3 == 1) "Woke"
-        else "Dumb"
-    );"""
+    code = """let a = 10 in while (a >= 0) {
+    print(a);
+    a := a - 1;
+}
+
+"""
     cf = ColumnFinder()
     from hulk_semantic_check import semantic_check
     from hulk_lexer import errorList as lexerErrors
@@ -705,7 +707,40 @@ if __name__ == "__main__":
         code, cf)
     print(code)
     create_AST_graph(nodes, "AST")
-    CodeGen().visit(ast)
+
+    print(
+        "LEXER FOUND THE FOLLOWING ERRORS:" if len(
+            lexerErrors) > 0 else "LEXING OK!",
+        *lexerErrors,
+        sep="\n - ",
+    )
+    print(
+        (
+            "PARSER FOUND THE FOLLOWING ERRORS:"
+            if len(parsingErrors) > 0
+            else "PARSING OK!!"
+        ),
+        *parsingErrors,
+        sep="\n - ",
+    )
+    if ast:
+        ast, semantic_check_errors = semantic_check(ast, cf)
+
+        print(
+            (
+                "SEMANTIC CHECK FOUND THE FOLLOWING ERRORS:"
+                if len(semantic_check_errors) > 0
+                else "SEMANTIC CHECK OK!!!"
+            ),
+            *semantic_check_errors,
+            sep="\n - ",
+        )
+        print("\nGlobal Expression returned:", typeof(ast.global_exp))
+        if len(semantic_check_errors) == 0:
+            pass
+        CodeGen().visit(ast)
+
+            
 # let x = true in print(x@" Candelozki");
 # function concat(x, y) = > x@y@" Candelozki"
 # let a = true in print(concat(a, "PINGA"))
@@ -739,31 +774,3 @@ if __name__ == "__main__":
 #     setA(a) = > self.a := a
 #     setB(b) = > self.b := b
 # }
-print(
-    "LEXER FOUND THE FOLLOWING ERRORS:" if len(
-        lexerErrors) > 0 else "LEXING OK!",
-    *lexerErrors,
-    sep="\n - ",
-)
-print(
-    (
-        "PARSER FOUND THE FOLLOWING ERRORS:"
-        if len(parsingErrors) > 0
-        else "PARSING OK!!"
-    ),
-    *parsingErrors,
-    sep="\n - ",
-)
-if ast:
-    ast, semantic_check_errors = semantic_check(ast, cf)
-
-    print(
-        (
-            "SEMANTIC CHECK FOUND THE FOLLOWING ERRORS:"
-            if len(semantic_check_errors) > 0
-            else "SEMANTIC CHECK OK!!!"
-        ),
-        *semantic_check_errors,
-        sep="\n - ",
-    )
-    print("\nGlobal Expression returned:", typeof(ast.global_exp))
