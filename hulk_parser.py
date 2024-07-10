@@ -1138,7 +1138,10 @@ def p_expression_binop(p:yacc.YaccProduction):
                 p[i].lineno = p.lineno(i)
                 p[i].lexpos = p.lexpos(i)
     if p[2] == ":=":
-        p[0] = BinOp(left=p[1], op="AD", right=p[3])
+        ad = StringToken("AD")
+        ad.lineno = p[2].lineno
+        ad.lexpos = p[2].lexpos
+        p[0] = BinOp(left=p[1], op=ad, right=p[3])
     else:
         p[0] = BinOp(left=p[1], op=p[2], right=p[3])
     p[1].parent = p[0]

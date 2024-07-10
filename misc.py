@@ -3,6 +3,7 @@ from typing import List
 
 from hulk_ast import (
     nodes,
+    Node,
     FunctionCall,
     Params,
     Let,
@@ -181,13 +182,34 @@ def LCA_BI(i_dict:dict, A, B):
             return LCA_BI(i_dict, A, B)
         
 def LCA(ast_node, *params):
-    i_dict = ast_node.hierarchy_tree
-    lca = LCA_BI(i_dict, params[0], params[1])
-    for i in range(1, len(params)-1):
-        lca = LCA_BI(i_dict, lca, LCA_BI(i_dict, params[i], params[i+1]))
+    if len(params)<=0:
+        return "Object"
+    if len(params)>1:
+        i_dict = ast_node.hierarchy_tree
+        lca = LCA_BI(i_dict, params[0], params[1])
+        for i in range(1, len(params)-1):
+            lca = LCA_BI(i_dict, lca, LCA_BI(i_dict, params[i], params[i+1]))
+    else:
+        lca = params[0]
+        
+    if lca == "Vector":
+        lca: StringToken
+        new_params = []
+        for vec in params:
+            new_params.append(vec.T)
+            vec_T = LCA(ast_node, *new_params)
+        lca.T = vec_T
     return lca
 
+def typeof(ast_node: Node):
+    return get_type_rec(ast_node.static_type)
 
+def get_type_rec(name : StringToken):
+    if name == "Vector":
+        name+=f"[{get_type_rec(name.T)}]"
+    return name
+        
+        
         
 def find_column(input, token):
     "busca la columna del token que da error"
@@ -196,3 +218,19 @@ def find_column(input, token):
         line_start = 0
     return (token.lexpos - line_start) + 1
 
+def method_name_getter(function, private=False):
+    if private:
+        return (
+            function.func_id.name
+            + "/"
+            + str(len(function.params.param_list))
+            + "/private"
+        )
+    else:
+        return function.func_id.name + "/" + str(len(function.params.param_list))
+
+def assign_name_getter(assign: Assign, private=False):
+    if private:
+        return assign.name.name + "/private"
+    else:
+        return assign.name.name
