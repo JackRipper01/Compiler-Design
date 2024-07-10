@@ -1,5 +1,4 @@
 from ast import List
-from scipy import misc
 from hulk_semantic_check import HierarchyNode, ScopeBuilder
 from misc import create_AST_graph, get_descendancy_set
 import visitor
@@ -175,9 +174,15 @@ typedef struct {
                 for function in node.functions:
                     f.write(f"{self.visit(function)[0]}\n\n")
             if node.types:
+<<<<<<< Updated upstream
                 # ordenando node.types segun la herencia
                 list_of_descendients = misc.get_descendancy(node, "Object")
                 node_types_reorder = []
+=======
+                #ordenando node.types segun la herencia
+                list_of_descendients=misc.get_descendancy(node,"Object",[])
+                node_types_reorder=[]
+>>>>>>> Stashed changes
                 for i in range(len(node.types)):
                     node_types_reorder.append(
                         (node.types[i], list_of_descendients.index(node.types[i].id.name)))
@@ -685,7 +690,26 @@ return -{child_ret};
 
 # endregion
 if __name__ == "__main__":
+<<<<<<< Updated upstream
     code = """print(sin(2 * PI) ^ 2 + cos(3 * PI / log(4, 64)));"""
+=======
+    code="""
+type Animal(){
+x = {{{{{2;}}}}};
+asd(y) => print(self.y);
+
+};
+type Felino(x) inherits Animal(){}
+type Gato(x) inherits Felino(x) {}
+type Canino(x) inherits Animal{
+    asd(y,x) => print(self.y + self.a(1));
+}
+
+type Lobo inherits Canino{}
+type Perro inherits Lobo {}
+function asd(a,b,c) => print(b);
+print("aaaaa");"""
+>>>>>>> Stashed changes
     import hulk_semantic_check
     ast, error_list, b = hulk_parse(code)
     print(code)
