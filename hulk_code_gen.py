@@ -322,9 +322,9 @@ typedef struct {
         def_body, ret_body = self.visit(node.body)
 
         c_code = f"""{node.static_type}* while_{node.instance_id}(){{
-            while(1){{
             int while_body_executed = 0;
-            {node.static_type}* {node.ret_point} = ({node.static_type}*)malloc(sizeof({node.static_type})));"""
+            while(1){{
+            {node.static_type}* {node.ret_point} = ({node.static_type}*)malloc(sizeof({node.static_type}));"""
         c_code += f"{def_condition}"
         c_code += f"""
             if ((int){ret_condition}->value){{
@@ -339,10 +339,10 @@ typedef struct {
                     return ({node.static_type}*){node.ret_point};
                 else
                 {{
-                    if(strcmp("{node.static_type}","Object")==0)
-                        {{Object* obj = new_Object();
-                        strcpy(obj->string, "None");
-                        return obj; }}
+                    //if(strcmp("{node.static_type}","Object")==0)
+                        //{{Object* obj = new_Object();
+                        //strcpy(obj->string, "None");
+                        //return obj; }}
                         
                     printf("While body not executed,None type does not match {node.static_type} type\\n");
                     exit(-1);
