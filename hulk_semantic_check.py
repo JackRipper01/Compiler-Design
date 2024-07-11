@@ -80,6 +80,7 @@ class ScopeBuilder:
 
         self.get_global_definitions(node)
         self.hierarchy_tree_build(node)
+        self.protocol_hierarchy_build(node)
         self.check_tree(node, "Object")
         self.trasspass_params_to_children(node, "Object", set())
 
@@ -102,6 +103,13 @@ class ScopeBuilder:
                 self.visit(node.global_definitions[type_str])
         self.current = ""
         self.on_type = False
+    
+        
+        for protocol in node.protocol_hierarchy["Empty"].children:
+            node.global_definitions[protocol].variable_scope = node.variable_scope
+            self.current = protocol
+            self.visit(node.global_definitions[protocol])
+        self.current = ""
 
         if node.global_exp:
             node.global_exp.variable_scope = node.variable_scope
@@ -109,6 +117,22 @@ class ScopeBuilder:
         else:
             self.errors.append(("Missing Global Expression"))
 
+    @visitor.when(Protocol)
+    def visit(self, node: Protocol):
+        node.variable_scope = node.variable_scope.copy()
+        for meth in node.methods:
+            meth: FunctionDef
+            meth_name = method_name_getter(meth, True)
+            if meth_name in node.variable_scope:
+                self.errors.append(f"Protocol {node.id.name} reimplements method {meth.func_id.name}"+cf.add_line_column(meth.func_id.name))
+            node.variable_scope[meth_name] = meth
+            
+        for child in node.protocol_hierarchy[node.id.name].children:
+            node.global_definitions[child].variable_scope = node.variable_scope
+            self.current = child
+            self.visit(node.global_definitions[child])
+        
+        
     @visitor.when(TypeDef)
     def visit(self, node: TypeDef):
         node.variable_scope = node.variable_scope.copy()
@@ -117,10 +141,6 @@ class ScopeBuilder:
             param: ID
             node.variable_scope[param.name] = param
             self.check_annotation(param)
-
-        if node.inherits:
-            node.inherits.variable_scope = node.variable_scope
-            self.visit(node.inherits)
 
         for assign in node.variables:
             assign: Assign
@@ -149,15 +169,17 @@ class ScopeBuilder:
             assign: Assign
             assign.variable_scope = node.variable_scope
             self.visit(assign)
-        for key in node.variable_scope.copy():
+        
+        functions_scope = node.variable_scope.copy()
+        for key in functions_scope.copy():
             key: str
             if not key.endswith("/private"):
-                node.variable_scope.pop(key)
+                functions_scope.pop(key)
 
         self.on_function = True
         for method in node.functions:
             method: FunctionDef
-            method.variable_scope = node.variable_scope.copy()
+            method.variable_scope = functions_scope.copy()
             method.variable_scope["self"] = node
             if node.inherits:
                 method_name = method_name_getter(method, True)
@@ -165,7 +187,7 @@ class ScopeBuilder:
                     method_name
                     in node.global_definitions[node.inherits.id.name].variable_scope
                 ):
-                    method.variable_scope["base/0"] = node.global_definitions[
+                    method.variable_scope["base/"+str(len(method.params.param_list))] = node.global_definitions[
                         node.inherits.id.name
                     ].variable_scope[method_name]
             self.visit(method)
@@ -507,51 +529,46 @@ class ScopeBuilder:
         return hierarchy_tree
 
     def protocol_hierarchy_build(self, ast_root: Program):  # pendiente
-        hierarchy_tree = ast.protocol_hierarchy
-        hierarchy_tree["Object"] = HierarchyNode("Object", None, [], 0)
-        hierarchy_tree["Number"] = HierarchyNode("Number", "Object", [], 1)
-        hierarchy_tree["String"] = HierarchyNode("String", "Object", [], 1)
-        hierarchy_tree["Boolean"] = HierarchyNode("Boolean", "Object", [], 1)
-        hierarchy_tree["Vector"] = HierarchyNode("Vector", "Object", [], 1)
-        hierarchy_tree["Object"].children.append("Number")
-        hierarchy_tree["Object"].children.append("String")
-        hierarchy_tree["Object"].children.append("Boolean")
-        hierarchy_tree["Object"].children.append("Vector")
+        hierarchy_tree = ast_root.protocol_hierarchy
+        hierarchy_tree["Empty"] = HierarchyNode("Empty", None, [], 0)
 
-        for type_name in ast_root.types:
-            hierarchy_tree[type_name.id.name] = HierarchyNode(
-                type_name.id.name, None, [], 0
+        for protocol in ast_root.protocols:
+            protocol : Protocol
+            hierarchy_tree[protocol.id.name] = HierarchyNode(
+                protocol.id.name, None, [], 0
             )
 
-        for type_name in ast_root.types:
-            current_type = type_name.id.name
+        for protocol in ast_root.protocols:
+            current = protocol.id.name
 
-            if type_name.inherits:
-                inherits_from = type_name.inherits.id.name
-                if inherits_from in ast_root.global_definitions:
+            if protocol.extends:
+                print("EXTENDS")
+                extend_from = protocol.extends.name
+                if extend_from in ast_root.global_definitions:
                     if (
-                        type(ast_root.global_definitions[inherits_from]) is str
-                        or inherits_from not in hierarchy_tree
+                        type(ast_root.global_definitions[extend_from]) is str
+                        or extend_from not in hierarchy_tree
                     ):
                         self.errors.append(
-                            "Cannot inherit from '"
-                            + inherits_from
-                            + f"' at line {type_name.id.name.lineno}"
+                            "Cannot extend '"
+                            + extend_from
+                            + f"' at line {protocol.id.name.lineno}"
                         )
                         continue
-                    hierarchy_tree[current_type].parent = inherits_from
-                    hierarchy_tree[inherits_from].children.append(current_type)
+                    hierarchy_tree[current].parent = extend_from
+                    hierarchy_tree[extend_from].children.append(current)
                 else:
                     self.errors.append(
-                        "Cannot inherit from "
-                        + inherits_from
-                        + " because it is not defined at line "
-                        + str(type_name.id.name.lineno)
+                        "Cannot extend '"
+                        + extend_from
+                        + "' because it is not defined at line "
+                        + str(protocol.id.name.lineno)
                     )
             else:
-                hierarchy_tree[current_type].parent = "Object"
-                hierarchy_tree["Object"].children.append(current_type)
-        err = set_depth(hierarchy_tree, "Object", set())
+                print("NOT EXTENDS")
+                hierarchy_tree[current].parent = "Empty"
+                hierarchy_tree["Empty"].children.append(current)
+        err = set_depth(hierarchy_tree, "Empty", set())
         if err:
             self.errors.append(err)
         return hierarchy_tree
@@ -646,20 +663,80 @@ class TypeInfChk:
                 else "Object"
             )
 
+        self.on_type = True
+        for type_str in node.hierarchy_tree["Object"].children:
+            if not type_str in ["Number", "String", "Boolean", "Vector"]:
+                self.current = type_str
+                self.visit(node.global_definitions[type_str])
+        self.current = ""
+        self.on_type = False
+        
         for function in node.functions:
             function: FunctionDef
+            func_expect = function.static_type
             self.visit(function)
+            if not conforms(node, function.static_type, func_expect):
+                self.errors.append(f"Function '{function.func_id.name}' with annotated type '{func_expect}' returns expresion type '{function.static_type} '")
 
         self.visit(node.global_exp)
         node.static_type = node.global_exp.static_type
 
+    @visitor.when(TypeDef)
+    def visit(self, node: TypeDef):
+                
+        node.static_type = node.id.name
+        
+        for param in node.params.param_list:
+            param: ID
+            param.static_type = param.annotated_type if param.annotated_type != "" else "Object"
+
+        self.on_function = True
+        for method in node.functions:
+            method: FunctionDef
+            method.static_type = (
+                method.func_id.annotated_type
+                if method.func_id.annotated_type != ""
+                else "Object"
+            )
+        self.on_function = False
+
+        for assign in node.variables:
+            assign: Assign
+            self.visit(assign)
+
+        self.on_function = True
+        for method in node.functions:
+            method: FunctionDef
+            self.visit(method)
+        self.on_function = False
+
+        for child in node.hierarchy_tree[node.id.name].children:
+            self.current = child
+            self.visit(node.global_definitions[child])
+
     @visitor.when(FunctionCall)
     def visit(self, node: FunctionCall):
         name = method_name_getter(node, False)
-        if name in node.global_definitions:
-            node.static_type = node.global_definitions[name].static_type
+        func_def : FunctionDef = None
+        if self.on_type and self.on_function:
+            if name in node.variable_scope:
+                func_def = node.variable_scope[name]
+            elif name in node.global_definitions:
+                func_def = node.global_definitions[name]
+            else:
+                self.errors.append(f"Function {name} not defined"+cf.add_line_column(node.func_id.name))
+                
+        elif name in node.global_definitions:
+            func_def = node.global_definitions[name]
+        else:
+            self.errors.append(
+                f"Function '{name}' doesnt exist"
+                + cf.add_line_column(node.func_id.name)
+            )
+            
+        if func_def:
             for e_param, r_param in zip(
-                node.global_definitions[name].params.param_list, node.params.param_list
+                func_def.params.param_list, node.params.param_list
             ):
                 expect = e_param.static_type
                 self.visit(r_param)
@@ -668,12 +745,7 @@ class TypeInfChk:
                         f"Function '{node.func_id.name}' param '{e_param.name}' expected '{expect}', but received '{r_param.static_type}'"
                         + cf.add_line_column(node.func_id.name)
                     )
-
-        else:
-            self.errors.append(
-                f"Function '{name}' doesnt exist"
-                + cf.add_line_column(node.func_id.name)
-            )
+            node.static_type = func_def.static_type
 
     @visitor.when(FunctionDef)
     def visit(self, node: FunctionDef):
@@ -966,8 +1038,13 @@ class TypeInfChk:
                         + cf.add_line_column(token)
                     )
             else:
+                try:
+                    name = node.right.func_id.name
+                except:
+                    name = node.right.name
+                    
                 self.errors.append(
-                    f"Cannot obtain members from type '{context_from}'"
+                    f"Cannot obtain member '{name}' from type '{context_from}'"
                     + cf.add_line_column(node.op)
                 )
 
@@ -989,34 +1066,7 @@ def semantic_check(ast: Program, column_finder):
 
 
 if __name__ == "__main__":
-    #     ast, parsingErrors, _b = hulk_parse(
-    # r"""
-    # type Animal(){
-    # x = {{{{{2;}}}}};
-    # x(a: Object,b,c) => print(self.y);
-
-    # };
-    # type Felino(x) inherits Animal(){}
-    # type Gato(x) inherits Felino(x) {}
-    # type Canino(x) inherits Animal{
-    #     asd(y,x) => print(self.y + self.a(1));
-    # }
-
-    # type Lobo inherits Canino{}
-    # type Perro inherits Lobo {}
-    # function asd(a: Animal,b,c) => print(b);
-    # let a  = new Animal() in {
-    # print(a);
-    # 2;
-    # asd(1,2,3);
-
-    # }
-    # """,
-    #         cf,
-    #         create_graph=True,
-    #     )
-
-    ast, parsingErrors, _b = hulk_parse(io.open("input/custom_test.hulk").read(), cf, True)
+    ast, parsingErrors, _b = hulk_parse(io.open("input/custom_test.hulk").read(), cf, False)
 
     print(
         "LEXER FOUND THE FOLLOWING ERRORS:" if len(lexerErrors) > 0 else "LEXING OK!",
@@ -1044,5 +1094,8 @@ if __name__ == "__main__":
             *semantic_check_errors,
             sep="\n - ",
         )
+        ast: Program
         create_Hierarchy_graph(ast.hierarchy_tree, "ht")
+        create_Hierarchy_graph(ast.protocol_hierarchy, "ph")
         print("\nGlobal Expression returned:", typeof(ast.global_exp))
+        
