@@ -607,6 +607,8 @@ class ScopeBuilder:
                 + "' does not exist in global context"
             )
 
+    # def chech_params_different()
+
     def trasspass_params_to_children(self, ast: Program, name: str, visited):
         forb = ["Object", "String", "Number", "Boolean", "Vector"]
 
