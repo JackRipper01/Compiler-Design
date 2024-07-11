@@ -5,6 +5,7 @@ from hulk_ast import (
     nodes,
     Node,
     FunctionCall,
+    FunctionDef,
     Params,
     Let,
     Assign,
@@ -43,6 +44,7 @@ def refact_ast(nodes_dict : dict):
     for_expressions : List[For] = list(filter(lambda x: type(x) is For, nodes_dict.keys()))
     
     for for_item in for_expressions:
+        token = for_item.tk
         nodes.pop(for_item)
         condition_id_iter = ID ("iterable", "")
         func_call_next_id = ID("next", "func_call")
@@ -58,7 +60,8 @@ def refact_ast(nodes_dict : dict):
         assign_inner_let = Assign(id_assign_inner_let, value_assign_inner_let)
         inner_let = Let([assign_inner_let], for_item.body)
         while_item = While(condition, inner_let)
-        id_master_assign = ID ("iterable", "")
+        while_item.tk = token
+        id_master_assign = ID ("iterable", "Iterable")
         value_master_assign = for_item.iterable
         master_assign = Assign(id_master_assign, value_master_assign)
         # master_let = Let([master_assign], while_item)
@@ -163,14 +166,18 @@ def get_descendancy_set(ast_node, name, descendancy):
 #             return conforms(ast, ast.hierarchy_tree[A].parent, B)
 #         else:
 #             return False
-        
+   
 def conforms(ast_node, A, B):
     try:
         return A in get_descendancy_set(ast_node, B, set())
     except:
         print(A,"or",B, "its a protocol, do it again")
-        return False # by now
-        
+        return True # by now
+
+def func_conforms(ast_node: Node, A: FunctionDef, B: FunctionDef):
+    errors = []
+    
+       
         
 def LCA_BI(i_dict:dict, A, B):
     if i_dict[A].depth == i_dict[B].depth:

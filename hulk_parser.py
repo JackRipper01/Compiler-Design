@@ -1036,6 +1036,7 @@ def p_for_hl(p):
     p[7].parent = for_exp
     p[0] = Let([], for_exp)
     for_exp.parent = p[0]
+    for_exp.tk = p[1]
 
 
 def p_for(p):
@@ -1053,6 +1054,7 @@ def p_for(p):
     p[7].parent = for_exp
     p[0] = Let([], for_exp)
     for_exp.parent = p[0]
+    for_exp.tk = p[1]
 
 
 def p_while_hl(p):
@@ -1068,7 +1070,6 @@ def p_while_hl(p):
     p[2].parent = p[0]
     p[3].parent = p[0]
     p[0].tk = p[1]
-    print(p[0].tk)
 
 
 def p_while(p):
