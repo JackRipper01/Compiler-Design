@@ -380,32 +380,31 @@ typedef struct {
                 own_plus_parent_functions.append(func)
 
             for var in parent_inherited.variables:  # definiendo variables del padre en el struct
-                c_code += f"{WWWWTTTTFFFF} {var.name.name};\n"
+                c_code += f"{var.static_type}* {var.name.name};\n"
 
             # declarando las funciones del padre en el struct pero con el polimorfismo aplicado
             for func in own_plus_parent_functions:
-                c_code += f"""{WWWWTTTTFFFF} (*{func.func_id.name})(void* self"""
+                c_code += f"""{func.static_type}* (*{func.func_id.name})(void* self"""
                 if func.params.param_list:
                     for function_params in func.params.param_list:
-                        c_code += f", {WWWWTTTTFFFF} {function_params.name}"
+                        c_code += f", {function_params.static_type} {function_params.name}"
                 c_code += ");\n"
 
             for var in node.variables:  # definiendo las variables propias en struct
-                c_code += f"{WWWWTTTTFFFF} {var.name.name};\n"
+                c_code += f"{var.static_type}* {var.name.name};\n"
 
             for func in node.functions:  # declarando las funciones propias en struct sin incluir la del polimorfismo ya q ya se incluyo junto a las del padre
                 if func.func_id.name in list_func_id_polymorphism:
                     continue
-                c_code += f"""{WWWWTTTTFFFF} (*{func.func_id.name})(void* self"""
+                c_code += f"""{func.static_type}* (*{func.func_id.name})(void* self"""
                 if func.params.param_list:
                     for function_params in func.params.param_list:
-                        c_code += f", {WWWWTTTTFFFF} {function_params.name}"
+                        c_code += f", {function_params.static_type}* {function_params.name}"
                 c_code += ");\n"
                 # annadiendo las funciones propias sin incluir la del polimorfismo ya q esta incluida en esta lista
                 own_plus_parent_functions.append(func)
         else:
             for var in node.variables:
-                print()
                 c_code += f"{var.static_type}* {var.name.name};\n"
 
             for func in node.functions:
@@ -533,12 +532,8 @@ typedef struct {
 
                 # Reemplazar los parámetros antiguos con los nuevos en el string original
                 right_ret = right_ret[:inicio+1] + nuevos_parametros + right_ret[fin:]
-            elif isinstance(node.right,ID):
-                return "", f"""(({node.static_type}*){left_ret})->{right_ret}"""
-            else:
-                raise TypeError(
-                    f"Error in bin op {left_ret}.{right_ret},not a FunctionCall nether ID in right member")
-            return "", f"""(({node.static_type}*){left_ret})->{right_ret}"""
+            
+            return f"{left_def}\n{right_def}\n", f"""(({node.left.static_type}*){left_ret})->{right_ret}"""
 
         if node.op == "is":
             def_is = f"""{node.static_type}* bin_op_{node.instance_id}(){{\n"""
@@ -553,7 +548,7 @@ typedef struct {
             return def_is, f"({node.ret_point})"
 
         if node.op == "as":
-            def_as = f"""{left_def}\n"""
+            def_as = f"""{left_def}\n{right_def}\n"""
             return def_as, f"({right_ret}*){left_ret}"
 
         if node.op == "AD":
@@ -572,8 +567,10 @@ typedef struct {
             code += f"\nreturn new_{node.static_type}(({left_ret}->value {node.op} {right_ret}->value));\n"
         elif node.op in ["^", "**"]:
             code += f"\nreturn new_{node.static_type}(pow({left_ret}->value, {right_ret}->value));\n"
-        elif node.op in ["@", "@@"]:
-            code += f"""return new_{node.static_type}(concatenate_strings({left_ret}->string, {right_ret}->string));\n"""
+        elif node.op == "@":
+            code += f"""return new_{node.static_type}(concatenate_strings({left_ret}->string,{right_ret}->string));\n"""
+        elif node.op == "@@":
+            code += f"""return new_{node.static_type}(concatenate_strings(concatenate_strings({left_ret}->string," "),{right_ret}->string));\n"""
         elif node.op == "%":
             code+=f"""return new_{node.static_type}((float)fmodf({left_ret}->value, {right_ret}->value));\n"""
         else:
@@ -696,19 +693,18 @@ return -{child_ret};
 
 # endregion
 if __name__ == "__main__":
-    code = """type Point {
-    x = 0;
-    y = 0;
+    code = """type Person(firstname:String, lastname:String) {
+    firstname = firstname;
+    lastname = lastname;
 
-    getX() => self.x;
-    getY() => self.y;
-
-    setX(x) => self.x := x;
-    setY(y) => self.y := y;
+    name():String => self.firstname @@ self.lastname;
 }
-let pt = new Point() in
-    print("x: " @ pt.getX() @ "; y: " @ pt.getY());
 
+type Knight inherits Person {
+    name():String => "Sir" @@ "base()";
+}
+
+let p = new Knight("Phil", "Collins") in print(p.name());
 """
     cf = ColumnFinder()
     from hulk_semantic_check import semantic_check
