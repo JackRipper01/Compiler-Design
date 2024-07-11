@@ -43,6 +43,7 @@ from hulk_ast import (
 )
 from hulk_lexer import errorList as lexerErrors
 
+
 class CodeGen:
     def __init__(self):
         self.errors = []
@@ -303,7 +304,7 @@ typedef struct {
     @visitor.when(Case)
     def visit(self, node):
         c_code = ""
-        
+
         def_condition, ret_condition = self.visit(node.condition)
         def_body, ret_body = self.visit(node.body)
         c_code += f"""{def_condition}"""
@@ -339,12 +340,12 @@ typedef struct {
                     return ({node.static_type}*){node.ret_point};
                 else
                 {{"""
-        if node.static_type == "Object":# HIGH PROBABILITY OF RUNTIME ERRORS============================CHECK THIS
-            c_code+="""Object* obj = new_Object();
+        if node.static_type == "Object":  # HIGH PROBABILITY OF RUNTIME ERRORS============================CHECK THIS
+            c_code += """Object* obj = new_Object();
                         strcpy(obj->string, "None");
                         return obj; """
-                        
-        c_code+=f"""printf("While body not executed,None type does not match {node.static_type} type\\n");
+
+        c_code += f"""printf("While body not executed,None type does not match {node.static_type} type\\n");
                     exit(-1);
                 }}
             }}"""
@@ -418,7 +419,6 @@ typedef struct {
                 node.functions
             )  # esto esta correcto ya q si no hay padre own + (parent=0) = own xd,lee el nombre de la lista y entenderas
 
-        
         c_code += "\nchar* type;\n"
         c_code += f"}} {node.id.name};\n"
 
@@ -438,7 +438,16 @@ typedef struct {
         if node.params.param_list:
             c_code = c_code[:-1]
         c_code += f"""){{"""
-        c_code += f"""{node.static_type}* obj = ({node.static_type}*)malloc(sizeof({node.static_type}));\n"""
+
+        # TypeCall inherence definition
+        if node.inherits:
+            def_type_call_inherits, ret_type_call_inherits = self.visit(
+                node.inherits)
+            c_code += {def_type_call_inherits}+"\n"
+            c_code += f"""{node.static_type}* obj = ({node.static_type}*)malloc(sizeof({node.static_type}));\n"""
+
+        else:
+            c_code += f"""{node.static_type}* obj = ({node.static_type}*)malloc(sizeof({node.static_type}));\n"""
 
         parent_variables = []
         if node.inherits:
@@ -531,8 +540,9 @@ typedef struct {
                     nuevos_parametros = left_ret
 
                 # Reemplazar los parámetros antiguos con los nuevos en el string original
-                right_ret = right_ret[:inicio+1] + nuevos_parametros + right_ret[fin:]
-            
+                right_ret = right_ret[:inicio+1] + \
+                    nuevos_parametros + right_ret[fin:]
+
             return f"{left_def}\n{right_def}\n", f"""(({node.left.static_type}*){left_ret})->{right_ret}"""
 
         if node.op == "is":
@@ -572,7 +582,7 @@ typedef struct {
         elif node.op == "@@":
             code += f"""return new_{node.static_type}(concatenate_strings(concatenate_strings({left_ret}->string," "),{right_ret}->string));\n"""
         elif node.op == "%":
-            code+=f"""return new_{node.static_type}((float)fmodf({left_ret}->value, {right_ret}->value));\n"""
+            code += f"""return new_{node.static_type}((float)fmodf({left_ret}->value, {right_ret}->value));\n"""
         else:
             raise TypeError(f"Unknown operator {node.op}")
         code += "\n}\n"
@@ -701,10 +711,13 @@ if __name__ == "__main__":
 }
 
 type Knight inherits Person {
-    name():String => "Sir" @@ "base()";
+    name():String => self.firstname @@ self.lastname;
+}
+type Lord(firstname:String, lastname:String) inherits Knight("Lord" @@ firstname , "of the House" @@ lastname) {
+    name():String => self.firstname @@ self.lastname;
 }
 
-let p = new Knight("Phil", "Collins") in print(p.name());
+let p = new Lord("Franco", "MauriciaLaLoca") in print(p.name());
 """
     cf = ColumnFinder()
     from hulk_semantic_check import semantic_check
@@ -746,7 +759,7 @@ let p = new Knight("Phil", "Collins") in print(p.name());
             pass
         CodeGen().visit(ast)
 
-            
+
 # let x = true in print(x@" Candelozki");
 # function concat(x, y) = > x@y@" Candelozki"
 # let a = true in print(concat(a, "PINGA"))
