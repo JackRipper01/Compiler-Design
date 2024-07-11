@@ -255,7 +255,7 @@ typedef struct {
             body_def, body_ret = self.visit(exp)
             code += body_def + "\n"
             if i == len(node.exp_list) - 1:
-                code += f"return {body_ret};\n"
+                code += f"return ({node.static_type}*){body_ret};\n"
         code += "}"
         code += f"""{node.static_type}* {node.ret_point} = {node.name}();"""
         return code, node.ret_point
@@ -297,7 +297,7 @@ typedef struct {
             c_code += f"{def_case}"
             c_code += "\n"
         c_code += "}\n"
-        c_code += f"{node.static_type}* {node.ret_point} = ({node.static_type}*)if_{node.instance_id}();"
+        c_code += f"{node.static_type}* {node.ret_point} = if_{node.instance_id}();"
         return c_code, node.ret_point
 
     @visitor.when(Case)
@@ -356,12 +356,11 @@ typedef struct {
     @visitor.when(TypeDef)
     def visit(self, node):
 
-        node.static_type = node.id.annotated_type
+        # node.static_type = node.id.annotated_type
         list_func_id_polymorphism = []
         parent_inherited = None
         own_plus_parent_functions = []
         # struct definition
-        WWWWTTTTFFFF = "Number"
         c_code = f"""typedef struct {node.id.name}{{\n"""
 
         if node.inherits:
@@ -406,36 +405,37 @@ typedef struct {
                 own_plus_parent_functions.append(func)
         else:
             for var in node.variables:
-                c_code += f"{WWWWTTTTFFFF} {var.name.name};\n"
+                print()
+                c_code += f"{var.static_type}* {var.name.name};\n"
 
             for func in node.functions:
-                c_code += f"""{WWWWTTTTFFFF} (*{func.func_id.name})(void* self"""
+                c_code += f"""{func.static_type}* (*{func.func_id.name})(void* self"""
                 if func.params.param_list:
                     for function_params in func.params.param_list:
-                        c_code += f", {WWWWTTTTFFFF} {function_params.name}"
+                        c_code += f", {function_params.static_type}* {function_params.name}"
                 c_code += ");\n"
 
             own_plus_parent_functions = (
                 node.functions
             )  # esto esta correcto ya q si no hay padre own + (parent=0) = own xd,lee el nombre de la lista y entenderas
 
-        # end of struct
+        
         c_code += "\nchar* type;\n"
         c_code += f"}} {node.id.name};\n"
 
         # functions definition
         for func in own_plus_parent_functions:
             def_func, ret_func = self.visit(func)
-            c_code += f"""{func.static_type} {node.static_type}_{func.func_id.name}(void* self"""
+            c_code += f"""{func.static_type}* {node.static_type}_{func.func_id.name}(void* self"""
             if func.params.param_list:
                 for function_params in func.params.param_list:
-                    c_code += f", {WWWWTTTTFFFF} {function_params.name}"
+                    c_code += f", {function_params.static_type}* {function_params.name}"
             c_code += f"""){{\n{def_func}\nreturn {ret_func};\n}}\n\n"""
 
         # constructor definition
         c_code += f"""{node.static_type}* new_{node.static_type}("""
         for param in node.params.param_list:
-            c_code += f"{WWWWTTTTFFFF} {param.name},"
+            c_code += f"{param.static_type}* {param.name},"
         if node.params.param_list:
             c_code = c_code[:-1]
         c_code += f"""){{"""
@@ -472,7 +472,8 @@ typedef struct {
             def_param, ret_param = self.visit(param)
             def_call += def_param+"\n"
             params_c_code += f"""{ret_param},"""
-        params_c_code = params_c_code[:-1]
+        if node.params.param_list:
+            params_c_code = params_c_code[:-1]
         def_call += f"""{node.id.name}* {node.name} = new_{node.id.name}({params_c_code});"""
         ret_call = f"""{node.name}"""
         return def_call, ret_call
@@ -517,8 +518,8 @@ typedef struct {
         node.ret_point = "ret_point_bin_op_" + str(node.instance_id)
 
         if node.op == ".":
-            node.static_type = "Point"
-            node.right.static_type = "Number"
+            # node.static_type = "Point"
+            # node.right.static_type = "Number"
             if isinstance(node.right, FunctionCall):
                 inicio = right_ret.index("(")
                 fin = right_ret.index(")")
@@ -531,11 +532,12 @@ typedef struct {
                     nuevos_parametros = left_ret
 
                 # Reemplazar los parámetros antiguos con los nuevos en el string original
-                right_ret = right_ret[:inicio+1] + \
-                    nuevos_parametros + right_ret[fin:]
+                right_ret = right_ret[:inicio+1] + nuevos_parametros + right_ret[fin:]
+            elif isinstance(node.right,ID):
+                return "", f"""(({node.static_type}*){left_ret})->{right_ret}"""
             else:
                 raise TypeError(
-                    f"Error in bin op {left_ret}.{right_ret},not a FunctionCall")
+                    f"Error in bin op {left_ret}.{right_ret},not a FunctionCall nether ID in right member")
             return "", f"""(({node.static_type}*){left_ret})->{right_ret}"""
 
         if node.op == "is":
@@ -694,10 +696,19 @@ return -{child_ret};
 
 # endregion
 if __name__ == "__main__":
-    code = """let a = 42, mod = a % 3 in
-        if (mod == 0) "Magic"
-        elif (mod % 3 == 1) "Woke"
-        else "Dumb";
+    code = """type Point {
+    x = 0;
+    y = 0;
+
+    getX() => self.x;
+    getY() => self.y;
+
+    setX(x) => self.x := x;
+    setY(y) => self.y := y;
+}
+let pt = new Point() in
+    print("x: " @ pt.getX() @ "; y: " @ pt.getY());
+
 """
     cf = ColumnFinder()
     from hulk_semantic_check import semantic_check
