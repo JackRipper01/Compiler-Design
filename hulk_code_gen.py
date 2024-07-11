@@ -388,7 +388,7 @@ typedef struct {
                 c_code += f"""{func.static_type}* (*{func.func_id.name})(void* self"""
                 if func.params.param_list:
                     for function_params in func.params.param_list:
-                        c_code += f", {function_params.static_type} {function_params.name}"
+                        c_code += f", {function_params.static_type}* {function_params.name}"
                 c_code += ");\n"
 
             for var in node.variables:  # definiendo las variables propias en struct
@@ -440,10 +440,12 @@ typedef struct {
         c_code += f"""){{"""
 
         # TypeCall inherence definition
+        ret_type_call_of_parent=""
         if node.inherits:
             def_type_call_inherits, ret_type_call_inherits = self.visit(
                 node.inherits)
-            c_code += {def_type_call_inherits}+"\n"
+            ret_type_call_of_parent=ret_type_call_inherits
+            c_code += def_type_call_inherits+"\n"
             c_code += f"""{node.static_type}* obj = ({node.static_type}*)malloc(sizeof({node.static_type}));\n"""
 
         else:
@@ -453,12 +455,18 @@ typedef struct {
         if node.inherits:
             parent_variables = parent_inherited.variables
 
-        all_variables = node.variables + parent_variables
-        for var in all_variables:
+        all_variables = parent_variables+node.variables
+        for var in parent_variables:
+            def_variable_value, ret_variable_value = self.visit(var.value)
+            c_code += f"""{def_variable_value}"""
+            if node.inherits:
+                c_code += f"""obj->{var.name.name} = {ret_type_call_of_parent}->{ret_variable_value};\n"""
+            
+        for var in node.variables:
             def_variable_value, ret_variable_value = self.visit(var.value)
             c_code += f"""{def_variable_value}"""
             c_code += f"""obj->{var.name.name} = {ret_variable_value};\n"""
-
+            
         for func in own_plus_parent_functions:
             c_code += f"""obj->{func.func_id.name} = {node.static_type}_{func.func_id.name};\n"""
 
@@ -703,21 +711,26 @@ return -{child_ret};
 
 # endregion
 if __name__ == "__main__":
-    code = """type Person(firstname:String, lastname:String) {
-    firstname = firstname;
-    lastname = lastname;
+    code = """type Point(x:Number, y:Number) {
+    x = x;
+    y = y;
+    
 
-    name():String => self.firstname @@ self.lastname;
+    getX():Number => self.x;
+    getY():Number => self.y;
+
+    setX(x:Number):Number => self.x := x;
+    setY(y:Number):Number => self.y := y;
 }
 
-type Knight inherits Person {
-    name():String => self.firstname @@ self.lastname;
-}
-type Lord(firstname:String, lastname:String) inherits Knight("Lord" @@ firstname , "of the House" @@ lastname) {
-    name():String => self.firstname @@ self.lastname;
+type PolarPoint(phi:Number, rho:Number) inherits Point(rho * sin(phi), rho * cos(phi)) {
+    phi=phi;
+    rho=rho;
+    getRho():Number=> self.rho;
 }
 
-let p = new Lord("Franco", "MauriciaLaLoca") in print(p.name());
+let pt = new PolarPoint(3,4) in
+    print("rho: " @ pt.getX());
 """
     cf = ColumnFinder()
     from hulk_semantic_check import semantic_check

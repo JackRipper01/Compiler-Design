@@ -143,6 +143,10 @@ class ScopeBuilder:
             param: ID
             node.variable_scope[param.name] = param
             self.check_annotation(param)
+            
+        if node.inherits:
+            node.inherits.variable_scope = node.variable_scope.copy()
+            self.visit(node.inherits)
 
         for assign in node.variables:
             assign: Assign
@@ -685,10 +689,12 @@ class TypeInfChk:
     def visit(self, node: TypeDef):
                 
         node.static_type = node.id.name
-        
         for param in node.params.param_list:
             param: ID
             param.static_type = param.annotated_type if param.annotated_type != "" else "Object"
+        
+        if node.inherits:
+            self.visit(node.inherits)
 
         self.on_function = True
         for method in node.functions:
