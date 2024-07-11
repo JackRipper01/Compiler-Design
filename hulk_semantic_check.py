@@ -144,7 +144,7 @@ class ScopeBuilder:
             node.variable_scope[param.name] = param
             self.check_annotation(param)
         
-        self.chech_params_different(node.params)
+        self.check_params_different(node.params)
 
         for assign in node.variables:
             assign: Assign
@@ -209,7 +209,7 @@ class ScopeBuilder:
             param: ID
             self.check_annotation(param)
             node.variable_scope[param.name] = param
-        self.chech_params_different(node.params)
+        self.check_params_different(node.params)
         node.body.variable_scope = node.variable_scope
         self.visit(node.body)
 
@@ -610,7 +610,7 @@ class ScopeBuilder:
                 + "' does not exist in global context"
             )
 
-    def chech_params_different(self, params: Params):
+    def check_params_different(self, params: Params):
         prms = set()
         for param in params.param_list:
             if param.name in prms:
@@ -1096,7 +1096,7 @@ def semantic_check(ast: Program, column_finder):
 
 
 if __name__ == "__main__":
-    # code_file = io.open("input/custom_test.hulk").read()
+    code_file = io.open("test_fixin.hulk").read()
     code_text = """
 protocol Iterable {
     next() : Boolean;
@@ -1116,7 +1116,7 @@ let a : Iterable = new Elite() in a.next();
     code_text = """function asd (x,y,z) => print(1);
     type A(x, y, z) {}
     new A(1,2,3);"""
-    ast, parsingErrors, _b = hulk_parse(code_text, cf, False)
+    ast, parsingErrors, _b = hulk_parse(code_file, cf, False)
 
     print(
         "LEXER FOUND THE FOLLOWING ERRORS:" if len(lexerErrors) > 0 else "LEXING OK!",

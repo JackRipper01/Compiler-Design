@@ -172,3 +172,5 @@ output/AST.gv
 /.vscode
 test.py
 hulk_parser copy.py
+test.hulk
+test_fixin.hulk
