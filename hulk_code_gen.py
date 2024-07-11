@@ -54,8 +54,6 @@ class CodeGen:
 
     @visitor.when(Program)
     def visit(self, node):
-        # reordenar node.types para que esten en orden herarquico,tengo node.global_definitions dictionary y node.hierarchy_tree dictionary
-
         main_def, main_ret = self.visit(node.global_exp)
         with open("./out.c", "w") as f:
             f.write("#include <stdio.h>\n")
@@ -305,12 +303,13 @@ typedef struct {
     @visitor.when(Case)
     def visit(self, node):
         c_code = ""
+        
         def_condition, ret_condition = self.visit(node.condition)
         def_body, ret_body = self.visit(node.body)
         c_code += f"""{def_condition}"""
         c_code += f"""if ((int){ret_condition}->value){{
             {def_body}
-            return {ret_body};
+            return ({node.parent.static_type}*){ret_body};
             }}"""
         return c_code, ""
 
@@ -323,8 +322,9 @@ typedef struct {
 
         c_code = f"""{node.static_type}* while_{node.instance_id}(){{
             int while_body_executed = 0;
+            {node.static_type}* {node.ret_point} = ({node.static_type}*)malloc(sizeof({node.static_type}));
             while(1){{
-            {node.static_type}* {node.ret_point} = ({node.static_type}*)malloc(sizeof({node.static_type}));"""
+            """
         c_code += f"{def_condition}"
         c_code += f"""
             if ((int){ret_condition}->value){{
@@ -338,13 +338,13 @@ typedef struct {
                 if (while_body_executed == 1)
                     return ({node.static_type}*){node.ret_point};
                 else
-                {{
-                    //if(strcmp("{node.static_type}","Object")==0)
-                        //{{Object* obj = new_Object();
-                        //strcpy(obj->string, "None");
-                        //return obj; }}
+                {{"""
+        if node.static_type == "Object":# HIGH PROBABILITY OF RUNTIME ERRORS============================CHECK THIS
+            c_code+="""Object* obj = new_Object();
+                        strcpy(obj->string, "None");
+                        return obj; """
                         
-                    printf("While body not executed,None type does not match {node.static_type} type\\n");
+        c_code+=f"""printf("While body not executed,None type does not match {node.static_type} type\\n");
                     exit(-1);
                 }}
             }}"""
@@ -694,11 +694,10 @@ return -{child_ret};
 
 # endregion
 if __name__ == "__main__":
-    code = """let a = 10 in while (a >= 0) {
-    print(a);
-    a := a - 1;
-}
-
+    code = """let a = 42, mod = a % 3 in
+        if (mod == 0) "Magic"
+        elif (mod % 3 == 1) "Woke"
+        else "Dumb";
 """
     cf = ColumnFinder()
     from hulk_semantic_check import semantic_check
