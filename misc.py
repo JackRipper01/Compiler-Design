@@ -13,6 +13,8 @@ from hulk_ast import (
     While,
     For,
     BinOp,
+    TypeDef,
+    Protocol,
 )
 
 class StringToken(str):
@@ -167,16 +169,32 @@ def get_descendancy_set(ast_node, name, descendancy):
 #         else:
 #             return False
    
-def conforms(ast_node, A, B):
+def conforms(ast_node: Node, A, B):
     try:
         return A in get_descendancy_set(ast_node, B, set())
-    except:
-        print(A,"or",B, "its a protocol, do it again")
-        return True # by now
+    except:   
+        if A in  ["Number", "String", "Boolean", "Object"]:
+            return False
+        if A == "Vector":
+            A = "Iterable"
+        A = ast_node.global_definitions[A]
+        B = ast_node.global_definitions[B]
+        if type(A) is Protocol and not (type(B) is Protocol):
+            return False
+        for meth in B.functions:
+            name = method_name_getter(meth, True)
+            if name in A.variable_scope:
+                if not func_conforms(ast_node, A.variable_scope[name], meth):
+                    return False
+            else:
+                return False
+        return True
 
 def func_conforms(ast_node: Node, A: FunctionDef, B: FunctionDef):
-    errors = []
-    
+    for a, b in zip(A.params.param_list, B.params.param_list):
+        if not conforms(ast_node, b.static_type, a.static_type):
+            return False
+    return conforms (ast_node, A.static_type, B.static_type)
        
         
 def LCA_BI(i_dict:dict, A, B):

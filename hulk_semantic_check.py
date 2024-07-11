@@ -13,7 +13,8 @@ from misc import (
     method_name_getter,
     assign_name_getter,
     typeof,
-    create_Hierarchy_graph
+    create_Hierarchy_graph,
+    func_conforms
 )
 import io
 
@@ -120,12 +121,13 @@ class ScopeBuilder:
     @visitor.when(Protocol)
     def visit(self, node: Protocol):
         node.variable_scope = node.variable_scope.copy()
-        for meth in node.methods:
+        for meth in node.functions:
             meth: FunctionDef
             meth_name = method_name_getter(meth, True)
             if meth_name in node.variable_scope:
                 self.errors.append(f"Protocol {node.id.name} reimplements method {meth.func_id.name}"+cf.add_line_column(meth.func_id.name))
             node.variable_scope[meth_name] = meth
+            meth.static_type = meth.func_id.annotated_type
             
         for child in node.protocol_hierarchy[node.id.name].children:
             node.global_definitions[child].variable_scope = node.variable_scope
@@ -542,7 +544,6 @@ class ScopeBuilder:
             current = protocol.id.name
 
             if protocol.extends:
-                print("EXTENDS")
                 extend_from = protocol.extends.name
                 if extend_from in ast_root.global_definitions:
                     if (
@@ -565,7 +566,6 @@ class ScopeBuilder:
                         + str(protocol.id.name.lineno)
                     )
             else:
-                print("NOT EXTENDS")
                 hierarchy_tree[current].parent = "Empty"
                 hierarchy_tree["Empty"].children.append(current)
         err = set_depth(hierarchy_tree, "Empty", set())
@@ -708,6 +708,11 @@ class TypeInfChk:
         for method in node.functions:
             method: FunctionDef
             self.visit(method)
+            if node.inherits:
+                method_name = method_name_getter(method, True)
+                if method_name in node.global_definitions[node.inherits.id.name].variable_scope:
+                    if not func_conforms(node, method, node.global_definitions[node.inherits.id.name].variable_scope[method_name]):
+                        self.errors.append(f"Method {method_name} at {node.id.name} not conforms to parent method at {node.global_definitions[node.inherits.id.name].id.name}"+cf.add_line_column(method.func_id.name))
         self.on_function = False
 
         for child in node.hierarchy_tree[node.id.name].children:
@@ -857,6 +862,17 @@ class TypeInfChk:
     @visitor.when(TypeCall)
     def visit(self, node: TypeCall):
         node.static_type = node.id.name
+        type_def: TypeDef = node.global_definitions[node.id.name]
+        for e_param, r_param in zip(
+        type_def.params.param_list, node.params.param_list
+    ):
+            expect = e_param.static_type
+            self.visit(r_param)
+            if not conforms(node, r_param.static_type, expect):
+                self.errors.append(
+                    f"Function '{node.func_id.name}' param '{e_param.name}' expected '{expect}', but received '{r_param.static_type}'"
+                    + cf.add_line_column(node.func_id.name)
+                )
 
     @visitor.when(UnaryOp)
     def visit(self, node: UnaryOp):
@@ -1066,7 +1082,24 @@ def semantic_check(ast: Program, column_finder):
 
 
 if __name__ == "__main__":
-    ast, parsingErrors, _b = hulk_parse(io.open("input/custom_test.hulk").read(), cf, False)
+    code_file = io.open("input/custom_test.hulk").read()
+    code_text = """
+protocol Iterable {
+    next() : Boolean;
+    current() : Object;
+}
+type A () {}
+type Elite {
+    next() : Boolean => true;
+    current() : Elite => new Elite();
+}
+type L inherits Elite {
+    next() : Boolean => true;
+    current() : L => new L();
+}
+let a : Iterable = new Elite() in a.next();
+    """
+    ast, parsingErrors, _b = hulk_parse(code_text, cf, False)
 
     print(
         "LEXER FOUND THE FOLLOWING ERRORS:" if len(lexerErrors) > 0 else "LEXING OK!",

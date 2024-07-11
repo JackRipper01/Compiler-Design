@@ -217,7 +217,7 @@ class Protocol(Node):
     def __init__(self, id, methods, extends):
         super().__init__(self, "PROTOCOL")
         self.id : ID = id
-        self.methods = methods
+        self.functions = methods
         self.extends : ID = extends
 
 
