@@ -143,6 +143,8 @@ class ScopeBuilder:
             param: ID
             node.variable_scope[param.name] = param
             self.check_annotation(param)
+        
+        self.chech_params_different(node.params)
 
         for assign in node.variables:
             assign: Assign
@@ -207,6 +209,7 @@ class ScopeBuilder:
             param: ID
             self.check_annotation(param)
             node.variable_scope[param.name] = param
+        self.chech_params_different(node.params)
         node.body.variable_scope = node.variable_scope
         self.visit(node.body)
 
@@ -607,7 +610,12 @@ class ScopeBuilder:
                 + "' does not exist in global context"
             )
 
-    # def chech_params_different()
+    def chech_params_different(self, params: Params):
+        prms = set()
+        for param in params.param_list:
+            if param.name in prms:
+                self.errors.append(f"Param '{param.name}' already in use"+cf.add_line_column(param.name))
+            prms.add(param.name)
 
     def trasspass_params_to_children(self, ast: Program, name: str, visited):
         forb = ["Object", "String", "Number", "Boolean", "Vector"]
@@ -1088,7 +1096,7 @@ def semantic_check(ast: Program, column_finder):
 
 
 if __name__ == "__main__":
-    code_file = io.open("input/custom_test.hulk").read()
+    # code_file = io.open("input/custom_test.hulk").read()
     code_text = """
 protocol Iterable {
     next() : Boolean;
@@ -1105,7 +1113,10 @@ type L inherits Elite {
 }
 let a : Iterable = new Elite() in a.next();
     """
-    ast, parsingErrors, _b = hulk_parse(code_file, cf, False)
+    code_text = """function asd (x,y,z) => print(1);
+    type A(x, y, z) {}
+    new A(1,2,3);"""
+    ast, parsingErrors, _b = hulk_parse(code_text, cf, False)
 
     print(
         "LEXER FOUND THE FOLLOWING ERRORS:" if len(lexerErrors) > 0 else "LEXING OK!",
@@ -1134,8 +1145,8 @@ let a : Iterable = new Elite() in a.next();
             sep="\n - ",
         )
         ast: Program
-        create_Hierarchy_graph(ast.hierarchy_tree, "ht")
-        create_Hierarchy_graph(ast.protocol_hierarchy, "ph")
+        # create_Hierarchy_graph(ast.hierarchy_tree, "ht")
+        # create_Hierarchy_graph(ast.protocol_hierarchy, "ph")
         print("\nGlobal Expression returned:", typeof(ast.global_exp))
         # from hulk_code_gen import CodeGen
         # CodeGen().visit(ast)
