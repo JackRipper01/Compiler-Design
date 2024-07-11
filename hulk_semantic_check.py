@@ -816,13 +816,15 @@ class TypeInfChk:
         expect = None if node.name.annotated_type == "" else node.name.annotated_type
         self.visit(node.value)
         if expect:
-            node.name.static_type = expect
-            node.static_type = expect
             if not conforms(node, node.value.static_type, expect):
                 self.errors.append(
                     f"'{node.value.static_type}' not conforms to '{expect}'"
                     + cf.add_line_column(node.name.name)
                 )
+            if type(node.global_definitions[expect]) is Protocol:
+                expect = node.value.static_type
+            node.name.static_type = expect
+            node.static_type = expect
         else:
             node.name.static_type = node.value.static_type
             node.static_type = node.value.static_type
@@ -992,7 +994,6 @@ class TypeInfChk:
                     f"Binary operation '{node.op}' expected '{expect}' and received '('{node.left.static_type}', '{node.right.static_type}')'"
                     + cf.add_line_column(node.op)
                 )
-
             node.static_type = expect_return
 
         elif node.op in ["as", "is"]:
@@ -1007,6 +1008,8 @@ class TypeInfChk:
                 )
             if node.op == "is":
                 expect = "Boolean"
+            if type(node.global_definitions[expect]) is Protocol:
+                expect = node.left.static_type
             node.static_type = expect
 
         elif node.op == "AD":
@@ -1018,6 +1021,7 @@ class TypeInfChk:
                     f"Cannot ':=' '{node.right.static_type}' to item with type '{expect}'"
                     + cf.add_line_column(node.op)
                 )
+
             node.static_type = expect
 
         elif node.op == ".":
@@ -1099,7 +1103,7 @@ type L inherits Elite {
 }
 let a : Iterable = new Elite() in a.next();
     """
-    ast, parsingErrors, _b = hulk_parse(code_text, cf, False)
+    ast, parsingErrors, _b = hulk_parse(code_file, cf, False)
 
     print(
         "LEXER FOUND THE FOLLOWING ERRORS:" if len(lexerErrors) > 0 else "LEXING OK!",
@@ -1131,4 +1135,6 @@ let a : Iterable = new Elite() in a.next();
         create_Hierarchy_graph(ast.hierarchy_tree, "ht")
         create_Hierarchy_graph(ast.protocol_hierarchy, "ph")
         print("\nGlobal Expression returned:", typeof(ast.global_exp))
+        # from hulk_code_gen import CodeGen
+        # CodeGen().visit(ast)
         
