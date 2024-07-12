@@ -1546,7 +1546,26 @@ def hulk_parse(code, cf = None, create_graph = False, nm = "AST"):
     nodes = hulk_ast.nodes
     
     parser = yacc.yacc(start="program", method="LALR")
+    
+    prefix = """
+    protocol Iterable {
+    next() : Boolean;
+    current() : Object;
+}
+    
+    type Range(min:Number, max:Number) {
+    min = min;
+    max = max;
+    current_x = min - 1;
 
+    next(): Boolean => (self.current_x := self.current_x + 1) < self.max;
+    current(): Number => self.current_x;
+}
+
+    function range(min:Number,max:Number): Range => new Range(min,max);
+    
+    \n"""
+    code = prefix+code
     AST = parser.parse(code)
     
     errors = []
@@ -1561,7 +1580,7 @@ def hulk_parse(code, cf = None, create_graph = False, nm = "AST"):
     else:
         for i in sErrorList:
             if i:
-                errors.append(f"Syntax error near '{i.value}' at line {i.lineno}, column {find_column(code,i)}")
+                errors.append(f"Syntax error near '{i.value}' at line {i.lineno-18}, column {find_column(code,i)}")
             else:
                 errors.append("Syntax error at EOF")
             # break
