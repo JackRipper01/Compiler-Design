@@ -25,7 +25,7 @@ def run_test(filename):
     ast, parsingErrors, _b = hulk_parse(
         code, cf)
     print(code)
-    create_AST_graph(nodes, "AST")
+    #create_AST_graph(nodes, "AST")
 
     print(
         "LEXER FOUND THE FOLLOWING ERRORS:" if len(

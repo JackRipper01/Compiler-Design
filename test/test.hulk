@@ -28,7 +28,10 @@ type Range(min:Number, max:Number) {
     min = min;
     max = max;
     current_x = min - 1;
+    current_x = min - 1;
 
+    next(): Boolean => (self.current_x := self.current_x + 1) < self.max;
+    current(): Number => self.current_x;
     next(): Boolean => (self.current_x := self.current_x + 1) < self.max;
     current(): Number => self.current_x;
 }

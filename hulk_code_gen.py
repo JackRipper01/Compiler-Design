@@ -469,13 +469,10 @@ typedef struct {
         # functions definition
         for func in own_plus_parent_functions:
             def_func, ret_func = self.visit(func)
-            c_code += f"""{func.static_type}* {node.static_type}_{func.func_id.name}(void* self"""
             self.types_function_definitions += f"""{func.static_type}* {node.static_type}_{func.func_id.name}(void* self"""
             if func.params.param_list:
                 for function_params in func.params.param_list:
-                    c_code += f", {function_params.static_type}* {function_params.name}"
                     self.types_function_definitions += f", {function_params.static_type}* {function_params.name}"
-            c_code += f"""){{\n{def_func}\nreturn {ret_func};\n}}\n\n"""
             self.types_function_definitions += f"""){{\n{def_func}\nreturn {ret_func};\n}}\n\n"""
 
         # constructor definition
