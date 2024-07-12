@@ -698,6 +698,8 @@ class TypeInfChk:
         for param in node.params.param_list:
             param: ID
             param.static_type = param.annotated_type if param.annotated_type != "" else "Object"
+            if type(node.global_definitions[param.static_type]) is Protocol:
+                self.errors.append(f"Param '{param.name}' in type '{node.id.name}' is a protocol"+cf.add_line_column(param.name))
         
         if node.inherits:
             self.visit(node.inherits)
@@ -771,6 +773,9 @@ class TypeInfChk:
             param.static_type = (
                 param.annotated_type if param.annotated_type != "" else "Object"
             )
+            
+            if type(node.global_definitions[param.static_type]) is Protocol:
+                self.errors.append(f"Param '{param.name}' in function '{node.func_id.name}' is a protocol"+cf.add_line_column(param.name))
 
         expect = node.static_type
         self.visit(node.body)
@@ -1163,11 +1168,12 @@ type Range(min:Number, max:Number) {
     current(): Number => self.current;
 }
 function range(min: Number, max: Number): Range => new Range (min,max);
+function asd(min: Iterable):Number => 1;
    {
        //[x^2 || x in range(1,10)];
    for (i in range(1,10)) 2+i;
    let x : Iterable = range(1,10) in print(x);
-   let numbers = [23] in numbers["as"];
+   let numbers = [23] in numbers[67];
    }"""
     ast, parsingErrors, _b = hulk_parse(code_text, cf, False)
 
