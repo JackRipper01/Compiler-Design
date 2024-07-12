@@ -1,5 +1,7 @@
 # region temp import
 from ast import Param
+
+from numpy import iterable
 from hulk_lexer import errorList as lexerErrors
 from hulk_parser import hulk_parse
 from misc import (
@@ -994,9 +996,15 @@ class TypeInfChk:
             self.errors.append(f"Iterable {node.iterator.name} must be 'Iterable'"+cf.add_line_column(node.iterator.name)
                         )
         node.static_type = StringToken("Vector")
-        T = "Object"
-        BinOp(ID("x", ""))
-        x.current()
+        
+        binop = BinOp(node.iterable, ".", FunctionCall(ID("current", ""),Params([])))
+        self.visit(binop)
+        
+        range_value = binop.static_type
+        
+        node.iterator.static_type = range_value
+        self.visit(node.expression)
+        T = node.expression.static_type
         node.static_type.T = T
         
     @visitor.when(VectorExt)
@@ -1202,7 +1210,7 @@ function asd(min: Iterable):Number => 1;
     current(): Number => self.current;
 }
 function range(min: Number, max: Number): Range => new Range (min,max);
-    [x*2 || x in range(1,10)];"""
+    let aaa = [x*2 || x in range(1,10)] in aaa[1];"""
     ast, parsingErrors, _b = hulk_parse(code_text, cf, True)
 
     print(
