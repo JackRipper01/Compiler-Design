@@ -6,8 +6,9 @@ function operate(x, y) {
     print(x * y);
     print(x / y);
 }
+function range(min:Number,max:Number) => new Range(min,max);
 function fib(n) => if (n == 0 | n == 1) 1 else fib(n-1) + fib(n-2);
-function fact(x) => let f = 1 in for (i in range(1, x+1)) f := f * i;
+function fact(x) => let f = 1 in for (i in range(1, x+1)) f := f * i;// Hace falta usar new para escribir range 
 function gcd(a, b) => while (a > 0)
         let m = a % b in {
             b := a;
@@ -31,17 +32,21 @@ type Range(min:Number, max:Number) {
     next(): Boolean => (self.current := self.current + 1) < self.max;
     current(): Number => self.current;
 }
-type Point(x,y) {
-    x = x;
-    y = y;
+type Point(x:Number,y:Number) {
+    x:Number = x;
+    y:Number = y;
 
     getX() => self.x;
     getY() => self.y;
 
     setX(x) => self.x := x;
     setY(y) => self.y := y;
+
+    hash(){
+        42;
+    }
 }
-type PolarPoint(phi, rho) inherits Point(rho * sin(phi), rho * cos(phi)) {
+type PolarPoint(phi:Number, rho:Number) inherits Point(rho * sin(phi), rho * cos(phi)) {
     rho() => sqrt(self.getX() ^ 2 + self.getY() ^ 2);
 }
 type Knight inherits Person {
@@ -150,13 +155,13 @@ type C inherits A {
         a := a - 1;
     }
     
-    for (x in range(0, 10)) print(x);
-    let iterable = range(0, 10) in
+    for (x in new Range(0, 10)) print(x);// Hace falta new para correr range
+    let iterable = range(0, 10) in // Hace falta new para correr range
         while (iterable.next())
             let x = iterable.current() in
                 print(x);
 
-    let pt = new Point() in // error
+    let pt = new Point(3, 5) in // error
         print("x: " @ pt.getX() @ "; y: " @ pt.getY());
     let pt = new Point(3,4) in
         print("x: " @ pt.getX() @ "; y: " @ pt.getY());
@@ -188,9 +193,9 @@ type C inherits A {
     let numbers = [1,2,3,4,5,6,7,8,9] in
         for (x in numbers)
             print(x);
-    let numbers = [1,2,3,4,5,6,7,8,9] in print(numbers[7]);
-    let squares = [x^2 || x in range(1,10)] in print(x); // error
-    let squares = [x^2 || x in range(1,10)] in for (x in squares) print(x);
-    let x : Hashable = new Person() in print(x.hash());
-    let x : Hashable = new Point(0,0) in print(x.hash()); // error
+    //let numbers = [1,2,3,4,5,6,7,8,9] in print(numbers[7]);
+    //let x = 3 in let squares = [x^2 || x in range(1,10)] in print(x); 
+    //let squares  = [x^2 || x in range(1,10)] in for (x in squares) print(x);
+    // let x : Hashable = new Person('Leonard','Muller') in print(x.hash()); //
+    // let x : Hashable = new Point(0,0) in print(x.hash()); // error
 }

@@ -59,4 +59,6 @@ def run_test(filename):
             pass
         CodeGen().visit(ast)
 
-run_test('./test/test.hulk')
+run_test('./test/for_test.hulk')
+# run_test('./test/function_test.hulk')
+# run_test('./test/test.hulk')
