@@ -836,8 +836,8 @@ class TypeInfChk:
         self.visit(node.value)
         if expect:
             if not conforms(node, node.value.static_type, expect):
-                print(f"'{node.value.static_type}' not conforms to '{expect}'"
-                    + cf.add_line_column(node.name.name)+" "+node.name.name)
+                # print(f"'{node.value.static_type}' not conforms to '{expect}'"
+                #     + cf.add_line_column(node.name.name)+" "+node.name.name)
                 self.errors.append(
                     f"'{node.value.static_type}' not conforms to '{expect}'"
                     + cf.add_line_column(node.name.name)
