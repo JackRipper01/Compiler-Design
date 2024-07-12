@@ -61,8 +61,7 @@ class CodeGen:
             f.write("#include <math.h>\n")
             f.write("#include <stdlib.h>\n")
             f.write("#include <string.h>\n\n")
-            f.write("  # include <time.h>\n# include <sys/time.h>\n\n")
-            f.write("#define tan(x) p_tan(x)")
+            f.write("# include <time.h>\n#include <sys/time.h>\n\n")
             f.write(
                 """
 //Concatenate two strings
@@ -170,9 +169,27 @@ String* new_String(char* value) {
 typedef struct {
     void** data;
     int len;
-} VectorExt;\n\n"""
-            )
+} VectorExt;\n\n""")
             if node.functions:
+                functions_headers=""
+                for function in node.functions:
+                    list_params = []
+                    for param in function.params.param_list:
+                        list_params.append((function.static_type+"*", param.name))
+                    params_c_code = ""
+                    for param_code in list_params:
+                        params_c_code += f"{param_code[0]} {param_code[1]},"
+
+                    if params_c_code != "":
+                        params_c_code = params_c_code[:-1]
+
+                    if function.func_id.name == "tan":
+                        code = f"""{function.static_type}* p_{function.func_id.name}({params_c_code});\n"""
+                    else:
+                        code = f"""{function.static_type}* {function.func_id.name}({params_c_code});\n"""
+                        
+                    f.write(code)
+                f.write("\n")
                 for function in node.functions:
                     f.write(f"{self.visit(function)[0]}\n\n")
             if node.types:
@@ -756,38 +773,24 @@ return new_{node.static_type}(!({child_ret}->value));
 
 # endregion
 if __name__ == "__main__":
-    code = """type A {
-    // ...
-}
+    code = """function cot(x:Number):Number => 1 / tan(x);
+function tan(x:Number):Number => sin(x) / cos(x);
 
-type B inherits A {
-    // ...
-}
-
-type C inherits A {
-    // ...
-}
-
-let x : A = if (rand() < 0.5) new B() else new C() in
-    if (x is B)
-        let y : B = x as B in {
-            // you can use y with static type B
-            y;
-        }
-    else {
-        // x cannot be downcasted to B
-        x;
-    }
+print(tan(PI) ** 2 + cot(PI) ** 2);
 """
     ccode = """print(rand());"""
+    cccode="""let numbers = [1,2,3,4,5,6,7,8,9] in print(numbers[7]);"""
+    ccccode ="""function cot(x) => 1 / tan(x);
+function tan(x) => sin(x) / cos(x);
 
+print(tan(PI) ** 2 + cot(PI) ** 2);"""
     cf = ColumnFinder()
     from hulk_semantic_check import semantic_check
     from hulk_lexer import errorList as lexerErrors
     ast, parsingErrors, _b = hulk_parse(
         code, cf)
     print(code)
-    create_AST_graph(nodes, "AST")
+    # create_AST_graph(nodes, "AST")
 
     print(
         "LEXER FOUND THE FOLLOWING ERRORS:" if len(
