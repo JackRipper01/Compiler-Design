@@ -1027,8 +1027,8 @@ class TypeInfChk:
             #         f"Do not even try to cast '{node.left.static_type}' to '{expect}'"
             #         + cf.add_line_column(node.op)
             #     )
+            node.right.static_type = node.right.name
             if node.op == "is":
-                node.right.static_type = node.right.name
                 expect = "Boolean"
             # if type(node.global_definitions[expect]) is Protocol:
             #     expect = node.left.static_type
@@ -1049,8 +1049,10 @@ class TypeInfChk:
         elif node.op == ".":
             self.visit(node.left)
             context_from = node.left.static_type
-            if context_from in set(node.global_definitions).difference(
-                set(["Vector", "Number", "Boolean", "String", "Object"])
+            if context_from == "Vector":
+                pass
+            elif context_from in set(node.global_definitions).difference(
+                set(["Number", "Boolean", "String", "Object"])
             ):
                 context = node.global_definitions[context_from].variable_scope.copy()
                 if type(node.right) is ID:
