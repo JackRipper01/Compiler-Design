@@ -1391,6 +1391,7 @@ def p_expression_vector_ind_pare(p):
                 p[i].lineno = p.lineno(i)
                 p[i].lexpos = p.lexpos(i)
     p[0] = VectorCall(p[1], p[3])
+    p[0].tk = p[2]
     p[1].parent = p[0]
     p[3].parent = p[0]
 

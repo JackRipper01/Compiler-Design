@@ -973,9 +973,13 @@ class TypeInfChk:
         if node.static_type != "Vector":
             self.errors.append(
                 f"Vector call expected 'Vector' but received '{node.static_type}'"
-                + cf.add_line_column(node.id.name)
+                + cf.add_line_column(node.tk)
             )
-        node.static_type = node.id.static_type.T
+        if node.static_type == "Vector":
+            node.static_type = node.id.static_type.T
+        self.visit(node.index)
+        if node.index.static_type != "Number":
+            self.errors.append("Index of Vector call must be 'Number'"+cf.add_line_column(node.tk))
 
     @visitor.when(VectorExt)
     def visit(self, node: VectorExt):
@@ -1163,7 +1167,7 @@ function range(min: Number, max: Number): Range => new Range (min,max);
        //[x^2 || x in range(1,10)];
    for (i in range(1,10)) 2+i;
    let x : Iterable = range(1,10) in print(x);
-   let numbers = [1,2,3,4,5,6,7,8,9,10] in numbers;
+   let numbers = [23] in numbers["as"];
    }"""
     ast, parsingErrors, _b = hulk_parse(code_text, cf, False)
 
