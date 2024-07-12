@@ -565,7 +565,7 @@ typedef struct {
                 printf("Index out of bounds: %d, length: %d\\n", {ret_index}, {ret_id}->len);
                 exit(-1);
                 }}\n"""
-        return def_call, f"""(({node.static_type}*)({ret_id}->data[(int){ret_index}]))"""
+        return def_call, f"""(({node.static_type}*)({ret_id}->data[(int){ret_index}->value]))"""
 
     @visitor.when(BinOp)
     def visit(self, node):
