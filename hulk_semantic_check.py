@@ -773,7 +773,8 @@ class TypeInfChk:
             param.static_type = (
                 param.annotated_type if param.annotated_type != "" else "Object"
             )
-            if node.global_definitions[param.static_type] is Protocol:
+            
+            if type(node.global_definitions[param.static_type]) is Protocol:
                 self.errors.append(f"Param '{param.name}' in function '{node.func_id.name}' is a protocol"+cf.add_line_column(param.name))
 
         expect = node.static_type
@@ -1167,6 +1168,7 @@ type Range(min:Number, max:Number) {
     current(): Number => self.current;
 }
 function range(min: Number, max: Number): Range => new Range (min,max);
+function asd(min: Iterable):Number => 1;
    {
        //[x^2 || x in range(1,10)];
    for (i in range(1,10)) 2+i;
