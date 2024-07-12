@@ -986,6 +986,19 @@ class TypeInfChk:
         if node.index.static_type != "Number":
             self.errors.append("Index of Vector call must be 'Number'"+cf.add_line_column(node.tk))
 
+    @visitor.when(VectorInt)
+    def visit(self, node: VectorInt):
+        iter_expect = "Iterable"
+        self.visit(node.iterable)
+        if not conforms(node, node.iterable.static_type, iter_expect):
+            self.errors.append(f"Iterable {node.iterator.name} must be 'Iterable'"+cf.add_line_column(node.iterator.name)
+                        )
+        node.static_type = StringToken("Vector")
+        T = "Object"
+        BinOp(ID("x", ""))
+        x.current()
+        node.static_type.T = T
+        
     @visitor.when(VectorExt)
     def visit(self, node: VectorExt):
         typs = []
@@ -1175,7 +1188,22 @@ function asd(min: Iterable):Number => 1;
    let x : Iterable = range(1,10) in print(x);
    let numbers = [23] in numbers[67];
    }"""
-    ast, parsingErrors, _b = hulk_parse(code_text, cf, False)
+    code_text = """
+    protocol Iterable {
+    next() : Boolean;
+    current() : Object;
+}
+    type Range(min:Number, max:Number) {
+    min = min;
+    max: Number = max;
+    current = min - 1;
+
+    next(): Boolean => (self.current := self.current + 1) < self.max;
+    current(): Number => self.current;
+}
+function range(min: Number, max: Number): Range => new Range (min,max);
+    [x*2 || x in range(1,10)];"""
+    ast, parsingErrors, _b = hulk_parse(code_text, cf, True)
 
     print(
         "LEXER FOUND THE FOLLOWING ERRORS:" if len(lexerErrors) > 0 else "LEXING OK!",
@@ -1226,4 +1254,5 @@ function asd(min: Iterable):Number => 1;
         #     print(i, ast.global_definitions["A"].variable_scope[i].static_type)
         # print(conforms(ast, "Iterable", "A"))
         # print(conforms(ast, "A", "Iterable"))
+        # print(conforms(ast, "Vector", "Iterable"))
         

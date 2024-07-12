@@ -1368,6 +1368,7 @@ def p_vector_int(p):
     p[2].parent = p[0]
     p[4].parent = p[0]
     p[6].parent = p[0]
+    p[0].tk = p[1]
 
 
 def p_expression_vector_ind_pa(p):
