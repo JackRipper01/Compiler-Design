@@ -226,7 +226,7 @@ typedef struct {
         list_params = []
         body_def, body_ret = self.visit(node.body)
         for param in node.params.param_list:
-            list_params.append((node.static_type+"*", param.name))
+            list_params.append((param.static_type+"*", param.name))
         params_c_code = ""
         for param_code in list_params:
             params_c_code += f"{param_code[0]} {param_code[1]},"
