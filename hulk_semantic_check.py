@@ -1,7 +1,6 @@
 # region temp import
 from ast import Param
 
-from numpy import iterable
 from hulk_lexer import errorList as lexerErrors
 from hulk_parser import hulk_parse
 from misc import (
@@ -990,6 +989,7 @@ class TypeInfChk:
 
     @visitor.when(VectorInt)
     def visit(self, node: VectorInt):
+        self.errors.append("Vectors INTENSIONAL not implemented yet"+cf.add_line_column(node.tk))
         iter_expect = "Iterable"
         self.visit(node.iterable)
         if not conforms(node, node.iterable.static_type, iter_expect):
@@ -1196,21 +1196,7 @@ function asd(min: Iterable):Number => 1;
    let x : Iterable = range(1,10) in print(x);
    let numbers = [23] in numbers[67];
    }"""
-    code_text = """
-    protocol Iterable {
-    next() : Boolean;
-    current() : Object;
-}
-    type Range(min:Number, max:Number) {
-    min = min;
-    max: Number = max;
-    current = min - 1;
-
-    next(): Boolean => (self.current := self.current + 1) < self.max;
-    current(): Number => self.current;
-}
-function range(min: Number, max: Number): Range => new Range (min,max);
-    let aaa = [x*2 || x in range(1,10)] in aaa[1];"""
+    code_text = """let aaa = [x*2 || x in range(1,10)] in aaa[1];"""
     ast, parsingErrors, _b = hulk_parse(code_text, cf, True)
 
     print(
