@@ -202,15 +202,51 @@ def conforms(ast_node: Node, A, B):
             return A in protocol_descendancy_set(ast_node, B, set())
         if A in  ["Number", "String", "Boolean", "Object"]:
             return False
-        if A == "Vector":
+        if A == "Vector" and B == "Vector":
             a= TypeDef(ID(A,A), Params([]),None, None)
-            A = "Iterable"
-        A = ast_node.global_definitions[A]
-        B = ast_node.global_definitions[B]
-        for meth in B.functions:
+            a.variable_scope["next/0/private"] = FunctionDef(
+                ID("next", "Boolean"), Params([]), None)
+            a.variable_scope["next/0/private"].static_type = "Boolean"
+            a.variable_scope["current/0/private"] = FunctionDef(
+                ID("current", A.T), Params([]), None)
+            a.variable_scope["current/0/private"].static_type = A.T
+            
+            b = TypeDef(ID(B, B), Params([]), None, None)
+            b.variable_scope["next/0/private"] = FunctionDef(
+                ID("next", "Boolean"), Params([]), None)
+            b.variable_scope["next/0/private"].static_type = "Boolean"
+            b.variable_scope["current/0/private"] = FunctionDef(
+                ID("current", B.T), Params([]), None)
+            b.variable_scope["current/0/private"].static_type = B.T
+        elif A == "Vector":
+            b = ast_node.global_definitions[B]
+
+            a = TypeDef(ID(A, A), Params([]), None, None)
+            a.variable_scope["next/0/private"] = FunctionDef(
+                ID("next", "Boolean"), Params([]), None)
+            a.variable_scope["next/0/private"].static_type = "Boolean"
+            a.variable_scope["current/0/private"] = FunctionDef(
+                ID("current", A.T), Params([]), None)
+            a.variable_scope["current/0/private"].static_type = A.T
+        elif B == "Vector":
+            a = ast_node.global_definitions[A]
+            b = TypeDef(ID(B, B), Params([]), None, None)
+            b.variable_scope["next/0/private"] = FunctionDef(
+                ID("next", "Boolean"), Params([]), None)
+            b.variable_scope["next/0/private"].static_type = "Boolean"
+            b.variable_scope["current/0/private"] = FunctionDef(
+                ID("current", B.T), Params([]), None)
+            b.variable_scope["current/0/private"].static_type = B.T
+            
+        else:
+                
+            a = ast_node.global_definitions[A]
+            b = ast_node.global_definitions[A]
+            
+        for meth in b.functions:
             name = method_name_getter(meth, True)
-            if name in A.variable_scope:
-                if not func_conforms(ast_node, A.variable_scope[name], meth):
+            if name in a.variable_scope:
+                if not func_conforms(ast_node, a.variable_scope[name], meth):
                     return False
             else:
                 return False
