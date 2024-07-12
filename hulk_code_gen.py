@@ -667,7 +667,7 @@ return new_{node.static_type}(-({child_ret}->value));
 """
             return code, node.ret_point
         
-        elif node.op == "not":
+        elif node.op == "!":
             child_def, child_ret = self.visit(node.operand)
             node.ret_point = "ret_point_unary_op_" + str(node.instance_id)
             code = f"""{node.static_type}* unary_op_{node.instance_id}() {{

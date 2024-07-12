@@ -42,7 +42,7 @@ type Point(x:Number,y:Number) {
     setX(x:Number) => self.x := x;
     setY(y:Number) => self.y := y;
 
-    hash(){
+    hash(): Number{
         42;
     }
 
@@ -83,6 +83,16 @@ type C inherits A {
     hello() => print("C");
 }
 
+type QueRico(muela) {
+    muela = muela;
+    temporada_de_awacate= true;
+
+    cascara(str):QueRico => new QueRico(self.muela @@ str);
+    lo_de_adentro(str):QueRico => new QueRico(self.muela @@ str);
+    semilla(bool):Boolean => !self.temporada_de_awacate;
+}
+
+
 {
     42;
     print(42);
@@ -95,9 +105,9 @@ type C inherits A {
         print(42);
         print(sin(PI/2));
         print("Hello World");
-    }
+    };
 
-
+    
     print(tan(PI) ** 2 + cot(PI) ** 2);
 
     let msg = "Hello World" in print(msg);
@@ -157,16 +167,16 @@ type C inherits A {
     let a = 10 in while (a >= 0) {
         print(a);
         a := a - 1;
-    }
+    };
     
-    for (x in new Range(0, 10)) print(x);// Hace falta new para correr range
-    let iterable = range(0, 10) in // Hace falta new para correr range
+    for (x in range(0, 10)) print(x);
+    let iterable = range(0, 10) in
         while (iterable.next())
             let x = iterable.current() in
                 print(x);
 
-    let pt = new Point(3, 5) in // error
-        print("x: " @ pt.getX() @ "; y: " @ pt.getY());
+    //let pt = new Point() in 
+    //    print("x: " @ pt.getX() @ "; y: " @ pt.getY());
     let pt = new Point(3,4) in
         print("x: " @ pt.getX() @ "; y: " @ pt.getY());
     let pt = new PolarPoint(3,4) in
@@ -177,14 +187,19 @@ type C inherits A {
     let p: Person = new Knight("Phil", "Collins") in print(p.name());
     let x: Number = 42 in print(x);
 
+    
     let x = new Superman() in
         print(
             if (x is Bird) "It's bird!"
             elif (x is Plane) "It's a plane!"
             else "No, it's Superman!"
         );
+
     let x = 42 in print(x);
     let total = { print("Total"); 5; } + 6 in print(total);
+
+    
+
     let x : A = if (rand() < 0.5) new B() else new C() in
         if (x is B)
             let y : B = x as B in {
@@ -198,8 +213,14 @@ type C inherits A {
     //    for (x in numbers)
     //        print(x);
     //let numbers = [1,2,3,4,5,6,7,8,9] in print(numbers[7]);
-    //let x = 3 in let squares = [x^2 || x in range(1,10)] in print(x); 
-    //let squares  = [x^2 || x in range(1,10)] in for (x in squares) print(x);
-    //let x : Hashable = new Person('Leonard','Muller') in print(x.hash()); //
-    //let x : Hashable = new Point(0,0) in print(x.hash()); // error
+
+    
+    //let squares = [x^2 || x in range(1,10)] in print(x);
+
+    //let squares = [x^2 || x in range(1,10)] in for (x in squares) print(x);
+    //let x : Hashable = new Person() in print(x.hash());
+    let x : Hashable = new Point(0,0) in print(x.hash());
+
+    
+    let temporada_de_awacate = 4,awacate: QueRico = new QueRico("siuuuu" @@ "banda" @ "yaes" @ 4*5^2 @@ temporada_de_awacate == 3) in awacate.cascara("verde").lo_de_adentro(43*-1).semilla(true);
 }
