@@ -73,7 +73,7 @@ char* concatenate_strings(const char* str1, const char* str2) {
     char* result = (char*)malloc(length * sizeof(char));
     if (result == NULL) {
         printf("Memory allocation failed");
-        exit(1); // Exit if memory allocation fails
+        exit(-1); // Exit if memory allocation fails
     }
 
     // Copy the first string and concatenate the second string
@@ -167,9 +167,11 @@ String* new_String(char* value) {
 }
 
 typedef struct {
+    char* type;
+    char* string;
     void** data;
     int len;
-} VectorExt;\n\n""")
+} Vector;\n\n""")
             if node.functions:
                 functions_headers=""
                 for function in node.functions:
@@ -530,22 +532,25 @@ typedef struct {
 
     @visitor.when(VectorExt)
     def visit(self, node: VectorExt):
-        size_of_vect = len(node.items.param_list)
+        size_of_vect=0
+        if node.items:
+            if node.items.param_list:
+                size_of_vect = len(node.items.param_list)
         # implement this with an array of pointers in C
-        def_vect = f"""VectorExt* {node.name}(){{
-                VectorExt* vector = (VectorExt*)malloc(sizeof(VectorExt));
-                void** points = (void**)malloc({size_of_vect}*sizeof(void*));\n"""
+        def_vect = f"""Vector* {node.name}(){{
+                Vector* vector = (Vector*)malloc(sizeof(Vector));
+                void** array = (void**)malloc({size_of_vect}*sizeof(void*));\n"""
         for i in range(size_of_vect):
             def_item, ret_item = self.visit(node.items.param_list[i])
             def_vect += def_item + "\n"
-            def_vect += f"""array_of_points[{i}] = {ret_item};\n"""
+            def_vect += f"""array[{i}] = {ret_item};\n"""
 
-        def_vect += f"""vector -> data = points;\n"""
+        def_vect += f"""vector -> data = array;\n"""
         def_vect += f"vector -> len = {size_of_vect};\n"
 
         def_vect += f"""return vector;"""
         def_vect += "}\n"
-        def_vect += f"""VectorExt* {node.ret_point}_{node.instance_id} = {node.name}();"""
+        def_vect += f"""Vector* {node.ret_point}_{node.instance_id} = {node.name}();"""
         ret_vect = f"{node.ret_point}_{node.instance_id}"
         return def_vect, ret_vect
 
@@ -553,12 +558,11 @@ typedef struct {
     def visit(self, node: VectorCall):
         def_index, ret_index = self.visit(node.index)
         def_call = def_index
-        def_call += f"""if ({node.id.name}->len < {ret_index}){{
+        def_call += f"""if ({node.id.name}->len < (int){ret_index}){{
                 printf("Index out of bounds: %d, length: %d\\n", {ret_index}, {node.id.name}->len);
                 exit(-1);
-                
-                }}"""
-        return def_call, f"""({node.id.name}->data[(int){ret_index}])"""
+                }}\n"""
+        return def_call, f"""(({node.id.T}*)({node.id}->data[(int){ret_index}]))"""
 
     @visitor.when(BinOp)
     def visit(self, node):
@@ -653,7 +657,7 @@ typedef struct {
     @visitor.when(UnaryOp)
     def visit(self, node):
         if node.op == "-":
-            child_def, child_ret = self.visit(node.value)
+            child_def, child_ret = self.visit(node.operand)
             node.ret_point = "ret_point_unary_op_" + str(node.instance_id)
             code = f"""{node.static_type}* unary_op_{node.instance_id}() {{
 {child_def}
@@ -663,8 +667,8 @@ return new_{node.static_type}(-({child_ret}->value));
 """
             return code, node.ret_point
         
-        elif node.op == "not":
-            child_def, child_ret = self.visit(node.value)
+        elif node.op == "!":
+            child_def, child_ret = self.visit(node.operand)
             node.ret_point = "ret_point_unary_op_" + str(node.instance_id)
             code = f"""{node.static_type}* unary_op_{node.instance_id}() {{
 {child_def}
@@ -788,8 +792,8 @@ print(tan(PI) ** 2 + cot(PI) ** 2);"""
     from hulk_semantic_check import semantic_check
     from hulk_lexer import errorList as lexerErrors
     ast, parsingErrors, _b = hulk_parse(
-        code, cf)
-    print(code)
+        cccode, cf)
+    print(cccode)
     # create_AST_graph(nodes, "AST")
 
     print(
