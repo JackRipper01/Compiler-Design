@@ -203,6 +203,7 @@ def conforms(ast_node: Node, A, B):
         if A in  ["Number", "String", "Boolean", "Object"]:
             return False
         if A == "Vector":
+            a= TypeDef(ID(A,A), Params([]),None, None)
             A = "Iterable"
         A = ast_node.global_definitions[A]
         B = ast_node.global_definitions[B]

@@ -472,6 +472,7 @@ def p_function_def(p):
                 p[i].lexpos = p.lexpos(i)
     id = ID(p[2], p[6])
     p[0] = FunctionDef(id, p[4], p[8])
+    print(p[2], "tpppp", p[6])
     id.parent = p[0]
     p[4].parent = p[0]
     p[8].parent = p[0]

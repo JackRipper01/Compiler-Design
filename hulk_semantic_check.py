@@ -965,7 +965,17 @@ class TypeInfChk:
                 f"LOG operation expect 'Number' arguments, but received '{node.value.static_type}' and '{node.base.static_type}'"
             )
         node.static_type = "Number"
-
+    
+    @visitor.when(VectorCall)
+    def visit(self, node: VectorCall):
+        self.visit(node.id)
+        node.static_type = node.id.static_type
+        if node.static_type != "Vector":
+            self.errors.append(
+                f"Vector call expected 'Vector' but received '{node.static_type}'"
+                + cf.add_line_column(node.id.name)
+            )
+    
     @visitor.when(VectorExt)
     def visit(self, node: VectorExt):
         typs = []
@@ -1147,10 +1157,14 @@ type Range(min:Number, max:Number) {
     next(): Boolean => (self.current := self.current + 1) < self.max;
     current(): Number => self.current;
 }
-function range(min: Number, max: Number) => new Range(min,max);
-   { [x^2 || x in range(1,10)];
-   for (i in range(1,10)) 2+i;}"""
-    ast, parsingErrors, _b = hulk_parse(code_text, cf, True)
+function range(min: Number, max: Number): Range => new Range (min,max);
+   {
+       //[x^2 || x in range(1,10)];
+   for (i in range(1,10)) 2+i;
+   let x : Iterable = range(1,10) in print(x);
+   let numbers = [1,2,3,4,5,6,7,8,9,10] in numbers[0];
+   }"""
+    ast, parsingErrors, _b = hulk_parse(code_text, cf, False)
 
     print(
         "LEXER FOUND THE FOLLOWING ERRORS:" if len(lexerErrors) > 0 else "LEXING OK!",
@@ -1194,11 +1208,11 @@ function range(min: Number, max: Number) => new Range(min,max);
         #     print(typexx.static_type)
         # for typexx in print(ast.global_definitions["Iterable"].variable_scope["current/0/private"]).params.param_list:
         #     print(typexx.static_type)
-        for i in ast.global_definitions["Iterable"].variable_scope:
-            print(i, ast.global_definitions["Iterable"].variable_scope[i].static_type)
-        print()
-        for i in ast.global_definitions["A"].variable_scope:
-            print(i, ast.global_definitions["A"].variable_scope[i].static_type)
-        print(conforms(ast, "Iterable", "A"))
-        print(conforms(ast, "A", "Iterable"))
+        # for i in ast.global_definitions["Iterable"].variable_scope:
+        #     print(i, ast.global_definitions["Iterable"].variable_scope[i].static_type)
+        # print()
+        # for i in ast.global_definitions["A"].variable_scope:
+        #     print(i, ast.global_definitions["A"].variable_scope[i].static_type)
+        # print(conforms(ast, "Iterable", "A"))
+        # print(conforms(ast, "A", "Iterable"))
         
