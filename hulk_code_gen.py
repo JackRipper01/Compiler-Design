@@ -61,6 +61,7 @@ class CodeGen:
             f.write("#include <math.h>\n")
             f.write("#include <stdlib.h>\n")
             f.write("#include <string.h>\n\n")
+            f.write("  # include <time.h>\n# include <sys/time.h>\n\n")
             f.write("#define tan(x) p_tan(x)")
             f.write(
                 """
@@ -189,6 +190,10 @@ typedef struct {
                     f.write(f"{self.visit(type)[0]}\n\n")
 
             f.write("int main() {\n\n")
+            f.write("""struct timeval tv;
+    gettimeofday(&tv, NULL);
+    unsigned long long seed = tv.tv_sec * 1000000 + tv.tv_usec;
+    srand(seed);""")
             f.write(f"{main_def}\n\n")
             f.write(f"Object* result = (Object*){main_ret};\n")
             f.write(f"""printf("%s\\n", result->string);\n""")
@@ -206,7 +211,9 @@ typedef struct {
         params_c_code = ""
         for param_code in list_params:
             params_c_code += f"{param_code[0]} {param_code[1]},"
-        params_c_code = params_c_code[:-1]
+
+        if params_c_code != "":
+            params_c_code = params_c_code[:-1]
 
         if node.func_id.name == "tan":
             code = f"""{node.static_type}* p_{node.func_id.name}({params_c_code}){{{body_def}
@@ -220,7 +227,9 @@ typedef struct {
         params_name_c_code = ""
         for param_name in list_params:
             params_name_c_code += param_name[1] + ","
-        params_name_c_code = params_name_c_code[:-1]
+
+        if params_name_c_code:
+            params_name_c_code = params_name_c_code[:-1]
         ret_code = f"""{node.func_id.name}({params_name_c_code})"""
 
         return code, ret_code
@@ -241,7 +250,8 @@ typedef struct {
         for param_ret_code in def_ret_list_params:
             params_ret_c_code += param_ret_code[1] + ","
 
-        params_ret_c_code = params_ret_c_code[:-1]
+        if params_ret_c_code:
+            params_ret_c_code = params_ret_c_code[:-1]
 
         if node.func_id.name == "tan":
             return f"{params_def_code}", f"""p_{node.func_id.name}({params_ret_c_code})"""
@@ -558,6 +568,7 @@ typedef struct {
                 right_ret = right_ret[:inicio+1] + \
                     nuevos_parametros + right_ret[fin:]
 
+    # OOOOOJJJJJJJOOOOOOOOOOOOOOOOOOOOOOOOOO si es function call se de be modificar los parametros, por eso esta correcto esto
             return f"{left_def}\n{right_def}\n", f"""(({node.left.static_type}*){left_ret})->{right_ret}"""
 
         if node.op == "is":
@@ -574,7 +585,7 @@ typedef struct {
             return code, f"({node.ret_point})"
 
         if node.op == "as":
-            code = f"""{node.static_type}* bin_op_{node.instance_id}(){{\n"""
+            code = f"""Boolean* bin_op_{node.instance_id}(){{\n"""
             code += f"""{left_def}\n{right_def}\n"""
             code += f"""Boolean* result = new_Boolean(0);"""
             list_of_desc = get_descendancy_set(
@@ -583,7 +594,7 @@ typedef struct {
                 code += f"""if (check_types({left_ret}->type,"{desc}")){{\n result = new_Boolean(1);\nreturn result;\n}}\n"""
             code += f"""return result;"""
             code += "\n}\n"
-            code += f"{node.static_type}* {node.ret_point} = bin_op_{node.instance_id}();\n"
+            code += f"Boolean* {node.ret_point} = bin_op_{node.instance_id}();\n"
             code += f"""if ({node.ret_point}->value ==0)
             {{printf("%s\\n","AS operator could not be done");
             exit(-1);}}"""
@@ -601,7 +612,7 @@ typedef struct {
         {right_def}\n"""
         if node.op in ["+", "-", "*", "/"]:
             code += f"return new_{node.static_type}(({left_ret}->value {node.op} {right_ret}->value));\n"
-        elif node.op in [">", "<", ">=", "<=", "==", "!="]:
+        elif node.op in [">", "<", ">=", "<=", "==", "!=","&","|"]:
             code += f"""if({left_ret}->value {node.op} {right_ret}->value)"""
             code += f"\nreturn new_{node.static_type}(1);\n"
             code += f"else\nreturn new_{node.static_type}(0);\n"
@@ -624,13 +635,23 @@ typedef struct {
 
     @visitor.when(UnaryOp)
     def visit(self, node):
-        if node.op == "-":  # recuerda el not
-            node.static_type = "float"
+        if node.op == "-":
             child_def, child_ret = self.visit(node.value)
             node.ret_point = "ret_point_unary_op_" + str(node.instance_id)
             code = f"""{node.static_type}* unary_op_{node.instance_id}() {{
 {child_def}
-return -({child_ret}->value);
+return new_{node.static_type}(-({child_ret}->value));
+}}
+{node.static_type}* {node.ret_point} = unary_op_{node.instance_id}();
+"""
+            return code, node.ret_point
+        
+        elif node.op == "not":
+            child_def, child_ret = self.visit(node.value)
+            node.ret_point = "ret_point_unary_op_" + str(node.instance_id)
+            code = f"""{node.static_type}* unary_op_{node.instance_id}() {{
+{child_def}
+return new_{node.static_type}(!({child_ret}->value));
 }}
 {node.static_type}* {node.ret_point} = unary_op_{node.instance_id}();
 """
@@ -758,6 +779,8 @@ let x : A = if (rand() < 0.5) new B() else new C() in
         x;
     }
 """
+    ccode = """print(rand());"""
+
     cf = ColumnFinder()
     from hulk_semantic_check import semantic_check
     from hulk_lexer import errorList as lexerErrors
