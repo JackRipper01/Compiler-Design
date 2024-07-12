@@ -612,7 +612,7 @@ typedef struct {
         {right_def}\n"""
         if node.op in ["+", "-", "*", "/"]:
             code += f"return new_{node.static_type}(({left_ret}->value {node.op} {right_ret}->value));\n"
-        elif node.op in [">", "<", ">=", "<=", "==", "!="]:
+        elif node.op in [">", "<", ">=", "<=", "==", "!=","&","|"]:
             code += f"""if({left_ret}->value {node.op} {right_ret}->value)"""
             code += f"\nreturn new_{node.static_type}(1);\n"
             code += f"else\nreturn new_{node.static_type}(0);\n"
