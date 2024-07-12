@@ -183,9 +183,22 @@ def protocol_descendancy_set(ast_node: Node, name, descendancy):
    
 def conforms(ast_node: Node, A, B):
     try:
+        if type(ast_node.global_definitions[A]) is Protocol:
+            raise Exception()
         return A in get_descendancy_set(ast_node, B, set())
     except:  
-        if type(ast_node.global_definitions[A]) is Protocol:
+        if type(ast_node.global_definitions[A]) is Protocol and type(ast_node.global_definitions[B]) is TypeDef:
+            A = ast_node.global_definitions[A]
+            B = ast_node.global_definitions[B]
+            for meth in B.functions:
+                name = method_name_getter(meth, True)
+                if name in A.variable_scope:
+                    if not func_conforms(ast_node, A.variable_scope[name], meth):
+                        return False
+                else:
+                    return False
+            return True
+        elif type(ast_node.global_definitions[A]) is Protocol:
             return A in protocol_descendancy_set(ast_node, B, set())
         if A in  ["Number", "String", "Boolean", "Object"]:
             return False
@@ -193,8 +206,6 @@ def conforms(ast_node: Node, A, B):
             A = "Iterable"
         A = ast_node.global_definitions[A]
         B = ast_node.global_definitions[B]
-        if type(A) is Protocol and not (type(B) is Protocol):
-            return False
         for meth in B.functions:
             name = method_name_getter(meth, True)
             if name in A.variable_scope:

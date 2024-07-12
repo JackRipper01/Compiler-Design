@@ -694,7 +694,6 @@ class TypeInfChk:
 
     @visitor.when(TypeDef)
     def visit(self, node: TypeDef):
-                
         node.static_type = node.id.name
         for param in node.params.param_list:
             param: ID
@@ -842,8 +841,8 @@ class TypeInfChk:
                     f"'{node.value.static_type}' not conforms to '{expect}'"
                     + cf.add_line_column(node.name.name)
                 )
-            # if type(node.global_definitions[expect]) is Protocol:
-            #     expect = node.value.static_type
+            if type(node.global_definitions[expect]) is Protocol:
+                expect = node.value.static_type
             node.name.static_type = expect
             node.static_type = expect
         else:
@@ -1030,8 +1029,8 @@ class TypeInfChk:
             node.right.static_type = node.right.name
             if node.op == "is":
                 expect = "Boolean"
-            # if type(node.global_definitions[expect]) is Protocol:
-            #     expect = node.left.static_type
+            if type(node.global_definitions[expect]) is Protocol:
+                expect = node.left.static_type
             node.static_type = expect
 
         elif node.op == "AD":
@@ -1110,7 +1109,7 @@ def semantic_check(ast: Program, column_finder):
 
 
 if __name__ == "__main__":
-    code_file = io.open("test_fixin.hulk").read()
+    # code_file = io.open("test_fixin.hulk").read()
     code_text = """
 protocol Iterable {
     next() : Boolean;
@@ -1127,10 +1126,31 @@ type L inherits Elite {
 }
 let a : Iterable = new Elite() in a.next();
     """
-    code_text = """function asd (x,y,z) => print(1);
-    type A(x, y, z) {}
-    new A(1,2,3);"""
-    ast, parsingErrors, _b = hulk_parse(code_file, cf, False)
+    
+    
+    
+    
+    code_text = """
+    protocol Iterable {
+    next() : Boolean;
+    current() : Object;
+}
+type A () {
+    next() : Boolean => true;
+    current() : Object => print("hello");
+}
+type Range(min:Number, max:Number) {
+    min = min;
+    max: Number = max;
+    current = min - 1;
+
+    next(): Boolean => (self.current := self.current + 1) < self.max;
+    current(): Number => self.current;
+}
+function range(min: Number, max: Number) => new Range(min,max);
+   { [x^2 || x in range(1,10)];
+   for (i in range(1,10)) 2+i;}"""
+    ast, parsingErrors, _b = hulk_parse(code_text, cf, True)
 
     print(
         "LEXER FOUND THE FOLLOWING ERRORS:" if len(lexerErrors) > 0 else "LEXING OK!",
@@ -1164,4 +1184,21 @@ let a : Iterable = new Elite() in a.next();
         print("\nGlobal Expression returned:", typeof(ast.global_exp))
         # from hulk_code_gen import CodeGen
         # CodeGen().visit(ast)
+        # print(ast.global_definitions["A"].variable_scope)
+        # for typexx in print(ast.global_definitions["A"].variable_scope["next/0/private"]).params.param_list:
+        #     print(typexx.static_type)
+        # for typexx in print(ast.global_definitions["A"].variable_scope["current/0/private"]).params.param_list:
+        #     print(typexx.static_type)
+        # print(ast.global_definitions["Iterable"].variable_scope)
+        # for typexx in print(ast.global_definitions["Iterable"].variable_scope["next/0/private"]).params.param_list:
+        #     print(typexx.static_type)
+        # for typexx in print(ast.global_definitions["Iterable"].variable_scope["current/0/private"]).params.param_list:
+        #     print(typexx.static_type)
+        for i in ast.global_definitions["Iterable"].variable_scope:
+            print(i, ast.global_definitions["Iterable"].variable_scope[i].static_type)
+        print()
+        for i in ast.global_definitions["A"].variable_scope:
+            print(i, ast.global_definitions["A"].variable_scope[i].static_type)
+        print(conforms(ast, "Iterable", "A"))
+        print(conforms(ast, "A", "Iterable"))
         
