@@ -61,6 +61,7 @@ class CodeGen:
             f.write("#include <math.h>\n")
             f.write("#include <stdlib.h>\n")
             f.write("#include <string.h>\n\n")
+            f.write("  # include <time.h>\n# include <sys/time.h>\n\n")
             f.write("#define tan(x) p_tan(x)")
             f.write(
                 """
@@ -189,6 +190,10 @@ typedef struct {
                     f.write(f"{self.visit(type)[0]}\n\n")
 
             f.write("int main() {\n\n")
+            f.write("""struct timeval tv;
+    gettimeofday(&tv, NULL);
+    unsigned long long seed = tv.tv_sec * 1000000 + tv.tv_usec;
+    srand(seed);""")
             f.write(f"{main_def}\n\n")
             f.write(f"Object* result = (Object*){main_ret};\n")
             f.write(f"""printf("%s\\n", result->string);\n""")
@@ -574,7 +579,7 @@ typedef struct {
             return code, f"({node.ret_point})"
 
         if node.op == "as":
-            code = f"""{node.static_type}* bin_op_{node.instance_id}(){{\n"""
+            code = f"""Boolean* bin_op_{node.instance_id}(){{\n"""
             code += f"""{left_def}\n{right_def}\n"""
             code += f"""Boolean* result = new_Boolean(0);"""
             list_of_desc = get_descendancy_set(
@@ -583,7 +588,7 @@ typedef struct {
                 code += f"""if (check_types({left_ret}->type,"{desc}")){{\n result = new_Boolean(1);\nreturn result;\n}}\n"""
             code += f"""return result;"""
             code += "\n}\n"
-            code += f"{node.static_type}* {node.ret_point} = bin_op_{node.instance_id}();\n"
+            code += f"Boolean* {node.ret_point} = bin_op_{node.instance_id}();\n"
             code += f"""if ({node.ret_point}->value ==0)
             {{printf("%s\\n","AS operator could not be done");
             exit(-1);}}"""
@@ -758,6 +763,8 @@ let x : A = if (rand() < 0.5) new B() else new C() in
         x;
     }
 """
+    ccode="""print(rand());"""
+
     cf = ColumnFinder()
     from hulk_semantic_check import semantic_check
     from hulk_lexer import errorList as lexerErrors
