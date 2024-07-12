@@ -1,0 +1,35 @@
+type Range(min:Number, max:Number) {
+    min = min;
+    max = max;
+    current = min - 1;
+
+    next(): Boolean => (self.current := self.current + 1) < self.max;
+    current(): Number => self.current;
+}
+
+function tan(x: Number): Number => sin(x) / cos(x);
+function cot(x) => 1 / tan(x);
+function operate(x:Number, y:Number) {
+    print(x + y);
+    print(x - y);
+    print(x * y);
+    print(x / y);
+}
+// function fib(n:Number): Number => if (n == 0 | n == 1) 1 else fib(n-1) + fib(n-2);
+function fact(x:Number) => let f = 1 in for (i in new Range(1, x+1)) f := f * i;
+function gcd(a:Number, b:Number) => while (a > 0)
+        let m = a % b in {
+            b := a;
+            a := m;
+        };
+
+let a=90,x = 10, y = 5 in {
+    print(tan(a));
+    print(cot(45));
+    operate(x,y);
+    // print(fib(y));
+    print(fact(y));
+    print(gcd(x,y));
+    print(gcd(x,3));
+}
+
