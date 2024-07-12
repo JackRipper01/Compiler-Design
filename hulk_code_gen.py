@@ -561,9 +561,8 @@ typedef struct {
         def_call += f"""if ({node.id.name}->len < (int){ret_index}){{
                 printf("Index out of bounds: %d, length: %d\\n", {ret_index}, {node.id.name}->len);
                 exit(-1);
-                }}"""
-        
-        return def_call, f"""({node.id.name}->data[(int){ret_index}])"""
+                }}\n"""
+        return def_call, f"""(({node.id.T}*)({node.id}->data[(int){ret_index}]))"""
 
     @visitor.when(BinOp)
     def visit(self, node):
@@ -658,7 +657,7 @@ typedef struct {
     @visitor.when(UnaryOp)
     def visit(self, node):
         if node.op == "-":
-            child_def, child_ret = self.visit(node.value)
+            child_def, child_ret = self.visit(node.operand)
             node.ret_point = "ret_point_unary_op_" + str(node.instance_id)
             code = f"""{node.static_type}* unary_op_{node.instance_id}() {{
 {child_def}
@@ -669,7 +668,7 @@ return new_{node.static_type}(-({child_ret}->value));
             return code, node.ret_point
         
         elif node.op == "not":
-            child_def, child_ret = self.visit(node.value)
+            child_def, child_ret = self.visit(node.operand)
             node.ret_point = "ret_point_unary_op_" + str(node.instance_id)
             code = f"""{node.static_type}* unary_op_{node.instance_id}() {{
 {child_def}
