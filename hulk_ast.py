@@ -453,4 +453,13 @@ class Log(Node):
 class Rand(Node):
 
     def __init__(self):
+        Program.instance_count += 1  # Increment the counter for each new instance
+        self.instance_id = Program.instance_count
+        self.name = f"log_{self.instance_id}"
+        while Program.function_name_exists(self.name):
+            Program.instance_count += 1
+            self.instance_id = Program.instance_count
+            self.name = f"log_{self.instance_id}"
+        # Add the function name to the tracker
+        Program.add_function_name(self.name)
         super().__init__(self, "RAND")

@@ -794,7 +794,10 @@ class TypeInfChk:
     def visit(self, node: ExpressionBlock):
         for exp in node.exp_list:
             self.visit(exp)
-        node.static_type = node.exp_list[-1].static_type
+        if len(node.exp_list)>0:
+            node.static_type = node.exp_list[-1].static_type
+        else:
+            node.static_type = "Object"
 
     @visitor.when(If)
     def visit(self, node: If):
