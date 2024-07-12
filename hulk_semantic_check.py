@@ -146,6 +146,10 @@ class ScopeBuilder:
         
         self.check_params_different(node.params)
 
+        if node.inherits:
+            node.inherits.variable_scope = node.variable_scope.copy()
+            self.visit(node.inherits)
+
         for assign in node.variables:
             assign: Assign
             assig_name = assign_name_getter(assign, True)
@@ -692,10 +696,12 @@ class TypeInfChk:
     def visit(self, node: TypeDef):
                 
         node.static_type = node.id.name
-        
         for param in node.params.param_list:
             param: ID
             param.static_type = param.annotated_type if param.annotated_type != "" else "Object"
+        
+        if node.inherits:
+            self.visit(node.inherits)
 
         self.on_function = True
         for method in node.functions:
@@ -788,7 +794,10 @@ class TypeInfChk:
     def visit(self, node: ExpressionBlock):
         for exp in node.exp_list:
             self.visit(exp)
-        node.static_type = node.exp_list[-1].static_type
+        if len(node.exp_list)>0:
+            node.static_type = node.exp_list[-1].static_type
+        else:
+            node.static_type = "Object"
 
     @visitor.when(If)
     def visit(self, node: If):

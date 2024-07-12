@@ -97,7 +97,7 @@ Object* new_Object() {
     int string_len = strlen("Object");
     obj->type = (char*)malloc((string_len + 1) * sizeof(char));
     strcpy(obj->type, "Object");
-
+    obj->string = (char*)malloc((string_len+1)*sizeof(char));
     char memory_address_str[20]; // Assuming a maximum of 20 characters for the address string
     sprintf(memory_address_str, "%p", (void *)obj);
     strcpy(obj->string, concatenate_strings("Object at ", memory_address_str));
@@ -257,6 +257,8 @@ typedef struct {
             code += body_def + "\n"
             if i == len(node.exp_list) - 1:
                 code += f"return ({node.static_type}*){body_ret};\n"
+        if not node.exp_list:
+            code += f"return new_Object();\n"
         code += "}"
         code += f"""{node.static_type}* {node.ret_point} = {node.name}();"""
         return code, node.ret_point
@@ -388,7 +390,7 @@ typedef struct {
                 c_code += f"""{func.static_type}* (*{func.func_id.name})(void* self"""
                 if func.params.param_list:
                     for function_params in func.params.param_list:
-                        c_code += f", {function_params.static_type} {function_params.name}"
+                        c_code += f", {function_params.static_type}* {function_params.name}"
                 c_code += ");\n"
 
             for var in node.variables:  # definiendo las variables propias en struct
@@ -419,7 +421,8 @@ typedef struct {
                 node.functions
             )  # esto esta correcto ya q si no hay padre own + (parent=0) = own xd,lee el nombre de la lista y entenderas
 
-        c_code += "\nchar* type;\n"
+        c_code += "\nchar* type;\nchar* string;\n"
+
         c_code += f"}} {node.id.name};\n"
 
         # functions definition
@@ -440,10 +443,12 @@ typedef struct {
         c_code += f"""){{"""
 
         # TypeCall inherence definition
+        ret_type_call_of_parent = ""
         if node.inherits:
             def_type_call_inherits, ret_type_call_inherits = self.visit(
                 node.inherits)
-            c_code += {def_type_call_inherits}+"\n"
+            ret_type_call_of_parent = ret_type_call_inherits
+            c_code += def_type_call_inherits+"\n"
             c_code += f"""{node.static_type}* obj = ({node.static_type}*)malloc(sizeof({node.static_type}));\n"""
 
         else:
@@ -453,8 +458,14 @@ typedef struct {
         if node.inherits:
             parent_variables = parent_inherited.variables
 
-        all_variables = node.variables + parent_variables
-        for var in all_variables:
+        all_variables = parent_variables+node.variables
+        for var in parent_variables:
+            def_variable_value, ret_variable_value = self.visit(var.value)
+            c_code += f"""{def_variable_value}"""
+            if node.inherits:
+                c_code += f"""obj->{var.name.name} = {ret_type_call_of_parent}->{ret_variable_value};\n"""
+
+        for var in node.variables:
             def_variable_value, ret_variable_value = self.visit(var.value)
             c_code += f"""{def_variable_value}"""
             c_code += f"""obj->{var.name.name} = {ret_variable_value};\n"""
@@ -465,6 +476,8 @@ typedef struct {
         c_code += f"""int string_len = strlen("{node.static_type}");
         obj -> type = (char*)malloc((string_len + 1) * sizeof(char));
         strcpy(obj -> type, "{node.static_type}");"""
+        c_code += f"""obj->string = (char *)malloc((string_len + 1) * sizeof(char));
+        strcpy(obj->string, "{node.static_type}");"""
         c_code += f"""return obj;"""
         c_code += f"""}}"""
         # adding variables and functions of parent to self for the descendants to have it
@@ -546,22 +559,23 @@ typedef struct {
             return f"{left_def}\n{right_def}\n", f"""(({node.left.static_type}*){left_ret})->{right_ret}"""
 
         if node.op == "is":
-            def_is = f"""{node.static_type}* bin_op_{node.instance_id}(){{\n"""
-            def_is += f"""{left_def}\n{right_def}\n"""
-            def_is += f"""int result=0;"""
-            list_of_desc = get_descendancy_set(node, node.static_type)
+            code = f"""{node.static_type}* bin_op_{node.instance_id}(){{\n"""
+            code += f"""{left_def}\n{right_def}\n"""
+            code += f"""Boolean* result = new_Boolean(0);"""
+            list_of_desc = get_descendancy_set(
+                node, node.left.static_type, set())
             for desc in list_of_desc:
-                def_is += f"""if check_types({left_ret}->type,{desc}){{\n result = 1;\nreturn result;\n}}\n"""
-            def_is += f"""return result;"""
+                code += f"""if (check_types({left_ret}->type,"{desc}")){{\n result = new_Boolean(1);\nreturn result;\n}}\n"""
+            code += f"""return result;"""
             code += "\n}\n"
-            code += f"{node.static_type}* {node.ret_point}->value = bin_op_{node.instance_id}();\n"
-            return def_is, f"({node.ret_point})"
+            code += f"{node.static_type}* {node.ret_point} = bin_op_{node.instance_id}();\n"
+            return code, f"({node.ret_point})"
 
         if node.op == "as":
             def_as = f"""{left_def}\n{right_def}\n"""
             return def_as, f"({right_ret}*){left_ret}"
 
-        if node.op == "AD":
+        if node.op == "AD":  # =========================================check this
             code = f"""{left_def}
             {right_def}\n"""
             code += f"{left_ret} = {right_ret};"
@@ -574,7 +588,9 @@ typedef struct {
         if node.op in ["+", "-", "*", "/"]:
             code += f"return new_{node.static_type}(({left_ret}->value {node.op} {right_ret}->value));\n"
         elif node.op in [">", "<", ">=", "<=", "==", "!="]:
-            code += f"\nreturn new_{node.static_type}(({left_ret}->value {node.op} {right_ret}->value));\n"
+            code += f"""if({left_ret}->value {node.op} {right_ret}->value)"""
+            code += f"\nreturn new_{node.static_type}(1);\n"
+            code += f"else\nreturn new_{node.static_type}(0);\n"
         elif node.op in ["^", "**"]:
             code += f"\nreturn new_{node.static_type}(pow({left_ret}->value, {right_ret}->value));\n"
         elif node.op == "@":
@@ -600,7 +616,7 @@ typedef struct {
             node.ret_point = "ret_point_unary_op_" + str(node.instance_id)
             code = f"""{node.static_type}* unary_op_{node.instance_id}() {{
 {child_def}
-return -{child_ret};
+return -({child_ret}->value);
 }}
 {node.static_type}* {node.ret_point} = unary_op_{node.instance_id}();
 """
@@ -698,26 +714,33 @@ return -{child_ret};
 
     @visitor.when(Rand)
     def visit(self, node):
-        return "", f"(float)rand()/(float)RAND_MAX"
+        node.ret_point = "ret_point_log_" + str(node.instance_id)
+        code = f"""{node.static_type}* {node.ret_point} = new_Number((float)rand()/(float)RAND_MAX);"""
+        return code, node.ret_point
 
 
 # endregion
 if __name__ == "__main__":
-    code = """type Person(firstname:String, lastname:String) {
-    firstname = firstname;
-    lastname = lastname;
-
-    name():String => self.firstname @@ self.lastname;
+    code = """type A {
+    // ...
 }
 
-type Knight inherits Person {
-    name():String => self.firstname @@ self.lastname;
-}
-type Lord(firstname:String, lastname:String) inherits Knight("Lord" @@ firstname , "of the House" @@ lastname) {
-    name():String => self.firstname @@ self.lastname;
+type B inherits A {
+    // ...
 }
 
-let p = new Lord("Franco", "MauriciaLaLoca") in print(p.name());
+type C inherits A {
+    // ...
+}
+
+let x : A = if (rand() < 0.5) new B() else new C() in
+    if (x is B)
+        let y : B = x as B in {
+            // you can use y with static type B
+        }
+    else {
+        // x cannot be downcasted to B
+    }
 """
     cf = ColumnFinder()
     from hulk_semantic_check import semantic_check
