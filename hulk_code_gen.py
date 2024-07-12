@@ -177,7 +177,7 @@ typedef struct {
                 for function in node.functions:
                     list_params = []
                     for param in function.params.param_list:
-                        list_params.append((function.static_type+"*", param.name))
+                        list_params.append((param.static_type+"*", param.name))
                     params_c_code = ""
                     for param_code in list_params:
                         params_c_code += f"{param_code[0]} {param_code[1]},"
@@ -558,12 +558,14 @@ typedef struct {
     def visit(self, node: VectorCall):
         def_index, ret_index = self.visit(node.index)
         def_call = def_index
-        print(node.static_type)
-        def_call += f"""if ({node.id}->len < (int){ret_index}){{
-                printf("Index out of bounds: %d, length: %d\\n", {ret_index}, {node.id.name}->len);
+        def_id,ret_id= self.visit(node.id)
+        
+        def_call += f"""{def_id}
+        if ({ret_id}->len < (int){ret_index}->value){{
+                printf("Index out of bounds: %d, length: %d\\n", {ret_index}, {ret_id}->len);
                 exit(-1);
                 }}\n"""
-        return def_call, f"""(({node.static_type}*)({node.id}->data[(int){ret_index}]))"""
+        return def_call, f"""(({node.static_type}*)({ret_id}->data[(int){ret_index}]))"""
 
     @visitor.when(BinOp)
     def visit(self, node):
