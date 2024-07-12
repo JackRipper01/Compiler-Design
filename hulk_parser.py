@@ -52,6 +52,7 @@ precedence = (
     ("right", "IF", "ELIF", "ELSE"),
     ("right", "WHILE", "FOR"),
     ("nonassoc", "EQUAL"),
+    ("right", "LPAREN", "RPAREN"),
     ("right", "ASSDESTROYER"),
     ("left", "AS"),
     ("left", "IS"),
@@ -65,7 +66,6 @@ precedence = (
     ("left", "TIMES", "DIVIDE", "MOD"),
     ("right", "POWER"),
     ("right", "UMINUS"),
-    ("right", "LPAREN", "RPAREN"),
     ("nonassoc", "NAME"),
     ("left", "DOT"),
 )
