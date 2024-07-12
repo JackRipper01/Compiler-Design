@@ -177,7 +177,7 @@ typedef struct {
                 for function in node.functions:
                     list_params = []
                     for param in function.params.param_list:
-                        list_params.append((function.static_type+"*", param.name))
+                        list_params.append((param.static_type+"*", param.name))
                     params_c_code = ""
                     for param_code in list_params:
                         params_c_code += f"{param_code[0]} {param_code[1]},"
@@ -226,7 +226,7 @@ typedef struct {
         list_params = []
         body_def, body_ret = self.visit(node.body)
         for param in node.params.param_list:
-            list_params.append((node.static_type+"*", param.name))
+            list_params.append((param.static_type+"*", param.name))
         params_c_code = ""
         for param_code in list_params:
             params_c_code += f"{param_code[0]} {param_code[1]},"
@@ -537,8 +537,8 @@ typedef struct {
             if node.items.param_list:
                 size_of_vect = len(node.items.param_list)
         # implement this with an array of pointers in C
-        def_vect = f"""Vector* {node.name}(){{
-                Vector* vector = (Vector*)malloc(sizeof(Vector));
+        def_vect = f"""{node.static_type}* {node.name}(){{
+                {node.static_type}* vector = ({node.static_type}*)malloc(sizeof({node.static_type}));
                 void** array = (void**)malloc({size_of_vect}*sizeof(void*));\n"""
         for i in range(size_of_vect):
             def_item, ret_item = self.visit(node.items.param_list[i])
@@ -558,11 +558,14 @@ typedef struct {
     def visit(self, node: VectorCall):
         def_index, ret_index = self.visit(node.index)
         def_call = def_index
-        def_call += f"""if ({node.id.name}->len < (int){ret_index}){{
-                printf("Index out of bounds: %d, length: %d\\n", {ret_index}, {node.id.name}->len);
+        def_id,ret_id= self.visit(node.id)
+        
+        def_call += f"""{def_id}
+        if ({ret_id}->len < (int){ret_index}->value){{
+                printf("Index out of bounds: %d, length: %d\\n", {ret_index}, {ret_id}->len);
                 exit(-1);
                 }}\n"""
-        return def_call, f"""(({node.id.T}*)({node.id}->data[(int){ret_index}]))"""
+        return def_call, f"""(({node.static_type}*)({ret_id}->data[(int){ret_index}]))"""
 
     @visitor.when(BinOp)
     def visit(self, node):
