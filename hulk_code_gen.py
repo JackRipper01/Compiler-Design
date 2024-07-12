@@ -211,7 +211,9 @@ typedef struct {
         params_c_code = ""
         for param_code in list_params:
             params_c_code += f"{param_code[0]} {param_code[1]},"
-        params_c_code = params_c_code[:-1]
+
+        if params_c_code != "":
+            params_c_code = params_c_code[:-1]
 
         if node.func_id.name == "tan":
             code = f"""{node.static_type}* p_{node.func_id.name}({params_c_code}){{{body_def}
@@ -225,7 +227,9 @@ typedef struct {
         params_name_c_code = ""
         for param_name in list_params:
             params_name_c_code += param_name[1] + ","
-        params_name_c_code = params_name_c_code[:-1]
+
+        if params_name_c_code:
+            params_name_c_code = params_name_c_code[:-1]
         ret_code = f"""{node.func_id.name}({params_name_c_code})"""
 
         return code, ret_code
@@ -246,7 +250,8 @@ typedef struct {
         for param_ret_code in def_ret_list_params:
             params_ret_c_code += param_ret_code[1] + ","
 
-        params_ret_c_code = params_ret_c_code[:-1]
+        if params_ret_c_code:
+            params_ret_c_code = params_ret_c_code[:-1]
 
         if node.func_id.name == "tan":
             return f"{params_def_code}", f"""p_{node.func_id.name}({params_ret_c_code})"""
@@ -563,6 +568,7 @@ typedef struct {
                 right_ret = right_ret[:inicio+1] + \
                     nuevos_parametros + right_ret[fin:]
 
+    # OOOOOJJJJJJJOOOOOOOOOOOOOOOOOOOOOOOOOO si es function call se de be modificar los parametros, por eso esta correcto esto
             return f"{left_def}\n{right_def}\n", f"""(({node.left.static_type}*){left_ret})->{right_ret}"""
 
         if node.op == "is":
@@ -629,7 +635,7 @@ typedef struct {
 
     @visitor.when(UnaryOp)
     def visit(self, node):
-        if node.op == "-": 
+        if node.op == "-":
             child_def, child_ret = self.visit(node.value)
             node.ret_point = "ret_point_unary_op_" + str(node.instance_id)
             code = f"""{node.static_type}* unary_op_{node.instance_id}() {{
@@ -771,7 +777,7 @@ let x : A = if (rand() < 0.5) new B() else new C() in
         x;
     }
 """
-    ccode="""print(rand());"""
+    ccode = """print(rand());"""
 
     cf = ColumnFinder()
     from hulk_semantic_check import semantic_check
