@@ -1,7 +1,6 @@
 # region temp import
 from ast import Param
 
-from numpy import iterable
 from hulk_lexer import errorList as lexerErrors
 from hulk_parser import hulk_parse
 from misc import (
