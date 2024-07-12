@@ -44,10 +44,16 @@ from hulk_ast import (
 from hulk_lexer import errorList as lexerErrors
 
 
+
 class CodeGen:
     def __init__(self):
         self.errors = []
         self.global_definitions = {}
+        self.types_definitions=""
+        self.functions_headers=""
+        self.types_function_definitions=""
+        self.types_constructor=""
+        self.function_definitions=""
 
     @visitor.on("node")
     def visit(self, node):
@@ -56,6 +62,41 @@ class CodeGen:
     @visitor.when(Program)
     def visit(self, node):
         main_def, main_ret = self.visit(node.global_exp)
+        if node.functions:
+                for function in node.functions:
+                    list_params = []
+                    for param in function.params.param_list:
+                        list_params.append((param.static_type+"*", param.name))
+                    params_c_code = ""
+                    for param_code in list_params:
+                        params_c_code += f"{param_code[0]} {param_code[1]},"
+
+                    if params_c_code != "":
+                        params_c_code = params_c_code[:-1]
+
+                    if function.func_id.name == "tan":
+                        code = f"""{function.static_type}* p_{function.func_id.name}({params_c_code});\n"""
+                    else:
+                        code = f"""{function.static_type}* {function.func_id.name}({params_c_code});\n"""
+                        
+                    self.functions_headers+=code+"\n"
+                for function in node.functions:
+                    self.function_definitions+=f"{self.visit(function)[0]}\n\n"
+                    
+        if node.types:
+                # ordenando node.types segun la herencia
+                list_of_descendients = misc.get_descendancy(node, "Object", [])
+                node_types_reorder = []
+                for i in range(len(node.types)):
+                    node_types_reorder.append(
+                        (node.types[i], list_of_descendients.index(node.types[i].id.name)))
+                node_types_reorder.sort(key=lambda x: x[1])
+                for i in range(len(node_types_reorder)):
+                    node.types[i] = node_types_reorder[i][0]
+
+                for type in node.types:
+                    self.visit(type)[0]
+                    
         with open("./out.c", "w") as f:
             f.write("#include <stdio.h>\n")
             f.write("#include <math.h>\n")
@@ -172,42 +213,12 @@ typedef struct {
     void** data;
     int len;
 } Vector;\n\n""")
-            if node.functions:
-                functions_headers=""
-                for function in node.functions:
-                    list_params = []
-                    for param in function.params.param_list:
-                        list_params.append((param.static_type+"*", param.name))
-                    params_c_code = ""
-                    for param_code in list_params:
-                        params_c_code += f"{param_code[0]} {param_code[1]},"
-
-                    if params_c_code != "":
-                        params_c_code = params_c_code[:-1]
-
-                    if function.func_id.name == "tan":
-                        code = f"""{function.static_type}* p_{function.func_id.name}({params_c_code});\n"""
-                    else:
-                        code = f"""{function.static_type}* {function.func_id.name}({params_c_code});\n"""
-                        
-                    f.write(code)
-                f.write("\n")
-                for function in node.functions:
-                    f.write(f"{self.visit(function)[0]}\n\n")
-            if node.types:
-                # ordenando node.types segun la herencia
-                list_of_descendients = misc.get_descendancy(node, "Object", [])
-                node_types_reorder = []
-                for i in range(len(node.types)):
-                    node_types_reorder.append(
-                        (node.types[i], list_of_descendients.index(node.types[i].id.name)))
-                node_types_reorder.sort(key=lambda x: x[1])
-                for i in range(len(node_types_reorder)):
-                    node.types[i] = node_types_reorder[i][0]
-
-                for type in node.types:
-                    f.write(f"{self.visit(type)[0]}\n\n")
-
+            f.write(self.types_definitions+"\n")
+            f.write(self.functions_headers+"\n")
+            f.write(self.types_function_definitions+"\n")
+            f.write(self.types_constructor +"\n")
+            f.write(self.function_definitions +"\n")
+            
             f.write("int main() {\n\n")
             f.write("""struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -395,8 +406,9 @@ typedef struct {
         parent_inherited = None
         own_plus_parent_functions = []
         # struct definition
-        c_code = f"""typedef struct {node.id.name}{{\n"""
-        c_code += "\nchar* type;\nchar* string;\n"
+        self.types_definitions += f"""typedef struct {node.id.name}{{\n"""
+        
+        self.types_definitions += "\nchar* type;\nchar* string;\n"
         if node.inherits:
             parent_inherited = node.global_definitions[node.inherits.id.name]
             for func in parent_inherited.functions:  # preparando una lista para definir las funciones debajo del struct
@@ -414,62 +426,65 @@ typedef struct {
                 own_plus_parent_functions.append(func)
 
             for var in parent_inherited.variables:  # definiendo variables del padre en el struct
-                c_code += f"{var.static_type}* {var.name.name};\n"
+                self.types_definitions += f"{var.static_type}* {var.name.name};\n"
 
             # declarando las funciones del padre en el struct pero con el polimorfismo aplicado
             for func in own_plus_parent_functions:
-                c_code += f"""{func.static_type}* (*{func.func_id.name})(void* self"""
+                self.types_definitions += f"""{func.static_type}* (*{func.func_id.name})(void* self"""
                 if func.params.param_list:
                     for function_params in func.params.param_list:
-                        c_code += f", {function_params.static_type}* {function_params.name}"
-                c_code += ");\n"
+                        self.types_definitions += f", {function_params.static_type}* {function_params.name}"
+                self.types_definitions += ");\n"
 
             for var in node.variables:  # definiendo las variables propias en struct
-                c_code += f"{var.static_type}* {var.name.name};\n"
+                self.types_definitions += f"{var.static_type}* {var.name.name};\n"
 
             for func in node.functions:  # declarando las funciones propias en struct sin incluir la del polimorfismo ya q ya se incluyo junto a las del padre
                 if func.func_id.name in list_func_id_polymorphism:
                     continue
-                c_code += f"""{func.static_type}* (*{func.func_id.name})(void* self"""
+                self.types_definitions += f"""{func.static_type}* (*{func.func_id.name})(void* self"""
                 if func.params.param_list:
                     for function_params in func.params.param_list:
-                        c_code += f", {function_params.static_type}* {function_params.name}"
-                c_code += ");\n"
+                        self.types_definitions += f", {function_params.static_type}* {function_params.name}"
+                self.types_definitions += ");\n"
                 # annadiendo las funciones propias sin incluir la del polimorfismo ya q esta incluida en esta lista
                 own_plus_parent_functions.append(func)
         else:
             for var in node.variables:
-                c_code += f"{var.static_type}* {var.name.name};\n"
+                self.types_definitions += f"{var.static_type}* {var.name.name};\n"
 
             for func in node.functions:
-                c_code += f"""{func.static_type}* (*{func.func_id.name})(void* self"""
+                self.types_definitions += f"""{func.static_type}* (*{func.func_id.name})(void* self"""
                 if func.params.param_list:
                     for function_params in func.params.param_list:
-                        c_code += f", {function_params.static_type}* {function_params.name}"
-                c_code += ");\n"
+                        self.types_definitions += f", {function_params.static_type}* {function_params.name}"
+                self.types_definitions += ");\n"
 
             own_plus_parent_functions = (
                 node.functions
             )  # esto esta correcto ya q si no hay padre own + (parent=0) = own xd,lee el nombre de la lista y entenderas
 
-        c_code += f"}} {node.id.name};\n"
+        self.types_definitions += f"}} {node.id.name};\n"
 
         # functions definition
         for func in own_plus_parent_functions:
             def_func, ret_func = self.visit(func)
             c_code += f"""{func.static_type}* {node.static_type}_{func.func_id.name}(void* self"""
+            self.types_function_definitions += f"""{func.static_type}* {node.static_type}_{func.func_id.name}(void* self"""
             if func.params.param_list:
                 for function_params in func.params.param_list:
                     c_code += f", {function_params.static_type}* {function_params.name}"
+                    self.types_function_definitions += f", {function_params.static_type}* {function_params.name}"
             c_code += f"""){{\n{def_func}\nreturn {ret_func};\n}}\n\n"""
+            self.types_function_definitions += f"""){{\n{def_func}\nreturn {ret_func};\n}}\n\n"""
 
         # constructor definition
-        c_code += f"""{node.static_type}* new_{node.static_type}("""
+        self.types_constructor += f"""{node.static_type}* new_{node.static_type}("""
         for param in node.params.param_list:
-            c_code += f"{param.static_type}* {param.name},"
+            self.types_constructor += f"{param.static_type}* {param.name},"
         if node.params.param_list:
-            c_code = c_code[:-1]
-        c_code += f"""){{"""
+            self.types_constructor = self.types_constructor[:-1]
+        self.types_constructor += f"""){{"""
 
         # TypeCall inherence definition
         ret_type_call_of_parent = ""
@@ -477,11 +492,11 @@ typedef struct {
             def_type_call_inherits, ret_type_call_inherits = self.visit(
                 node.inherits)
             ret_type_call_of_parent = ret_type_call_inherits
-            c_code += def_type_call_inherits+"\n"
-            c_code += f"""{node.static_type}* obj = ({node.static_type}*)malloc(sizeof({node.static_type}));\n"""
+            self.types_constructor += def_type_call_inherits+"\n"
+            self.types_constructor += f"""{node.static_type}* obj = ({node.static_type}*)malloc(sizeof({node.static_type}));\n"""
 
         else:
-            c_code += f"""{node.static_type}* obj = ({node.static_type}*)malloc(sizeof({node.static_type}));\n"""
+            self.types_constructor += f"""{node.static_type}* obj = ({node.static_type}*)malloc(sizeof({node.static_type}));\n"""
 
         parent_variables = []
         if node.inherits:
@@ -490,31 +505,31 @@ typedef struct {
         all_variables = parent_variables+node.variables
         for var in parent_variables:
             def_variable_value, ret_variable_value = self.visit(var.value)
-            c_code += f"""{def_variable_value}"""
+            self.types_constructor += f"""{def_variable_value}"""
             if node.inherits:
-                c_code += f"""obj->{var.name.name} = {ret_type_call_of_parent}->{ret_variable_value};\n"""
+                self.types_constructor += f"""obj->{var.name.name} = {ret_type_call_of_parent}->{ret_variable_value};\n"""
 
         for var in node.variables:
             def_variable_value, ret_variable_value = self.visit(var.value)
-            c_code += f"""{def_variable_value}"""
-            c_code += f"""obj->{var.name.name} = {ret_variable_value};\n"""
+            self.types_constructor += f"""{def_variable_value}"""
+            self.types_constructor += f"""obj->{var.name.name} = {ret_variable_value};\n"""
 
         for func in own_plus_parent_functions:
-            c_code += f"""obj->{func.func_id.name} = {node.static_type}_{func.func_id.name};\n"""
+            self.types_constructor += f"""obj->{func.func_id.name} = {node.static_type}_{func.func_id.name};\n"""
 
-        c_code += f"""int string_len = strlen("{node.static_type}");
+        self.types_constructor += f"""int string_len = strlen("{node.static_type}");
         obj -> type = (char*)malloc((string_len + 1) * sizeof(char));
         strcpy(obj -> type, "{node.static_type}");"""
-        c_code += f"""obj->string = (char *)malloc((string_len + 1+21) * sizeof(char));"""
-        c_code += f"""char memory_address_str[20];
+        self.types_constructor += f"""obj->string = (char *)malloc((string_len + 1+21) * sizeof(char));"""
+        self.types_constructor += f"""char memory_address_str[20];
         sprintf(memory_address_str, "%p", (void *)obj);
         strcpy(obj -> string, concatenate_strings(concatenate_strings("<{node.static_type} at ", memory_address_str), ">"));"""
-        c_code += f"""return obj;"""
-        c_code += f"""}}"""
+        self.types_constructor += f"""return obj;"""
+        self.types_constructor += f"""}}"""
         # adding variables and functions of parent to self for the descendants to have it
         node.variables = all_variables
         node.functions = own_plus_parent_functions
-        return c_code, ""
+        return self.types_constructor, ""
 
     @visitor.when(TypeCall)
     def visit(self, node: TypeCall):
