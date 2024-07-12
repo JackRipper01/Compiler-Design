@@ -143,8 +143,8 @@ class ScopeBuilder:
             param: ID
             node.variable_scope[param.name] = param
             self.check_annotation(param)
-                    
-        self.chech_params_different(node.params)
+        
+        self.check_params_different(node.params)
 
         if node.inherits:
             node.inherits.variable_scope = node.variable_scope.copy()
@@ -213,7 +213,7 @@ class ScopeBuilder:
             param: ID
             self.check_annotation(param)
             node.variable_scope[param.name] = param
-        self.chech_params_different(node.params)
+        self.check_params_different(node.params)
         node.body.variable_scope = node.variable_scope
         self.visit(node.body)
 
@@ -328,10 +328,6 @@ class ScopeBuilder:
             node.right.variable_scope = node.variable_scope
             self.visit(node.right)
 
-    @visitor.when(UnaryOp)
-    def visit(self, node: UnaryOp):
-        node.operand.variable_scope = node.variable_scope
-        self.visit(node.operand)
 
     @visitor.when(VectorExt)
     def visit(self, node: VectorExt):
@@ -614,7 +610,7 @@ class ScopeBuilder:
                 + "' does not exist in global context"
             )
 
-    def chech_params_different(self, params: Params):
+    def check_params_different(self, params: Params):
         prms = set()
         for param in params.param_list:
             if param.name in prms:
@@ -662,6 +658,7 @@ class TypeInfChk:
         self.on_function = False
         self.current = ""  # desarrollar idea
         self.sb = None
+        self.visited_function = set()
 
     @visitor.on("node")
     def visit(self, node):
@@ -783,6 +780,9 @@ class TypeInfChk:
                 f"Function '{node.func_id.name}' expect return type '{expect}', but its body returns {node.body.static_type}"
                 + cf.add_line_column(node.func_id.name)
             )
+        if expect == "None":
+                node.static_type = node.body.static_type
+            
 
     @visitor.when(Let)
     def visit(self, node: Let):
@@ -836,12 +836,14 @@ class TypeInfChk:
         self.visit(node.value)
         if expect:
             if not conforms(node, node.value.static_type, expect):
+                print(f"'{node.value.static_type}' not conforms to '{expect}'"
+                    + cf.add_line_column(node.name.name)+" "+node.name.name)
                 self.errors.append(
                     f"'{node.value.static_type}' not conforms to '{expect}'"
                     + cf.add_line_column(node.name.name)
                 )
-            if type(node.global_definitions[expect]) is Protocol:
-                expect = node.value.static_type
+            # if type(node.global_definitions[expect]) is Protocol:
+            #     expect = node.value.static_type
             node.name.static_type = expect
             node.static_type = expect
         else:
@@ -1018,17 +1020,18 @@ class TypeInfChk:
         elif node.op in ["as", "is"]:
             self.visit(node.left)
             expect = node.right.name
-            if not conforms(
-                node, node.left.static_type, expect
-            ) and expect not in get_descendancy_set(node, node.left.static_type, set()):
-                self.errors.append(
-                    f"Do not even try to cast '{node.left.static_type}' to '{expect}'"
-                    + cf.add_line_column(node.op)
-                )
+            # if not conforms(
+            #     node, node.left.static_type, expect
+            # ) and expect not in get_descendancy_set(node, node.left.static_type, set()):
+            #     self.errors.append(
+            #         f"Do not even try to cast '{node.left.static_type}' to '{expect}'"
+            #         + cf.add_line_column(node.op)
+            #     )
             if node.op == "is":
+                node.right.static_type = node.right.name
                 expect = "Boolean"
-            if type(node.global_definitions[expect]) is Protocol:
-                expect = node.left.static_type
+            # if type(node.global_definitions[expect]) is Protocol:
+            #     expect = node.left.static_type
             node.static_type = expect
 
         elif node.op == "AD":
@@ -1105,7 +1108,7 @@ def semantic_check(ast: Program, column_finder):
 
 
 if __name__ == "__main__":
-    # code_file = io.open("input/custom_test.hulk").read()
+    code_file = io.open("test_fixin.hulk").read()
     code_text = """
 protocol Iterable {
     next() : Boolean;
@@ -1125,7 +1128,7 @@ let a : Iterable = new Elite() in a.next();
     code_text = """function asd (x,y,z) => print(1);
     type A(x, y, z) {}
     new A(1,2,3);"""
-    ast, parsingErrors, _b = hulk_parse(code_text, cf, False)
+    ast, parsingErrors, _b = hulk_parse(code_file, cf, False)
 
     print(
         "LEXER FOUND THE FOLLOWING ERRORS:" if len(lexerErrors) > 0 else "LEXING OK!",

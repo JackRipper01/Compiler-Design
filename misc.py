@@ -49,13 +49,13 @@ def refact_ast(nodes_dict : dict):
         token = for_item.tk
         nodes.pop(for_item)
         condition_id_iter = ID ("iterable", "")
-        func_call_next_id = ID("next", "func_call")
+        func_call_next_id = ID("next", "")
         func_call_next_params = Params([])
         func_call_next = FunctionCall(func_call_next_id, func_call_next_params)
         condition = BinOp(condition_id_iter ,".", func_call_next)
         id_assign_inner_let = for_item.iterator
         assign_id_iter = ID ("iterable", "")
-        func_call_current_id = ID("current", "func_call")
+        func_call_current_id = ID("current", "")
         func_call_current_params = Params([])
         func_call_current = FunctionCall(func_call_current_id, func_call_current_params)
         value_assign_inner_let = BinOp(assign_id_iter ,".", func_call_current)
@@ -63,7 +63,10 @@ def refact_ast(nodes_dict : dict):
         inner_let = Let([assign_inner_let], for_item.body)
         while_item = While(condition, inner_let)
         while_item.tk = token
-        id_master_assign = ID ("iterable", "Iterable")
+        neim = StringToken("iterable")
+        neim.lineno=for_item.iterator.name.lineno
+        neim.lexpos=for_item.iterator.name.lexpos
+        id_master_assign = ID (neim , "Iterable")
         value_master_assign = for_item.iterable
         master_assign = Assign(id_master_assign, value_master_assign)
         # master_let = Let([master_assign], while_item)
@@ -160,6 +163,15 @@ def get_descendancy_set(ast_node, name, descendancy):
         get_descendancy_set(ast_node, child, descendancy)
     return descendancy
 
+def protocol_descendancy_set(ast_node: Node, name, descendancy):
+    if name in descendancy:
+        return descendancy
+    descendancy.add(name)
+    for child in ast_node.protocol_hierarchy[name].children:
+        protocol_descendancy_set(ast_node, child, descendancy)
+    return descendancy
+
+
 # def conforms(ast, A, B):
 #     if A == B:
 #         return True
@@ -172,7 +184,9 @@ def get_descendancy_set(ast_node, name, descendancy):
 def conforms(ast_node: Node, A, B):
     try:
         return A in get_descendancy_set(ast_node, B, set())
-    except:   
+    except:  
+        if type(ast_node.global_definitions[A]) is Protocol:
+            return A in protocol_descendancy_set(ast_node, B, set())
         if A in  ["Number", "String", "Boolean", "Object"]:
             return False
         if A == "Vector":
@@ -266,3 +280,5 @@ def assign_name_getter(assign: Assign, private=False):
         return assign.name.name + "/private"
     else:
         return assign.name.name
+    
+# print(ColumnFinder())

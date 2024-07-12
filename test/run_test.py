@@ -1,3 +1,9 @@
+import os
+import sys
+
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, parent_dir)
+
 from hulk_semantic_check import semantic_check
 from hulk_lexer import errorList as lexerErrors
 from hulk_parser import hulk_parse
@@ -5,20 +11,15 @@ from misc import create_AST_graph, get_descendancy_set, typeof, ColumnFinder
 from hulk_code_gen import CodeGen
 from hulk_ast import nodes
 
-def code_gen_test():
-    code = """type Person(firstname:String, lastname:String) {
-    firstname = firstname;
-    lastname = lastname;
+try:
+    os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz/bin/'
+except:
+    pass
 
-    name():String => self.firstname @@ self.lastname;
-}
-
-type Knight inherits Person {
-    name():String => "Sir" @@ "base()";
-}
-
-let p = new Knight("Phil", "Collins") in print(p.name());
-"""
+def run_test(filename):
+    file= open(filename,'r')
+    code= file.read()
+    file.close()
     cf = ColumnFinder()
     
     ast, parsingErrors, _b = hulk_parse(
@@ -57,3 +58,5 @@ let p = new Knight("Phil", "Collins") in print(p.name());
         if len(semantic_check_errors) == 0:
             pass
         CodeGen().visit(ast)
+
+run_test('./test/test.hulk')
