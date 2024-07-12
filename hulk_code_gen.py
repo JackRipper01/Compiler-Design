@@ -537,8 +537,8 @@ typedef struct {
             if node.items.param_list:
                 size_of_vect = len(node.items.param_list)
         # implement this with an array of pointers in C
-        def_vect = f"""Vector* {node.name}(){{
-                Vector* vector = (Vector*)malloc(sizeof(Vector));
+        def_vect = f"""{node.static_type}* {node.name}(){{
+                {node.static_type}* vector = ({node.static_type}*)malloc(sizeof({node.static_type}));
                 void** array = (void**)malloc({size_of_vect}*sizeof(void*));\n"""
         for i in range(size_of_vect):
             def_item, ret_item = self.visit(node.items.param_list[i])
@@ -558,11 +558,12 @@ typedef struct {
     def visit(self, node: VectorCall):
         def_index, ret_index = self.visit(node.index)
         def_call = def_index
-        def_call += f"""if ({node.id.name}->len < (int){ret_index}){{
+        print(node.static_type)
+        def_call += f"""if ({node.id}->len < (int){ret_index}){{
                 printf("Index out of bounds: %d, length: %d\\n", {ret_index}, {node.id.name}->len);
                 exit(-1);
                 }}\n"""
-        return def_call, f"""(({node.id.T}*)({node.id}->data[(int){ret_index}]))"""
+        return def_call, f"""(({node.static_type}*)({node.id}->data[(int){ret_index}]))"""
 
     @visitor.when(BinOp)
     def visit(self, node):
