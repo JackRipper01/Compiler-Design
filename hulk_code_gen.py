@@ -97,10 +97,10 @@ Object* new_Object() {
     int string_len = strlen("Object");
     obj->type = (char*)malloc((string_len + 1) * sizeof(char));
     strcpy(obj->type, "Object");
-    obj->string = (char*)malloc((string_len+1)*sizeof(char));
+    obj->string = (char*)malloc((string_len+1+21)*sizeof(char));
     char memory_address_str[20]; // Assuming a maximum of 20 characters for the address string
     sprintf(memory_address_str, "%p", (void *)obj);
-    strcpy(obj->string, concatenate_strings("Object at ", memory_address_str));
+    strcpy(obj->string, concatenate_strings(concatenate_strings("<Object at ", memory_address_str), ">"));
     return obj;
 }
 typedef struct {
@@ -118,11 +118,13 @@ Boolean* new_Boolean(int value) {
 
     if (value == 1) {
         obj->string = (char *)malloc((strlen("TRUE")) * sizeof(char));
+        
         strcpy(obj->string, "TRUE");
     } else {
         obj->string = (char *)malloc((strlen("FALSE")) * sizeof(char));
         strcpy(obj->string, "FALSE");
     }
+    
     return obj;
 }
 
@@ -365,7 +367,7 @@ typedef struct {
         own_plus_parent_functions = []
         # struct definition
         c_code = f"""typedef struct {node.id.name}{{\n"""
-
+        c_code += "\nchar* type;\nchar* string;\n"
         if node.inherits:
             parent_inherited = node.global_definitions[node.inherits.id.name]
             for func in parent_inherited.functions:  # preparando una lista para definir las funciones debajo del struct
@@ -421,8 +423,6 @@ typedef struct {
                 node.functions
             )  # esto esta correcto ya q si no hay padre own + (parent=0) = own xd,lee el nombre de la lista y entenderas
 
-        c_code += "\nchar* type;\nchar* string;\n"
-
         c_code += f"}} {node.id.name};\n"
 
         # functions definition
@@ -476,8 +476,10 @@ typedef struct {
         c_code += f"""int string_len = strlen("{node.static_type}");
         obj -> type = (char*)malloc((string_len + 1) * sizeof(char));
         strcpy(obj -> type, "{node.static_type}");"""
-        c_code += f"""obj->string = (char *)malloc((string_len + 1) * sizeof(char));
-        strcpy(obj->string, "{node.static_type}");"""
+        c_code += f"""obj->string = (char *)malloc((string_len + 1+21) * sizeof(char));"""
+        c_code += f"""char memory_address_str[20];
+        sprintf(memory_address_str, "%p", (void *)obj);
+        strcpy(obj -> string, concatenate_strings(concatenate_strings("<{node.static_type} at ", memory_address_str), ">"));"""
         c_code += f"""return obj;"""
         c_code += f"""}}"""
         # adding variables and functions of parent to self for the descendants to have it
@@ -563,7 +565,7 @@ typedef struct {
             code += f"""{left_def}\n{right_def}\n"""
             code += f"""Boolean* result = new_Boolean(0);"""
             list_of_desc = get_descendancy_set(
-                node, node.left.static_type, set())
+                node, node.right.static_type, set())
             for desc in list_of_desc:
                 code += f"""if (check_types({left_ret}->type,"{desc}")){{\n result = new_Boolean(1);\nreturn result;\n}}\n"""
             code += f"""return result;"""
@@ -572,8 +574,20 @@ typedef struct {
             return code, f"({node.ret_point})"
 
         if node.op == "as":
-            def_as = f"""{left_def}\n{right_def}\n"""
-            return def_as, f"({right_ret}*){left_ret}"
+            code = f"""{node.static_type}* bin_op_{node.instance_id}(){{\n"""
+            code += f"""{left_def}\n{right_def}\n"""
+            code += f"""Boolean* result = new_Boolean(0);"""
+            list_of_desc = get_descendancy_set(
+                node, node.right.static_type, set())
+            for desc in list_of_desc:
+                code += f"""if (check_types({left_ret}->type,"{desc}")){{\n result = new_Boolean(1);\nreturn result;\n}}\n"""
+            code += f"""return result;"""
+            code += "\n}\n"
+            code += f"{node.static_type}* {node.ret_point} = bin_op_{node.instance_id}();\n"
+            code += f"""if ({node.ret_point}->value ==0)
+            {{printf("%s\\n","AS operator could not be done");
+            exit(-1);}}"""
+            return code, f"({right_ret}*){left_ret}"
 
         if node.op == "AD":  # =========================================check this
             code = f"""{left_def}
@@ -737,9 +751,11 @@ let x : A = if (rand() < 0.5) new B() else new C() in
     if (x is B)
         let y : B = x as B in {
             // you can use y with static type B
+            y;
         }
     else {
         // x cannot be downcasted to B
+        x;
     }
 """
     cf = ColumnFinder()
