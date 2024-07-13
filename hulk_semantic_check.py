@@ -454,8 +454,12 @@ class ScopeBuilder:
         ast_input.global_definitions["Number"] = "float"
         ast_input.global_definitions["String"] = "string"
         ast_input.global_definitions["Boolean"] = "int"
-        ast_input.global_definitions["Vector"] = "vec"
-
+        vecc = TypeDef(ID("Vector","Vector"),Params([]),None,None)
+        vecc.variable_scope = {
+            "next/0/private"
+            "current/0/private"
+        }
+        # ast_input.global_definitions["Vector"] = 
         for function in ast_input.functions:
             function_name = (
                 function.func_id.name + "/" + str(len(function.params.param_list))
