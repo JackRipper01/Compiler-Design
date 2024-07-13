@@ -566,6 +566,7 @@ typedef struct {
         ret_vect = f"{node.ret_point}_{node.instance_id}"
         return def_vect, ret_vect
 
+    
     @visitor.when(VectorCall)
     def visit(self, node: VectorCall):
         def_index, ret_index = self.visit(node.index)
@@ -798,11 +799,19 @@ function tan(x:Number):Number => sin(x) / cos(x);
 print(tan(PI) ** 2 + cot(PI) ** 2);
 """
     ccode = """print(rand());"""
-    cccode="""let numbers = [1,2,3,4,5,6,7,8,9] in print(numbers[7]);"""
-    ccccode ="""function cot(x) => 1 / tan(x);
-function tan(x) => sin(x) / cos(x);
+    # cccode="""let numbers = [1,2,3,4,5,6,7,8,9] in print(numbers[7]);"""
+    cccode ="""type Person(firstname:String, lastname:String) {
+    firstname = firstname;
+    lastname = lastname;
 
-print(tan(PI) ** 2 + cot(PI) ** 2);"""
+    name():String => self.firstname @@ self.lastname;
+}
+type Knight inherits Person {
+    name():String => "Sir" @@ base();
+}
+
+let p = new Knight("Phil", "Collins") in
+    print(p.name()); // prints 'Sir Phil Collins'"""
     cf = ColumnFinder()
     from hulk_semantic_check import semantic_check
     from hulk_lexer import errorList as lexerErrors
