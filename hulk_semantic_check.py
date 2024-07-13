@@ -1088,13 +1088,22 @@ class TypeInfChk:
 
         elif node.op == ".":
             self.visit(node.left)
+            
             context_from = node.left.static_type
             if context_from == "Vector":
-                pass
+                nn = FunctionDef(ID("next",""),Params([]), None)
+                cc = FunctionDef(ID("current",""),Params([]), None)
+                nn.static_type = "Boolean"
+                cc.static_type = node.left.static_type.T
+                context = {
+                    "next/0/private": nn,
+                    "current/0/private": cc
+                }
             elif context_from in set(node.global_definitions).difference(
                 set(["Number", "Boolean", "String", "Object"])
             ):
                 context = node.global_definitions[context_from].variable_scope.copy()
+                    
                 if type(node.right) is ID:
                     name = node.right.name + "/private"
                     token = name

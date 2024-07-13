@@ -308,6 +308,7 @@ typedef struct {
     @visitor.when(Let)
     def visit(self, node):
         # node.static_type = "Number"
+        print(node.assign[0].value)
         assign_def, assign_ret = self.visit(node.assign[0].value)
         var_name = node.assign[0].name.name
         var_type = node.assign[0].name.static_type
@@ -815,9 +816,10 @@ let p = new Knight("Phil", "Collins") in
     cf = ColumnFinder()
     from hulk_semantic_check import semantic_check
     from hulk_lexer import errorList as lexerErrors
+    from code import CODE
     ast, parsingErrors, _b = hulk_parse(
-        cccode, cf)
-    print(cccode)
+        CODE, cf)
+    # print()
     # create_AST_graph(nodes, "AST")
 
     print(
@@ -849,8 +851,7 @@ let p = new Knight("Phil", "Collins") in
         )
         print("\nGlobal Expression returned:", typeof(ast.global_exp))
         if len(semantic_check_errors) == 0:
-            pass
-        CodeGen().visit(ast)
+            CodeGen().visit(ast)
 
 
 # let x = true in print(x@" Candelozki");

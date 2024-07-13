@@ -1,14 +1,13 @@
-function tan(x: Number): Number => sin(x) / cos(x);
-function cot(x:Number): Number => 1 / tan(x);
+CODE = r"""function tan(x: Number): Number => sin(x) / cos(x);
+function cot(x:Number):Number => 1 / tan(x);
 function operate(x:Number, y:Number) {
     print(x + y);
     print(x - y);
     print(x * y);
     print(x / y);
 }
-function range(min:Number,max:Number): Range => new Range(min,max);
 function fib(n:Number):Number => if (n == 0 | n == 1) 1 else fib(n-1) + fib(n-2);
-function fact(x:Number):Number => let f:Number = 1 in for (i in range(1, x+1)) f := f * i;
+function fact(x:Number):Number => let f = 1 in for (i in range(1, x+1)) f := f * i;
 function gcd(a:Number, b:Number) => while (a > 0)
         let m = a % b in {
             b := a;
@@ -20,47 +19,28 @@ protocol Hashable {
 protocol Equatable extends Hashable {
     equals(other: Object): Boolean;
 }
-protocol Iterable {
-    next() : Boolean;
-    current() : Object;
-}
-type Range(min:Number, max:Number) {
-    min = min;
-    max = max;
-    current = min - 1;
 
-    next(): Boolean => (self.current := self.current + 1) < self.max;
-    current(): Number => self.current;
-}
-type Point(x:Number,y:Number) {
-    x:Number = x;
-    y:Number = y;
+type Point(x: Number,y:Number) {
+    x = x;
+    y = y;
 
-    getX():Number => self.x;
+    getX() : Number => self.x;
     getY():Number => self.y;
 
-    setX(x:Number) => self.x := x;
-    setY(y:Number) => self.y := y;
-
-    hash(): Number{
-        42;
-    }
-
-    equals(p: Equatable){
-        self.getX() == 3;
-    }
+    setX(x:Number) :Number => self.x := x;
+    setY(y:Number):Number => self.y := y;
 }
 type PolarPoint(phi:Number, rho:Number) inherits Point(rho * sin(phi), rho * cos(phi)) {
-    rho() => sqrt(self.getX() ^ 2 + self.getY() ^ 2);
+    rho() :Number => sqrt(self.getX() ^ 2 + self.getY() ^ 2);
 }
 type Knight inherits Person {
-    name() => "Sir" @@ base();
+    name():String => "Sir"; //candela
 }
-type Person(firstname, lastname) {
+type Person(firstname:String, lastname:String) {
     firstname = firstname;
     lastname = lastname;
 
-    name() => self.firstname @@ self.lastname;
+    name():String => self.firstname @@ self.lastname;
     hash() : Number {
         5;
     }
@@ -83,16 +63,6 @@ type C inherits A {
     hello() => print("C");
 }
 
-type QueRico(muela) {
-    muela = muela;
-    temporada_de_awacate= true;
-
-    cascara(str):QueRico => new QueRico(self.muela @@ str);
-    lo_de_adentro(str):QueRico => new QueRico(self.muela @@ str);
-    semilla(bool):Boolean => !self.temporada_de_awacate;
-}
-
-
 {
     42;
     print(42);
@@ -105,9 +75,9 @@ type QueRico(muela) {
         print(42);
         print(sin(PI/2));
         print("Hello World");
-    };
+    }
 
-    
+
     print(tan(PI) ** 2 + cot(PI) ** 2);
 
     let msg = "Hello World" in print(msg);
@@ -158,7 +128,7 @@ type QueRico(muela) {
             print("Even");
         }
         else print("Odd");
-    let a = 42, mod = a % 3 in 
+    let a = 42, mod = a % 3 in // error
         print(
             if (mod == 0) "Magic"
             elif (mod % 3 == 1) "Woke"
@@ -167,7 +137,7 @@ type QueRico(muela) {
     let a = 10 in while (a >= 0) {
         print(a);
         a := a - 1;
-    };
+    }
     
     for (x in range(0, 10)) print(x);
     let iterable = range(0, 10) in
@@ -175,8 +145,6 @@ type QueRico(muela) {
             let x = iterable.current() in
                 print(x);
 
-    //let pt = new Point() in 
-    //    print("x: " @ pt.getX() @ "; y: " @ pt.getY());
     let pt = new Point(3,4) in
         print("x: " @ pt.getX() @ "; y: " @ pt.getY());
     let pt = new PolarPoint(3,4) in
@@ -187,19 +155,14 @@ type QueRico(muela) {
     let p: Person = new Knight("Phil", "Collins") in print(p.name());
     let x: Number = 42 in print(x);
 
-    
     let x = new Superman() in
         print(
             if (x is Bird) "It's bird!"
             elif (x is Plane) "It's a plane!"
             else "No, it's Superman!"
         );
-
     let x = 42 in print(x);
     let total = { print("Total"); 5; } + 6 in print(total);
-
-    
-
     let x : A = if (rand() < 0.5) new B() else new C() in
         if (x is B)
             let y : B = x as B in {
@@ -209,18 +172,5 @@ type QueRico(muela) {
             print("x cannot be downcasted to B");
         };
 
-    //let numbers = [1,2,3,4,5,6,7,8,9] in
-    //    for (x in numbers)
-    //        print(x);
-    //let numbers = [1,2,3,4,5,6,7,8,9] in print(numbers[7]);
-
-    
-    //let squares = [x^2 || x in range(1,10)] in print(x);
-
-    //let squares = [x^2 || x in range(1,10)] in for (x in squares) print(x);
-    //let x : Hashable = new Person() in print(x.hash());
-    let x : Hashable = new Point(0,0) in print(x.hash());
-
-    
-    let temporada_de_awacate = 4,awacate: QueRico = new QueRico("siuuuu" @@ "banda" @ "yaes" @ 4*5^2 @@ temporada_de_awacate == 3) in awacate.cascara("verde").lo_de_adentro(43*-1).semilla(true);
 }
+"""

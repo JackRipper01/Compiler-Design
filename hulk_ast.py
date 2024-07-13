@@ -191,6 +191,8 @@ class TypeDef(Node):
     def __init__(self, id, params, members, inherits):
         super().__init__(self, "TYPE_DEF")
         self.id : ID = id 
+        self.variables = []
+        self.functions = []
         if members:
             self.variables = list(filter(lambda x: type(x) is Assign, members))
             self.functions = list(filter(lambda x: type(x) is FunctionDef, members))
