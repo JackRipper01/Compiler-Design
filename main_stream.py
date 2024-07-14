@@ -15,8 +15,7 @@ protocol Iterable {
 let numbers = [1,2,3,4,5,6,7,8,9] in
         for (x in numbers)
             print(x);"""
-ast, parsingErrors, nodes = hulk_parse(
-        CODE, create_graph=True)
+ast, parsingErrors, nodes = hulk_parse(CODE, create_graph=False)
 
 print(
     "LEXER FOUND THE FOLLOWING ERRORS:" if len(
@@ -48,3 +47,4 @@ if ast:
     if len(semantic_check_errors) == 0:
         print("\nGlobal Expression returned:", typeof(ast.global_exp))
         CodeGen().visit(ast)
+        

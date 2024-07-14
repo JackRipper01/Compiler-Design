@@ -1602,6 +1602,7 @@ def hulk_parse(code, create_graph = False):
         if create_graph:
             create_AST_graph(nodes, "AST")
         AST.input = code
+        print("parsed and lexed")
         return AST, sErrorList, nodes
     else:
         for i in sErrorList:
@@ -1609,6 +1610,4 @@ def hulk_parse(code, create_graph = False):
                 errors.append(f"Syntax error near '{i.value}' at line {i.lineno}, column {find_column(code,i)}")
             else:
                 errors.append("Syntax error at EOF")
-            # break
-
         return None, errors, None

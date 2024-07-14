@@ -1161,6 +1161,7 @@ def semantic_check(ast: Program, code):
         type_chk.cf = column_finder
         type_chk.visit(ast)
         errors.extend(type_chk.errors)
+    print("checked")
 
     # your code here
     return ast, errors
