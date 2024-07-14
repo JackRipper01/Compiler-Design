@@ -84,10 +84,6 @@ class ScopeBuilder:
         self.check_tree(node, "Object")
         self.trasspass_params_to_children(node, "Object", set())
 
-        # for i in node.hierarchy_tree:
-        #     for j in node.hierarchy_tree:
-        #         print(i,"to" ,j, conforms(node, i , j))
-
         self.on_function = True
         for function in node.functions:
             function: FunctionDef
@@ -330,12 +326,14 @@ class ScopeBuilder:
 
     @visitor.when(VectorExt)
     def visit(self, node: VectorExt):
+        self.errors.append("Not implemented VECTOR_EXT"+self.cf.add_line_column(node.tk))
         for item in node.items.param_list:
             item.variable_scope = node.variable_scope
             self.visit(item)
 
     @visitor.when(VectorInt)
     def visit(self, node: VectorInt):
+        self.errors.append("Not implemented VECTOR_INT"+self.cf.add_line_column(node.tk))
         node.variable_scope = node.variable_scope.copy()
 
         node.iterable.variable_scope = node.variable_scope
@@ -348,6 +346,7 @@ class ScopeBuilder:
 
     @visitor.when(VectorCall)
     def visit(self, node: VectorCall):
+        self.errors.append("Not implemented VECTOR_CALL"+self.cf.add_line_column(node.tk))
         node.id.variable_scope = node.variable_scope
         self.visit(node.id)
 
@@ -845,8 +844,6 @@ class TypeInfChk:
         self.visit(node.value)
         if expect:
             if not conforms(node, node.value.static_type, expect):
-                # print(f"'{node.value.static_type}' not conforms to '{expect}'"
-                #     + self.cf.add_line_column(node.name.name)+" "+node.name.name)
                 self.errors.append(
                     f"'{node.value.static_type}' not conforms to '{expect}'"
                     + self.cf.add_line_column(node.name.name)
@@ -993,7 +990,6 @@ class TypeInfChk:
 
     @visitor.when(VectorInt)
     def visit(self, node: VectorInt):
-        self.errors.append("Vectors INTENSIONAL not implemented yet"+self.cf.add_line_column(node.tk))
         iter_expect = "Iterable"
         self.visit(node.iterable)
         if not conforms(node, node.iterable.static_type, iter_expect):
@@ -1161,7 +1157,5 @@ def semantic_check(ast: Program, code):
         type_chk.cf = column_finder
         type_chk.visit(ast)
         errors.extend(type_chk.errors)
-    print("checked")
 
-    # your code here
     return ast, errors

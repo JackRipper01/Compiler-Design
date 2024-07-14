@@ -99,7 +99,6 @@ def refact_ast(nodes_dict : dict):
 
     for let in let_expressions:
         if len(let.assign)<=1:
-            # print("let is ok")
             continue
 
         current_let = let
@@ -241,7 +240,7 @@ def conforms(ast_node: Node, A, B):
         else:
                 
             a = ast_node.global_definitions[A]
-            b = ast_node.global_definitions[A]
+            b = ast_node.global_definitions[B]
             
         for meth in b.functions:
             name = method_name_getter(meth, True)
@@ -329,4 +328,3 @@ def assign_name_getter(assign: Assign, private=False):
     else:
         return assign.name.name
     
-# print(ColumnFinder())

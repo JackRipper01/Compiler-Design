@@ -1560,22 +1560,6 @@ def p_expression_rand(p):
     p[0] = Rand()
     p[0].tk = p[1]
     
-
-
-# def p_error(p):
-#     sErrorList.append(p)
-#     print("Whoa. You are seriously hosed.")
-#     if not p:
-#         print("End of File!")
-#         return
-
-#     # Read ahead looking for a closing '}'
-#     while True:
-#         tok = parser.token()             # Get the next token
-#         if not tok or tok.type == 'RBRACE': 
-#             break
-#     parser.restart()
-
 pf = PS()
 
 def p_error(p):
@@ -1602,7 +1586,6 @@ def hulk_parse(code, create_graph = False):
         if create_graph:
             create_AST_graph(nodes, "AST")
         AST.input = code
-        print("parsed and lexed")
         return AST, sErrorList, nodes
     else:
         for i in sErrorList:

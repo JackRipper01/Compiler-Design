@@ -63,26 +63,26 @@ class CodeGen:
     def visit(self, node):
         main_def, main_ret = self.visit(node.global_exp)
         if node.functions:
-                for function in node.functions:
-                    list_params = []
-                    for param in function.params.param_list:
-                        list_params.append((param.static_type+"*", param.name))
-                    params_c_code = ""
-                    for param_code in list_params:
-                        params_c_code += f"{param_code[0]} {param_code[1]},"
+            for function in node.functions:
+                list_params = []
+                for param in function.params.param_list:
+                    list_params.append((param.static_type+"*", param.name))
+                params_c_code = ""
+                for param_code in list_params:
+                    params_c_code += f"{param_code[0]} {param_code[1]},"
 
-                    if params_c_code != "":
-                        params_c_code = params_c_code[:-1]
+                if params_c_code != "":
+                    params_c_code = params_c_code[:-1]
 
-                    if function.func_id.name == "tan":
-                        code = f"""{function.static_type}* p_{function.func_id.name}({params_c_code});\n"""
-                    else:
-                        code = f"""{function.static_type}* {function.func_id.name}({params_c_code});\n"""
-                        
-                    self.functions_headers+=code+"\n"
-                for function in node.functions:
-                    self.function_definitions+=f"{self.visit(function)[0]}\n\n"
+                if function.func_id.name == "tan":
+                    code = f"""{function.static_type}* p_{function.func_id.name}({params_c_code});\n"""
+                else:
+                    code = f"""{function.static_type}* {function.func_id.name}({params_c_code});\n"""
                     
+                self.functions_headers+=code+"\n"
+            for function in node.functions:
+                self.function_definitions+=f"{self.visit(function)[0]}\n\n"
+                
         if node.types:
                 # ordenando node.types segun la herencia
                 list_of_descendients = misc.get_descendancy(node, "Object", [])
@@ -213,12 +213,17 @@ typedef struct {
     void** data;
     int len;
 } Vector;\n\n""")
+            f.write("//TYPE HEADERS\n")
             f.write(self.types_definitions+"\n")
+            f.write("//FUNCTION HEADERS\n")
             f.write(self.functions_headers+"\n")
+            f.write("//TYPES AND FUNCTION DEFINITIONS\n")
             f.write(self.types_function_definitions+"\n")
+            f.write("//TYPE CONSTRUCTORS\n")
             f.write(self.types_constructor +"\n")
+            f.write("//FUNCTION DEFINITION\n")
             f.write(self.function_definitions +"\n")
-            
+            f.write("//MAAAAAAIIIIIIIINNNNN\n")
             f.write("int main() {\n\n")
             f.write("""struct timeval tv;
     gettimeofday(&tv, NULL);
