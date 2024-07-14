@@ -308,7 +308,7 @@ typedef struct {
     @visitor.when(Let)
     def visit(self, node):
         # node.static_type = "Number"
-        print(node.assign[0].value)
+        # print(node.assign[0].value)
         assign_def, assign_ret = self.visit(node.assign[0].value)
         var_name = node.assign[0].name.name
         var_type = node.assign[0].name.static_type
@@ -813,12 +813,11 @@ type Knight inherits Person {
 
 let p = new Knight("Phil", "Collins") in
     print(p.name()); // prints 'Sir Phil Collins'"""
-    cf = ColumnFinder()
     from hulk_semantic_check import semantic_check
     from hulk_lexer import errorList as lexerErrors
     from code import CODE
     ast, parsingErrors, _b = hulk_parse(
-        CODE, cf)
+        CODE)
     # print()
     # create_AST_graph(nodes, "AST")
 
@@ -838,7 +837,7 @@ let p = new Knight("Phil", "Collins") in
         sep="\n - ",
     )
     if ast:
-        ast, semantic_check_errors = semantic_check(ast, cf)
+        ast, semantic_check_errors = semantic_check(ast, CODE)
 
         print(
             (
@@ -853,37 +852,3 @@ let p = new Knight("Phil", "Collins") in
         if len(semantic_check_errors) == 0:
             CodeGen().visit(ast)
 
-
-# let x = true in print(x@" Candelozki");
-# function concat(x, y) = > x@y@" Candelozki"
-# let a = true in print(concat(a, "PINGA"))
-
-# type Point3D(x, y, z) inherits Point(x, y){
-#     z = z
-
-#     getZ() = > self.z
-
-#     setZ(z) = > self.z := z
-#     asd() = > self.x*self.x
-# }
-# type Point(x, y) {
-#     x = x
-#     y = y
-
-#     getX() = > self.x
-#     getY() = > self.y
-#     asd() = > self.x+self.y
-#     setX(x) = > self.x := x
-#     setY(y) = > self.y := y
-# }
-
-# type Point5D(x, y, z, a, b) inherits Point3D(x, y, z){
-#     a = a
-#     b = b
-
-#     getA() = > self.a
-#     getB() = > self.b
-
-#     setA(a) = > self.a := a
-#     setB(b) = > self.b := b
-# }

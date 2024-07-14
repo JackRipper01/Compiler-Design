@@ -63,15 +63,13 @@ from hulk_ast import (
 # SemanticCheck
 # TypeCheck?
 
-cf = ColumnFinder()
-
-
 class ScopeBuilder:
     def __init__(self):
         self.errors = []
         self.on_type = False
         self.on_function = False
         self.current = ""  # desarrollar idea
+        self.cf = None
 
     @visitor.on("node")
     def visit(self, node):
@@ -126,7 +124,7 @@ class ScopeBuilder:
             meth: FunctionDef
             meth_name = method_name_getter(meth, True)
             if meth_name in node.variable_scope:
-                self.errors.append(f"Protocol {node.id.name} reimplements method {meth.func_id.name}"+cf.add_line_column(meth.func_id.name))
+                self.errors.append(f"Protocol {node.id.name} reimplements method {meth.func_id.name}"+self.cf.add_line_column(meth.func_id.name))
             node.variable_scope[meth_name] = meth
             meth.static_type = meth.func_id.annotated_type
             
@@ -156,7 +154,7 @@ class ScopeBuilder:
             assig_name = assign_name_getter(assign, True)
             if assig_name in node.variable_scope:
                 self.errors.append(
-                    f"Private var '{assign.name.name}' already defined in type '{self.current}'{cf.add_line_column(assign.name.name)}"
+                    f"Private var '{assign.name.name}' already defined in type '{self.current}'{self.cf.add_line_column(assign.name.name)}"
                 )
             node.variable_scope[assig_name] = assign.name
 
@@ -168,7 +166,7 @@ class ScopeBuilder:
             if method_name in this_fx_scope:
                 self.errors.append(
                     f"Method '{method_name_getter(method)}' already defined in type '{self.current}'"
-                    + cf.add_line_column(method.func_id.name)
+                    + self.cf.add_line_column(method.func_id.name)
                 )
             this_fx_scope.add(method_name)
             node.variable_scope[method_name] = method
@@ -255,7 +253,7 @@ class ScopeBuilder:
                 "Variable '"
                 + node.name
                 + "' not defined"
-                + cf.add_line_column(node.name)
+                + self.cf.add_line_column(node.name)
             )
 
     @visitor.when(Params)
@@ -313,7 +311,7 @@ class ScopeBuilder:
                         "Invalid access to private member '"
                         + node.right.name
                         + "' outside method class declaration"
-                        + cf.add_line_column(node.right.name)
+                        + self.cf.add_line_column(node.right.name)
                     )
         elif node.op in ["is", "as"]:
             if node.right.annotated_type not in node.hierarchy_tree:
@@ -321,7 +319,7 @@ class ScopeBuilder:
                     "Type '"
                     + node.right.annotated_type
                     + "' undefined"
-                    + cf.add_line_column(node.right.name)
+                    + self.cf.add_line_column(node.right.name)
                 )
             node.left.variable_scope = node.variable_scope
             self.visit(node.left)
@@ -368,7 +366,7 @@ class ScopeBuilder:
                     "Function "
                     + fn_name
                     + " not defined"
-                    + cf.add_line_column(node.func_id.name)
+                    + self.cf.add_line_column(node.func_id.name)
                 )
         else:
             if fn_name not in node.global_definitions:
@@ -380,7 +378,7 @@ class ScopeBuilder:
                         "Function "
                         + fn_name
                         + " not defined"
-                        + cf.add_line_column(node.func_id.name)
+                        + self.cf.add_line_column(node.func_id.name)
                     )
         node.params.variable_scope = node.variable_scope
         self.visit(node.params)
@@ -399,7 +397,7 @@ class ScopeBuilder:
                     + f") (line {node.global_definitions[node.id.name].id.name.lineno}) and its instanstiation ("
                     + str(len(node.params.param_list))
                     + ")"
-                    + cf.add_line_column(node.id.name)
+                    + self.cf.add_line_column(node.id.name)
                 )
             node.params.variable_scope = node.variable_scope
             self.visit(node.params)
@@ -454,6 +452,7 @@ class ScopeBuilder:
         ast_input.global_definitions["Number"] = "float"
         ast_input.global_definitions["String"] = "string"
         ast_input.global_definitions["Boolean"] = "int"
+        ast_input.global_definitions["Vector"] = "vec"
         vecc = TypeDef(ID("Vector","Vector"),Params([]),None,None)
         vecc.variable_scope = {
             "next/0/private"
@@ -469,7 +468,7 @@ class ScopeBuilder:
                     "Function "
                     + function_name
                     + " already defined"
-                    + cf.add_line_column(
+                    + self.cf.add_line_column(
                         ast_input.global_definitions[function_name].func_id.name
                     )
                 )
@@ -483,7 +482,7 @@ class ScopeBuilder:
                     "Type "
                     + type_name
                     + " already defined"
-                    + cf.add_line_column(type_def.id.name)
+                    + self.cf.add_line_column(type_def.id.name)
                 )
             else:
                 ast_input.global_definitions[type_name] = type_def
@@ -619,7 +618,7 @@ class ScopeBuilder:
         prms = set()
         for param in params.param_list:
             if param.name in prms:
-                self.errors.append(f"Param '{param.name}' already in use"+cf.add_line_column(param.name))
+                self.errors.append(f"Param '{param.name}' already in use"+self.cf.add_line_column(param.name))
             prms.add(param.name)
 
     def trasspass_params_to_children(self, ast: Program, name: str, visited):
@@ -630,7 +629,7 @@ class ScopeBuilder:
                 "Error in type definition: "
                 + name
                 + " appeared in class hierarchy twice"
-                + cf.add_line_column(ast.global_definitions[name].id.name)
+                + self.cf.add_line_column(ast.global_definitions[name].id.name)
             )
         visited.add(name)
 
@@ -664,6 +663,7 @@ class TypeInfChk:
         self.current = ""  # desarrollar idea
         self.sb = None
         self.visited_function = set()
+        self.cf = None
 
     @visitor.on("node")
     def visit(self, node):
@@ -704,7 +704,7 @@ class TypeInfChk:
             param: ID
             param.static_type = param.annotated_type if param.annotated_type != "" else "Object"
             if type(node.global_definitions[param.static_type]) is Protocol:
-                self.errors.append(f"Param '{param.name}' in type '{node.id.name}' is a protocol"+cf.add_line_column(param.name))
+                self.errors.append(f"Param '{param.name}' in type '{node.id.name}' is a protocol"+self.cf.add_line_column(param.name))
         
         if node.inherits:
             self.visit(node.inherits)
@@ -731,7 +731,7 @@ class TypeInfChk:
                 method_name = method_name_getter(method, True)
                 if method_name in node.global_definitions[node.inherits.id.name].variable_scope:
                     if not func_conforms(node, method, node.global_definitions[node.inherits.id.name].variable_scope[method_name]):
-                        self.errors.append(f"Method {method_name} at {node.id.name} not conforms to parent method at {node.global_definitions[node.inherits.id.name].id.name}"+cf.add_line_column(method.func_id.name))
+                        self.errors.append(f"Method {method_name} at {node.id.name} not conforms to parent method at {node.global_definitions[node.inherits.id.name].id.name}"+self.cf.add_line_column(method.func_id.name))
         self.on_function = False
 
         for child in node.hierarchy_tree[node.id.name].children:
@@ -748,14 +748,14 @@ class TypeInfChk:
             elif name in node.global_definitions:
                 func_def = node.global_definitions[name]
             else:
-                self.errors.append(f"Function {name} not defined"+cf.add_line_column(node.func_id.name))
+                self.errors.append(f"Function {name} not defined"+self.cf.add_line_column(node.func_id.name))
                 
         elif name in node.global_definitions:
             func_def = node.global_definitions[name]
         else:
             self.errors.append(
                 f"Function '{name}' doesnt exist"
-                + cf.add_line_column(node.func_id.name)
+                + self.cf.add_line_column(node.func_id.name)
             )
             
         if func_def:
@@ -767,7 +767,7 @@ class TypeInfChk:
                 if not conforms(node, r_param.static_type, expect):
                     self.errors.append(
                         f"Function '{node.func_id.name}' param '{e_param.name}' expected '{expect}', but received '{r_param.static_type}'"
-                        + cf.add_line_column(node.func_id.name)
+                        + self.cf.add_line_column(node.func_id.name)
                     )
             node.static_type = func_def.static_type
 
@@ -780,14 +780,14 @@ class TypeInfChk:
             )
             
             if type(node.global_definitions[param.static_type]) is Protocol:
-                self.errors.append(f"Param '{param.name}' in function '{node.func_id.name}' is a protocol"+cf.add_line_column(param.name))
+                self.errors.append(f"Param '{param.name}' in function '{node.func_id.name}' is a protocol"+self.cf.add_line_column(param.name))
 
         expect = node.static_type
         self.visit(node.body)
         if not conforms(node, node.body.static_type, expect):
             self.errors.append(
                 f"Function '{node.func_id.name}' expect return type '{expect}', but its body returns {node.body.static_type}"
-                + cf.add_line_column(node.func_id.name)
+                + self.cf.add_line_column(node.func_id.name)
             )
         if expect == "None":
                 node.static_type = node.body.static_type
@@ -822,7 +822,7 @@ class TypeInfChk:
         condition_expect = "Boolean"
         self.visit(node.condition)
         if not conforms(node, node.condition.static_type, condition_expect):
-            self.errors.append(f"Condition of while returned {node.condition.static_type} while expecting {condition_expect}"+cf.add_line_column(node.tk))
+            self.errors.append(f"Condition of while returned {node.condition.static_type} while expecting {condition_expect}"+self.cf.add_line_column(node.tk))
 
         self.visit(node.body)
         node.static_type = node.body.static_type
@@ -834,7 +834,7 @@ class TypeInfChk:
         if not conforms(node, node.condition.static_type, condition_expect):
             self.errors.append(
                 f"Expected 'Boolean' at '{node.branch}' but received '{node.condition.static_type}'"
-                + cf.add_line_column(node.branch)
+                + self.cf.add_line_column(node.branch)
             )
         self.visit(node.body)
         node.static_type = node.body.static_type
@@ -846,10 +846,10 @@ class TypeInfChk:
         if expect:
             if not conforms(node, node.value.static_type, expect):
                 # print(f"'{node.value.static_type}' not conforms to '{expect}'"
-                #     + cf.add_line_column(node.name.name)+" "+node.name.name)
+                #     + self.cf.add_line_column(node.name.name)+" "+node.name.name)
                 self.errors.append(
                     f"'{node.value.static_type}' not conforms to '{expect}'"
-                    + cf.add_line_column(node.name.name)
+                    + self.cf.add_line_column(node.name.name)
                 )
             if type(node.global_definitions[expect]) is Protocol:
                 expect = node.value.static_type
@@ -903,7 +903,7 @@ class TypeInfChk:
             if not conforms(node, r_param.static_type, expect):
                 self.errors.append(
                     f"Function '{node.func_id.name}' param '{e_param.name}' expected '{expect}', but received '{r_param.static_type}'"
-                    + cf.add_line_column(node.func_id.name)
+                    + self.cf.add_line_column(node.func_id.name)
                 )
 
     @visitor.when(UnaryOp)
@@ -913,7 +913,7 @@ class TypeInfChk:
         if not conforms(node, node.operand.static_type, expect):
             self.errors.append(
                 f"Unary Operation '{node.op}' expected '{expect}' but received '{node.operand.static_type}'"
-                + cf.add_line_column(node.op)
+                + self.cf.add_line_column(node.op)
             )
         node.static_type = node.operand.static_type
 
@@ -928,7 +928,7 @@ class TypeInfChk:
         self.visit(node.value)
         if not conforms(node, node.value.static_type, expect):
             self.errors.append(
-                f"EXP operation expect 'Number' argument, but received '{node.value.static_type}'"
+                f"EXP operation expect 'Number' argument, but received '{node.value.static_type}'"+self.cf.add_line_column(node.tk)
             )
         node.static_type = "Number"
 
@@ -938,7 +938,7 @@ class TypeInfChk:
         self.visit(node.value)
         if not conforms(node, node.value.static_type, expect):
             self.errors.append(
-                f"SQRT operation expect 'Number' argument, but received '{node.value.static_type}'"
+                f"SQRT operation expect 'Number' argument, but received '{node.value.static_type}'"+self.cf.add_line_column(node.tk)
             )
         node.static_type = "Number"
 
@@ -948,7 +948,7 @@ class TypeInfChk:
         self.visit(node.value)
         if not conforms(node, node.value.static_type, expect):
             self.errors.append(
-                f"SIN operation expect 'Number' argument, but received '{node.value.static_type}'"
+                f"SIN operation expect 'Number' argument, but received '{node.value.static_type}'"+self.cf.add_line_column(node.tk)
             )
         node.static_type = "Number"
 
@@ -958,7 +958,7 @@ class TypeInfChk:
         self.visit(node.value)
         if not conforms(node, node.value.static_type, expect):
             self.errors.append(
-                f"COS operation expect 'Number' argument, but received '{node.value.static_type}'"
+                f"COS operation expect 'Number' argument, but received '{node.value.static_type}'"+self.cf.add_line_column(node.tk)
             )
         node.static_type = "Number"
 
@@ -972,7 +972,7 @@ class TypeInfChk:
             and conforms(node, node.base.static_type, expect)
         ):
             self.errors.append(
-                f"LOG operation expect 'Number' arguments, but received '{node.value.static_type}' and '{node.base.static_type}'"
+                f"LOG operation expect 'Number' arguments, but received '{node.value.static_type}' and '{node.base.static_type}'"+self.cf.add_line_column(node.tk)
             )
         node.static_type = "Number"
     
@@ -983,21 +983,21 @@ class TypeInfChk:
         if node.static_type != "Vector":
             self.errors.append(
                 f"Vector call expected 'Vector' but received '{node.static_type}'"
-                + cf.add_line_column(node.tk)
+                + self.cf.add_line_column(node.tk)
             )
         if node.static_type == "Vector":
             node.static_type = node.id.static_type.T
         self.visit(node.index)
         if node.index.static_type != "Number":
-            self.errors.append("Index of Vector call must be 'Number'"+cf.add_line_column(node.tk))
+            self.errors.append("Index of Vector call must be 'Number'"+self.cf.add_line_column(node.tk))
 
     @visitor.when(VectorInt)
     def visit(self, node: VectorInt):
-        self.errors.append("Vectors INTENSIONAL not implemented yet"+cf.add_line_column(node.tk))
+        self.errors.append("Vectors INTENSIONAL not implemented yet"+self.cf.add_line_column(node.tk))
         iter_expect = "Iterable"
         self.visit(node.iterable)
         if not conforms(node, node.iterable.static_type, iter_expect):
-            self.errors.append(f"Iterable {node.iterator.name} must be 'Iterable'"+cf.add_line_column(node.iterator.name)
+            self.errors.append(f"Iterable {node.iterator.name} must be 'Iterable'"+self.cf.add_line_column(node.iterator.name)
                         )
         node.static_type = StringToken("Vector")
         
@@ -1057,7 +1057,7 @@ class TypeInfChk:
             ):
                 self.errors.append(
                     f"Binary operation '{node.op}' expected '{expect}' and received '('{node.left.static_type}', '{node.right.static_type}')'"
-                    + cf.add_line_column(node.op)
+                    + self.cf.add_line_column(node.op)
                 )
             node.static_type = expect_return
 
@@ -1069,7 +1069,7 @@ class TypeInfChk:
             # ) and expect not in get_descendancy_set(node, node.left.static_type, set()):
             #     self.errors.append(
             #         f"Do not even try to cast '{node.left.static_type}' to '{expect}'"
-            #         + cf.add_line_column(node.op)
+            #         + self.cf.add_line_column(node.op)
             #     )
             node.right.static_type = node.right.name
             if node.op == "is":
@@ -1085,28 +1085,29 @@ class TypeInfChk:
             if not conforms(node, node.right.static_type, expect):
                 self.errors.append(
                     f"Cannot ':=' '{node.right.static_type}' to item with type '{expect}'"
-                    + cf.add_line_column(node.op)
+                    + self.cf.add_line_column(node.op)
                 )
 
             node.static_type = expect
 
         elif node.op == ".":
             self.visit(node.left)
-            
             context_from = node.left.static_type
-            if context_from == "Vector":
-                nn = FunctionDef(ID("next",""),Params([]), None)
-                cc = FunctionDef(ID("current",""),Params([]), None)
-                nn.static_type = "Boolean"
-                cc.static_type = node.left.static_type.T
-                context = {
-                    "next/0/private": nn,
-                    "current/0/private": cc
-                }
-            elif context_from in set(node.global_definitions).difference(
+            
+            if context_from in set(node.global_definitions).difference(
                 set(["Number", "Boolean", "String", "Object"])
             ):
-                context = node.global_definitions[context_from].variable_scope.copy()
+                if context_from == "Vector":
+                    nn = FunctionDef(ID("next",""),Params([]), None)
+                    cc = FunctionDef(ID("current",""),Params([]), None)
+                    nn.static_type = "Boolean"
+                    cc.static_type = node.left.static_type.T
+                    context = {
+                        "next/0/private": nn,
+                        "current/0/private": cc
+                    }
+                else:
+                    context = node.global_definitions[context_from].variable_scope.copy()
                     
                 if type(node.right) is ID:
                     name = node.right.name + "/private"
@@ -1126,13 +1127,13 @@ class TypeInfChk:
                             if not conforms(node, r_param.static_type, expect):
                                 self.errors.append(
                                     f"Function '{node.right.func_id.name}' param '{e_param.name}' expected '{expect}', but received '{r_param.static_type}'"
-                                    + cf.add_line_column(node.right.func_id.name)
+                                    + self.cf.add_line_column(node.right.func_id.name)
                                 )
 
                 else:
                     self.errors.append(
                         f"Type {context_from} has no member {name}"
-                        + cf.add_line_column(token)
+                        + self.cf.add_line_column(token)
                     )
             else:
                 try:
@@ -1142,124 +1143,24 @@ class TypeInfChk:
                     
                 self.errors.append(
                     f"Cannot obtain member '{name}' from type '{context_from}'"
-                    + cf.add_line_column(node.op)
+                    + self.cf.add_line_column(node.op)
                 )
 
 
-def semantic_check(ast: Program, column_finder):
-    cf = column_finder
+def semantic_check(ast: Program, code):
     errors = []
+    column_finder = ColumnFinder()
+    column_finder.code = code
     scope_visitor = ScopeBuilder()
+    scope_visitor.cf = column_finder
     scope_visitor.visit(ast)
     errors.extend(scope_visitor.errors)
     if len(errors) == 0:
         type_chk = TypeInfChk()
         type_chk.sb = scope_visitor
+        type_chk.cf = column_finder
         type_chk.visit(ast)
         errors.extend(type_chk.errors)
 
     # your code here
     return ast, errors
-
-
-if __name__ == "__main__":
-    # code_file = io.open("test_fixin.hulk").read()
-    code_text = """
-protocol Iterable {
-    next() : Boolean;
-    current() : Object;
-}
-type A () {}
-type Elite {
-    next() : Boolean => true;
-    current() : Elite => new Elite();
-}
-type L inherits Elite {
-    next() : Boolean => true;
-    current() : L => new L();
-}
-let a : Iterable = new Elite() in a.next();
-    """
-    
-    
-    
-    
-    code_text = """
-    protocol Iterable {
-    next() : Boolean;
-    current() : Object;
-}
-type A () {
-    next() : Boolean => true;
-    current() : Object => print("hello");
-}
-type Range(min:Number, max:Number) {
-    min = min;
-    max: Number = max;
-    current = min - 1;
-
-    next(): Boolean => (self.current := self.current + 1) < self.max;
-    current(): Number => self.current;
-}
-function range(min: Number, max: Number): Range => new Range (min,max);
-function asd(min: Iterable):Number => 1;
-   {
-       //[x^2 || x in range(1,10)];
-   for (i in range(1,10)) 2+i;
-   let x : Iterable = range(1,10) in print(x);
-   let numbers = [23] in numbers[67];
-   }"""
-    code_text = """let aaa = [x*2 || x in range(1,10)] in aaa[1];"""
-    ast, parsingErrors, _b = hulk_parse(code_text, cf, True)
-
-    print(
-        "LEXER FOUND THE FOLLOWING ERRORS:" if len(lexerErrors) > 0 else "LEXING OK!",
-        *lexerErrors,
-        sep="\n - ",
-    )
-    print(
-        (
-            "PARSER FOUND THE FOLLOWING ERRORS:"
-            if len(parsingErrors) > 0
-            else "PARSING OK!!"
-        ),
-        *parsingErrors,
-        sep="\n - ",
-    )
-    if ast:
-        ast, semantic_check_errors = semantic_check(ast, cf)
-
-        print(
-            (
-                "SEMANTIC CHECK FOUND THE FOLLOWING ERRORS:"
-                if len(semantic_check_errors) > 0
-                else "SEMANTIC CHECK OK!!!"
-            ),
-            *semantic_check_errors,
-            sep="\n - ",
-        )
-        ast: Program
-        # create_Hierarchy_graph(ast.hierarchy_tree, "ht")
-        # create_Hierarchy_graph(ast.protocol_hierarchy, "ph")
-        print("\nGlobal Expression returned:", typeof(ast.global_exp))
-        # from hulk_code_gen import CodeGen
-        # CodeGen().visit(ast)
-        # print(ast.global_definitions["A"].variable_scope)
-        # for typexx in print(ast.global_definitions["A"].variable_scope["next/0/private"]).params.param_list:
-        #     print(typexx.static_type)
-        # for typexx in print(ast.global_definitions["A"].variable_scope["current/0/private"]).params.param_list:
-        #     print(typexx.static_type)
-        # print(ast.global_definitions["Iterable"].variable_scope)
-        # for typexx in print(ast.global_definitions["Iterable"].variable_scope["next/0/private"]).params.param_list:
-        #     print(typexx.static_type)
-        # for typexx in print(ast.global_definitions["Iterable"].variable_scope["current/0/private"]).params.param_list:
-        #     print(typexx.static_type)
-        # for i in ast.global_definitions["Iterable"].variable_scope:
-        #     print(i, ast.global_definitions["Iterable"].variable_scope[i].static_type)
-        # print()
-        # for i in ast.global_definitions["A"].variable_scope:
-        #     print(i, ast.global_definitions["A"].variable_scope[i].static_type)
-        # print(conforms(ast, "Iterable", "A"))
-        # print(conforms(ast, "A", "Iterable"))
-        # print(conforms(ast, "Vector", "Iterable"))
-        

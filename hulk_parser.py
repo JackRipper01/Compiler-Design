@@ -41,6 +41,10 @@ from hulk_ast import (
     Rand,
 )
 
+class PS:
+    def __init__(self) -> None:
+        self.parser = None
+
 lexer = hulk_lexer.lex.lex(module=hulk_lexer)
 lexer.parenthesisCount = 0
 
@@ -472,7 +476,6 @@ def p_function_def(p):
                 p[i].lexpos = p.lexpos(i)
     id = ID(p[2], p[6])
     p[0] = FunctionDef(id, p[4], p[8])
-    print(p[2], "tpppp", p[6])
     id.parent = p[0]
     p[4].parent = p[0]
     p[8].parent = p[0]
@@ -1278,6 +1281,8 @@ def p_expression_unary(p):
                 p[i].lexpos = p.lexpos(i)
     p[0] = UnaryOp(op=p[1], operand=p[2])
     p[2].parent = p[0]
+    p[0].tk = p[1]
+    
 
 
 def p_expression_unary_hl(p):
@@ -1292,6 +1297,8 @@ def p_expression_unary_hl(p):
                 p[i].lexpos = p.lexpos(i)
     p[0] = UnaryOp(op=p[1], operand=p[2])
     p[2].parent = p[0]
+    p[0].tk = p[1]
+    
 
 
 def p_expression_number(p):
@@ -1353,6 +1360,8 @@ def p_vector_ext(p):
                 p[i].lexpos = p.lexpos(i)
     p[0] = VectorExt(p[2])
     p[2].parent = p[0]
+    p[0].tk = p[1]
+    
 
 
 def p_vector_int(p):
@@ -1407,6 +1416,8 @@ def p_expression_pi(p):
                 p[i].lineno = p.lineno(i)
                 p[i].lexpos = p.lexpos(i)
     p[0] = Pi()
+    p[0].tk = p[1]
+    
 
 
 def p_expression_e(p):
@@ -1419,6 +1430,8 @@ def p_expression_e(p):
                 p[i].lineno = p.lineno(i)
                 p[i].lexpos = p.lexpos(i)
     p[0] = E()
+    p[0].tk = p[1]
+    
 
 
 def p_expression_true(p):
@@ -1431,6 +1444,8 @@ def p_expression_true(p):
                 p[i].lineno = p.lineno(i)
                 p[i].lexpos = p.lexpos(i)
     p[0] = TrueLiteral()
+    p[0].tk = p[1]
+    
 
 
 def p_expression_false(p):
@@ -1443,6 +1458,8 @@ def p_expression_false(p):
                 p[i].lineno = p.lineno(i)
                 p[i].lexpos = p.lexpos(i)
     p[0] = FalseLiteral()
+    p[0].tk = p[1]
+    
 
 
 def p_expression_print(p):
@@ -1456,6 +1473,8 @@ def p_expression_print(p):
                 p[i].lexpos = p.lexpos(i)
     p[0] = Print(p[3])
     p[3].parent = p[0]
+    p[0].tk = p[1]
+    
 
 
 def p_expression_sqrt(p):
@@ -1469,6 +1488,8 @@ def p_expression_sqrt(p):
                 p[i].lexpos = p.lexpos(i)
     p[0] = Sqrt(p[3])
     p[3].parent = p[0]
+    p[0].tk = p[1]
+    
 
 
 def p_expression_sin(p):
@@ -1482,6 +1503,7 @@ def p_expression_sin(p):
                 p[i].lexpos = p.lexpos(i)
     p[0] = Sin(p[3])
     p[3].parent = p[0]
+    p[0].tk = p[1]
 
 
 def p_expression_cos(p):
@@ -1495,6 +1517,7 @@ def p_expression_cos(p):
                 p[i].lexpos = p.lexpos(i)
     p[0] = Cos(p[3])
     p[3].parent = p[0]
+    p[0].tk = p[1]
 
 
 def p_expression_exp(p):
@@ -1508,6 +1531,7 @@ def p_expression_exp(p):
                 p[i].lexpos = p.lexpos(i)
     p[0] = Exp(p[3])
     p[3].parent = p[0]
+    p[0].tk = p[1]
 
 
 def p_expression_log(p):
@@ -1522,7 +1546,7 @@ def p_expression_log(p):
     p[0] = Log(p[3], p[5])
     p[3].parent = p[0]
     p[5].parent = p[0]
-
+    p[0].tk = p[1]
 
 def p_expression_rand(p):
     "expression : RAND LPAREN RPAREN" #tag_replace
@@ -1534,34 +1558,55 @@ def p_expression_rand(p):
                 p[i].lineno = p.lineno(i)
                 p[i].lexpos = p.lexpos(i)
     p[0] = Rand()
+    p[0].tk = p[1]
+    
 
+
+# def p_error(p):
+#     sErrorList.append(p)
+#     print("Whoa. You are seriously hosed.")
+#     if not p:
+#         print("End of File!")
+#         return
+
+#     # Read ahead looking for a closing '}'
+#     while True:
+#         tok = parser.token()             # Get the next token
+#         if not tok or tok.type == 'RBRACE': 
+#             break
+#     parser.restart()
+
+pf = PS()
 
 def p_error(p):
     sErrorList.append(p)
-    # print(sErrorList[-1])
+    
+    while True:
+        tok = pf.parser.token()
+        if not tok or tok.type == 'SEMI' or tok.type == 'RBRACE': break
+    pf.parser.errok()
 
+    return tok 
 
-def hulk_parse(code, cf = None, create_graph = False, nm = "AST"):
+def hulk_parse(code, create_graph = False):
     "parsea el codigo de hulk, retornando la raiz del ast"
     nodes = hulk_ast.nodes
     
     parser = yacc.yacc(start="program", method="LALR")
-    
+    pf.parser = parser
     AST = parser.parse(code)
     
     errors = []
     if len(sErrorList) == 0:
         nodes = refact_ast(nodes)
         if create_graph:
-            create_AST_graph(nodes, nm)
+            create_AST_graph(nodes, "AST")
         AST.input = code
-        if cf:
-            cf.code = code
         return AST, sErrorList, nodes
     else:
         for i in sErrorList:
             if i:
-                errors.append(f"Syntax error near '{i.value}' at line {i.lineno-18}, column {find_column(code,i)}")
+                errors.append(f"Syntax error near '{i.value}' at line {i.lineno}, column {find_column(code,i)}")
             else:
                 errors.append("Syntax error at EOF")
             # break

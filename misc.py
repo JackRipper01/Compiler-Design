@@ -37,7 +37,7 @@ class ColumnFinder:
         self.code = ""
     def add_line_column(self, token):
         try:
-            return f" at line {token.lineno-18}, column {find_column(self.code, token)}"
+            return f" at line {token.lineno}, column {find_column(self.code, token)}"
         except:
             return ""
 
