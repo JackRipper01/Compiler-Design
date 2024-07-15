@@ -58,8 +58,6 @@ precedence = (
     ("nonassoc", "EQUAL"),
     ("right", "LPAREN", "RPAREN"),
     ("right", "ASSDESTROYER"),
-    ("left", "AS"),
-    ("left", "IS"),
     ("left", "CONCAT", "DCONCAT"),
     ("left", "OR"),
     ("left", "AND"),
@@ -70,6 +68,8 @@ precedence = (
     ("left", "TIMES", "DIVIDE", "MOD"),
     ("right", "POWER"),
     ("right", "UMINUS"),
+    ("left", "AS"),
+    ("left", "IS"),
     ("nonassoc", "NAME"),
     ("left", "DOT"),
 )
