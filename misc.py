@@ -327,4 +327,3 @@ def assign_name_getter(assign: Assign, private=False):
         return assign.name.name + "/private"
     else:
         return assign.name.name
-    

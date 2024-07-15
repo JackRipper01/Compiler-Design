@@ -3,10 +3,14 @@ from hulk_parser import hulk_parse
 from hulk_semantic_check import semantic_check
 from hulk_code_gen import CodeGen
 
+import sys
 from misc import typeof
 import io
 
-CODE = io.open("test.hulk").read()
+if len(sys.argv)<=1:
+    raise Exception("no input file entered")
+
+CODE = io.open(sys.argv[1]).read()
 snippet = """
 protocol Iterable {
     next() : Boolean;
@@ -47,4 +51,3 @@ if ast:
     if len(semantic_check_errors) == 0:
         print("\nGlobal Expression returned:", typeof(ast.global_exp))
         CodeGen().visit(ast)
-        
