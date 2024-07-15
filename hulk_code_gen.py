@@ -229,8 +229,6 @@ typedef struct {
     unsigned long long seed = tv.tv_sec * 1000000 + tv.tv_usec;
     srand(seed);""")
             f.write(f"{main_def}\n\n")
-            f.write(f"Object* result = (Object*){main_ret};\n")
-            f.write(f"""printf("%s\\n", result->string);\n""")
             f.write("return 0;\n")
             f.write("}\n")
 
@@ -610,7 +608,7 @@ typedef struct {
                     nuevos_parametros + right_ret[fin:]
 
     # OOOOOJJJJJJJOOOOOOOOOOOOOOOOOOOOOOOOOO si es function call se de be modificar los parametros, por eso esta correcto esto
-            return f"{left_def}\n{right_def}\n", f"""((({node.left.static_type}*){left_ret})->{right_ret})"""
+            return f"{left_def}\n{right_def}\n", f"""(({node.left.static_type}*){left_ret})->{right_ret}"""
 
         if node.op == "is":
             code = f"""{node.static_type}* bin_op_{node.instance_id}(){{\n"""
@@ -623,7 +621,7 @@ typedef struct {
             code += f"""return result;"""
             code += "\n}\n"
             code += f"{node.static_type}* {node.ret_point} = bin_op_{node.instance_id}();\n"
-            return code, f"({node.ret_point})"
+            return code, f"{node.ret_point}"
 
         if node.op == "as":
             code = f"""Boolean* bin_op_{node.instance_id}(){{\n"""
@@ -639,7 +637,7 @@ typedef struct {
             code += f"""if ({node.ret_point}->value ==0)
             {{printf("%s\\n","AS operator could not be done");
             exit(-1);}}"""
-            return code, f"({right_ret}*)({left_ret})"
+            return code, f"(({right_ret}*)({left_ret}))"
 
         if node.op == "AD":  # =========================================check this
             code = f"""{left_def}
@@ -830,7 +828,7 @@ let p = new Knight("Phil", "Collins") in
     setY(y:Number):Object => self.y := y;
 }
 type PolarPoint(phi:Number, rho:Number) inherits Point(rho * sin(phi), rho * cos(phi)) {
-    rho() :Number => sqrt(self.getX() as Number ^ 2);
+    rho() :Number => sqrt(self.getX() as Number ^ 2 + self.getY() as Number ^ 2);
 }
 {let pt = new Point(3,4) in print("x: " @ pt.getX() @ "; y: " @ pt.getY());
 let pt = new PolarPoint(3,4) in print("rho: " @ pt.rho());}"""
