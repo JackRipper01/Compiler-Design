@@ -11,14 +11,7 @@ if len(sys.argv)<=1:
     raise Exception("no input file entered")
 
 CODE = io.open(sys.argv[1]).read()
-snippet = """
-protocol Iterable {
-    next() : Boolean;
-    current() : Object;
-}
-let numbers = [1,2,3,4,5,6,7,8,9] in
-        for (x in numbers)
-            print(x);"""
+
 ast, parsingErrors, nodes = hulk_parse(CODE, create_graph=False)
 
 print(
