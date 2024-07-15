@@ -1,3 +1,4 @@
+from traceback import print_tb
 from misc import refact_ast, create_AST_graph, find_column, StringToken
 
 import hulk_lexer
@@ -1563,14 +1564,15 @@ def p_expression_rand(p):
 pf = PS()
 
 def p_error(p):
+    
     sErrorList.append(p)
     
-    while True:
-        tok = pf.parser.token()
-        if not tok or tok.type == 'SEMI' or tok.type == 'RBRACE': break
-    pf.parser.errok()
+    # # while True:
+    # #     tok = pf.parser.token()
+    # #     if not tok or tok.type == 'SEMI' or tok.type == 'RBRACE': break
+    # # pf.parser.errok()
 
-    return tok 
+    # return tok 
 
 def hulk_parse(code, create_graph = False):
     "parsea el codigo de hulk, retornando la raiz del ast"

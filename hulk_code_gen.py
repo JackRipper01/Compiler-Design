@@ -44,16 +44,15 @@ from hulk_ast import (
 from hulk_lexer import errorList as lexerErrors
 
 
-
 class CodeGen:
     def __init__(self):
         self.errors = []
         self.global_definitions = {}
-        self.types_definitions=""
-        self.functions_headers=""
-        self.types_function_definitions=""
-        self.types_constructor=""
-        self.function_definitions=""
+        self.types_definitions = ""
+        self.functions_headers = ""
+        self.types_function_definitions = ""
+        self.types_constructor = ""
+        self.function_definitions = ""
 
     @visitor.on("node")
     def visit(self, node):
@@ -78,25 +77,25 @@ class CodeGen:
                     code = f"""{function.static_type}* p_{function.func_id.name}({params_c_code});\n"""
                 else:
                     code = f"""{function.static_type}* {function.func_id.name}({params_c_code});\n"""
-                    
-                self.functions_headers+=code+"\n"
-            for function in node.functions:
-                self.function_definitions+=f"{self.visit(function)[0]}\n\n"
-                
-        if node.types:
-                # ordenando node.types segun la herencia
-                list_of_descendients = misc.get_descendancy(node, "Object", [])
-                node_types_reorder = []
-                for i in range(len(node.types)):
-                    node_types_reorder.append(
-                        (node.types[i], list_of_descendients.index(node.types[i].id.name)))
-                node_types_reorder.sort(key=lambda x: x[1])
-                for i in range(len(node_types_reorder)):
-                    node.types[i] = node_types_reorder[i][0]
 
-                for type in node.types:
-                    self.visit(type)[0]
-                    
+                self.functions_headers += code+"\n"
+            for function in node.functions:
+                self.function_definitions += f"{self.visit(function)[0]}\n\n"
+
+        if node.types:
+            # ordenando node.types segun la herencia
+            list_of_descendients = misc.get_descendancy(node, "Object", [])
+            node_types_reorder = []
+            for i in range(len(node.types)):
+                node_types_reorder.append(
+                    (node.types[i], list_of_descendients.index(node.types[i].id.name)))
+            node_types_reorder.sort(key=lambda x: x[1])
+            for i in range(len(node_types_reorder)):
+                node.types[i] = node_types_reorder[i][0]
+
+            for type in node.types:
+                self.visit(type)[0]
+
         with open("./out.c", "w") as f:
             f.write("#include <stdio.h>\n")
             f.write("#include <math.h>\n")
@@ -220,9 +219,9 @@ typedef struct {
             f.write("//TYPES AND FUNCTION DEFINITIONS\n")
             f.write(self.types_function_definitions+"\n")
             f.write("//TYPE CONSTRUCTORS\n")
-            f.write(self.types_constructor +"\n")
+            f.write(self.types_constructor + "\n")
             f.write("//FUNCTION DEFINITION\n")
-            f.write(self.function_definitions +"\n")
+            f.write(self.function_definitions + "\n")
             f.write("//MAAAAAAIIIIIIIINNNNN\n")
             f.write("int main() {\n\n")
             f.write("""struct timeval tv;
@@ -325,7 +324,7 @@ typedef struct {
 
         c_code = f"""{node.static_type}* let_{node.instance_id}(){{
         {assign_def}
-        {var_type}* {var_name} = {assign_ret};
+        {var_type}* {var_name} = ({var_type}*){assign_ret};
         {body_def}
         return {body_ret};
         }}
@@ -413,7 +412,7 @@ typedef struct {
         own_plus_parent_functions = []
         # struct definition
         self.types_definitions += f"""typedef struct {node.id.name}{{\n"""
-        
+
         self.types_definitions += "\nchar* type;\nchar* string;\n"
         if node.inherits:
             parent_inherited = node.global_definitions[node.inherits.id.name]
@@ -510,12 +509,12 @@ typedef struct {
             def_variable_value, ret_variable_value = self.visit(var.value)
             self.types_constructor += f"""{def_variable_value}"""
             if node.inherits:
-                self.types_constructor += f"""obj->{var.name.name} = {ret_type_call_of_parent}->{ret_variable_value};\n"""
+                self.types_constructor += f"""obj->{var.name.name} = ({var.static_type}*)({ret_type_call_of_parent}->{ret_variable_value});\n"""
 
         for var in node.variables:
             def_variable_value, ret_variable_value = self.visit(var.value)
             self.types_constructor += f"""{def_variable_value}"""
-            self.types_constructor += f"""obj->{var.name.name} = {ret_variable_value};\n"""
+            self.types_constructor += f"""obj->{var.name.name} = ({var.static_type}*)({ret_variable_value});\n"""
 
         for func in own_plus_parent_functions:
             self.types_constructor += f"""obj->{func.func_id.name} = {node.static_type}_{func.func_id.name};\n"""
@@ -550,7 +549,7 @@ typedef struct {
 
     @visitor.when(VectorExt)
     def visit(self, node: VectorExt):
-        size_of_vect=0
+        size_of_vect = 0
         if node.items:
             if node.items.param_list:
                 size_of_vect = len(node.items.param_list)
@@ -572,13 +571,12 @@ typedef struct {
         ret_vect = f"{node.ret_point}_{node.instance_id}"
         return def_vect, ret_vect
 
-    
     @visitor.when(VectorCall)
     def visit(self, node: VectorCall):
         def_index, ret_index = self.visit(node.index)
         def_call = def_index
-        def_id,ret_id= self.visit(node.id)
-        
+        def_id, ret_id = self.visit(node.id)
+
         def_call += f"""{def_id}
         if ({ret_id}->len < (int){ret_index}->value){{
                 printf("Index out of bounds: %d, length: %d\\n", {ret_index}, {ret_id}->len);
@@ -612,7 +610,7 @@ typedef struct {
                     nuevos_parametros + right_ret[fin:]
 
     # OOOOOJJJJJJJOOOOOOOOOOOOOOOOOOOOOOOOOO si es function call se de be modificar los parametros, por eso esta correcto esto
-            return f"{left_def}\n{right_def}\n", f"""(({node.left.static_type}*){left_ret})->{right_ret}"""
+            return f"{left_def}\n{right_def}\n", f"""((({node.left.static_type}*){left_ret})->{right_ret})"""
 
         if node.op == "is":
             code = f"""{node.static_type}* bin_op_{node.instance_id}(){{\n"""
@@ -641,12 +639,12 @@ typedef struct {
             code += f"""if ({node.ret_point}->value ==0)
             {{printf("%s\\n","AS operator could not be done");
             exit(-1);}}"""
-            return code, f"({right_ret}*){left_ret}"
+            return code, f"({right_ret}*)({left_ret})"
 
         if node.op == "AD":  # =========================================check this
             code = f"""{left_def}
             {right_def}\n"""
-            code += f"{left_ret} = {right_ret};"
+            code += f"{left_ret} = ({node.left.static_type}*)({right_ret});"
             ret_code = f"""{left_ret}"""
             return code, ret_code
 
@@ -655,7 +653,7 @@ typedef struct {
         {right_def}\n"""
         if node.op in ["+", "-", "*", "/"]:
             code += f"return new_{node.static_type}(({left_ret}->value {node.op} {right_ret}->value));\n"
-        elif node.op in [">", "<", ">=", "<=", "==", "!=","&","|"]:
+        elif node.op in [">", "<", ">=", "<=", "==", "!=", "&", "|"]:
             code += f"""if({left_ret}->value {node.op} {right_ret}->value)"""
             code += f"\nreturn new_{node.static_type}(1);\n"
             code += f"else\nreturn new_{node.static_type}(0);\n"
@@ -688,7 +686,7 @@ return new_{node.static_type}(-({child_ret}->value));
 {node.static_type}* {node.ret_point} = unary_op_{node.instance_id}();
 """
             return code, node.ret_point
-        
+
         elif node.op == "!":
             child_def, child_ret = self.visit(node.operand)
             node.ret_point = "ret_point_unary_op_" + str(node.instance_id)
@@ -806,7 +804,7 @@ print(tan(PI) ** 2 + cot(PI) ** 2);
 """
     ccode = """print(rand());"""
     # cccode="""let numbers = [1,2,3,4,5,6,7,8,9] in print(numbers[7]);"""
-    cccode ="""type Person(firstname:String, lastname:String) {
+    cccode = """type Person(firstname:String, lastname:String) {
     firstname = firstname;
     lastname = lastname;
 
@@ -820,9 +818,24 @@ let p = new Knight("Phil", "Collins") in
     print(p.name()); // prints 'Sir Phil Collins'"""
     from hulk_semantic_check import semantic_check
     from hulk_lexer import errorList as lexerErrors
-    from code import CODE
+    # from code import CODE
+    asd = """type Point(x: Number,y:Number) {
+    x:Object = x;
+    y:Object = y;
+
+    getX():Object => self.x;
+    getY():Object => self.y;
+
+    setX(x:Number) :Object => self.x := x;
+    setY(y:Number):Object => self.y := y;
+}
+type PolarPoint(phi:Number, rho:Number) inherits Point(rho * sin(phi), rho * cos(phi)) {
+    rho() :Number => sqrt(self.getX() as Number ^ 2);
+}
+{let pt = new Point(3,4) in print("x: " @ pt.getX() @ "; y: " @ pt.getY());
+let pt = new PolarPoint(3,4) in print("rho: " @ pt.rho());}"""
     ast, parsingErrors, _b = hulk_parse(
-        CODE)
+        asd)
     # print()
     # create_AST_graph(nodes, "AST")
 
@@ -842,7 +855,7 @@ let p = new Knight("Phil", "Collins") in
         sep="\n - ",
     )
     if ast:
-        ast, semantic_check_errors = semantic_check(ast, CODE)
+        ast, semantic_check_errors = semantic_check(ast, asd)
 
         print(
             (
@@ -856,4 +869,3 @@ let p = new Knight("Phil", "Collins") in
         print("\nGlobal Expression returned:", typeof(ast.global_exp))
         if len(semantic_check_errors) == 0:
             CodeGen().visit(ast)
-
