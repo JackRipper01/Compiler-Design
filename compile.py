@@ -13,7 +13,7 @@ if len(sys.argv)<=1:
 CODE = io.open(sys.argv[1]).read()
 
 ast, parsingErrors, nodes = hulk_parse(CODE, create_graph=False)
-print("asd")
+
 print(
     "LEXER FOUND THE FOLLOWING ERRORS:" if len(
         lexerErrors) > 0 else "LEXING OK!",
