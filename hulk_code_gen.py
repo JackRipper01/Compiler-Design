@@ -268,9 +268,6 @@ typedef struct {
 
     @visitor.when(FunctionCall)
     def visit(self, node):
-        if node.func_id.name != "name":
-            static_type_of_param_list=node.global_definitions[node.func_id.name].params 
-        
         def_ret_list_params = []
         for param in node.params.param_list:
             construct_params = self.visit(param)
