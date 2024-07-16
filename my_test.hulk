@@ -1,0 +1,117 @@
+
+// Protocol definitions
+protocol Loggable
+{
+    LogInfo(): Object;
+}
+
+protocol Processable
+{
+    Process(): Object;
+}
+
+// Base type
+type Vehicle(make: String, model: String, year: Number)
+{
+    make=make;
+    model=model;
+    year=year;
+
+    getMake(): String => self.make;
+    getModel(): String => self.model;
+    getYear(): Number => self.year;
+
+    setMake(make: String) : String => self.make:=make;
+    setModel(model: String) : String => self.model:=model;
+    setYear(year: Number) : Number => self.year:=year;
+
+    Start(): Object {};
+    Stop(): Object {};
+    Process(): Object {};
+
+    LogInfo() => print("Vehicle:" @@ self.getYear() @@ self.getMake() @@ self.getModel());
+}
+
+// Derived class
+type Car(make: String, model: String, year: Number, isConvertible: Boolean, doors: Number) inherits Vehicle(make, model, year)
+{
+    isConvertible= isConvertible;
+    doors= doors;
+
+    getIsConvertible(): Boolean => self.isConvertible;
+    getDoors(): Number => self.doors;
+
+    Start()
+    {
+        print("The" @@ self.make @@ self.model @@ "car engine starts.");
+    }
+
+    Stop()
+    {
+        print("The" @@ self.make @@ self.model @@ "car engine stops.");
+    }
+
+    LogInfo()
+    {
+        print("Car:" @@ self.year @@ self.make @@ self.model );// @@ "Convertible:" @@ self.isConvertible @ ", Doors:" @@ self.doors);
+    }
+
+    Process()
+    {
+        print("Processing car: @ self.getMake() @@ self.getModel()");
+    }
+}
+
+// Another derived class
+type Motorcycle(make: String, model: String, year: Number,v_type: String) inherits Vehicle(make, model, year)
+{
+    v_type = v_type;
+
+    Start()
+    {
+        print("The" @@ self.make @@ self.model @@"motorcycle engine roars to life.");
+    }
+
+    Stop()
+    {
+        print("The" @@ self.make @@ self.model @@"motorcycle engine shuts off.");
+    }
+
+    LogInfo()
+    {
+        print("Motorcycle:"@@ self.year @@ self.make @@ self.model @", Type:" @@ self.v_type);
+    }
+
+    Process()
+    {
+        print("Processing motorcycle:" @@ self.make @@ self.model);
+    }
+}
+
+// Utility class
+type VehicleProcessor
+{
+    ProcessVehicle(vehicle: Vehicle)
+    {
+        vehicle.Process();
+    }
+}
+
+// Main program
+{
+    let 
+    myCar = new Car("Toyota", "Camry", 2024, false, 4),
+    myMotorcycle = new Motorcycle("Harley-Davidson", "Street 750", 2024, "Cruiser"),
+    VP =new VehicleProcessor() in
+    {
+        myCar.Start();
+        myCar.LogInfo();
+        VP.ProcessVehicle(myCar);
+        myCar.Stop();
+        print("");
+        myMotorcycle.Start();
+        myMotorcycle.LogInfo();
+        VP.ProcessVehicle(myMotorcycle);
+        myMotorcycle.Stop();
+    }
+}

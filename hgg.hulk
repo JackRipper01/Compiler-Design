@@ -45,7 +45,7 @@ type PolarPoint(phi:Number, rho:Number) inherits Point(rho * sin(phi), rho * cos
     rho() :Number => sqrt(self.getX() ^ 2 + self.getY() ^ 2);
 }
 type Knight inherits Person {
-    name():String => "Sir"; //candela
+    thing():String => "Sir"; //candela
 }
 type Person(firstname:String, lastname:String) {
     firstname = firstname;
@@ -75,6 +75,7 @@ type C inherits A {
 }
 
 {
+    
     42;
     print(42);
     print((((1 + 2) ^ 3) * 4) / 5);
@@ -91,6 +92,7 @@ type C inherits A {
 
     print(tan(PI) ** 2 + cot(PI) ** 2);
 
+    //let k = new Knight in print(knight.getPerson())
     let msg = "Hello World" in print(msg);
     let number = 42, text = "The meaning of life is" in
         print(text @ number);
