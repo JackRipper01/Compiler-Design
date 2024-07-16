@@ -182,6 +182,10 @@ def protocol_descendancy_set(ast_node: Node, name, descendancy):
    
 def conforms(ast_node: Node, A, B):
     try:
+        if A == "None":
+            return False
+        if B == "None":
+            return True
         if type(ast_node.global_definitions[A]) is Protocol:
             raise Exception()
         return A in get_descendancy_set(ast_node, B, set())
@@ -259,6 +263,10 @@ def func_conforms(ast_node: Node, A: FunctionDef, B: FunctionDef):
        
         
 def LCA_BI(i_dict:dict, A, B):
+    if A == "None":
+        return B
+    if B == "None":
+        return A
     if i_dict[A].depth == i_dict[B].depth:
         if A == B:
             return A
