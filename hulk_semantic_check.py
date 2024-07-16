@@ -762,6 +762,7 @@ class TypeInfChk:
                 func_def.params.param_list, node.params.param_list
             ):
                 expect = e_param.static_type
+                node.param_types.append(expect)
                 self.visit(r_param)
                 if not conforms(node, r_param.static_type, expect):
                     self.errors.append(
@@ -896,6 +897,7 @@ class TypeInfChk:
         type_def.params.param_list, node.params.param_list
     ):
             expect = e_param.static_type
+            node.param_types.append(expect)
             self.visit(r_param)
             if not conforms(node, r_param.static_type, expect):
                 self.errors.append(
@@ -1119,6 +1121,7 @@ class TypeInfChk:
                             function.params.param_list, node.right.params.param_list
                         ):
                             expect = e_param.static_type
+                            node.right.param_types.append(expect)
                             self.visit(r_param)
                             if not conforms(node, r_param.static_type, expect):
                                 self.errors.append(

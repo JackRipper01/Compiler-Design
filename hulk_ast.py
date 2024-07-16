@@ -58,6 +58,8 @@ class FunctionCall(Node):
         super().__init__(self, "FUNC_CALL")
         self.func_id : ID = func_id
         self.params : Params = params
+        self.param_types = []
+
 
 
 class Params(Node):
@@ -213,6 +215,7 @@ class TypeCall(Node):
             self.instance_id = Program.instance_count
             self.name = f"{id.name.lower()}_{self.instance_id}"
         Program.add_function_name(self.name)  # Add the function name to the tracker
+        self.param_types = []
 
 
 # region temporal
