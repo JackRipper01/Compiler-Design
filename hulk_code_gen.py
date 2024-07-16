@@ -248,12 +248,12 @@ typedef struct {
             params_c_code = params_c_code[:-1]
 
         if node.func_id.name == "tan":
-            code = f"""{node.static_type}* p_{node.func_id.name}({params_c_code}){{{body_def}
-            return {body_ret};
+            code = f"""{node.static_type}* p_{node.func_id.name}({params_c_code}){{\n{body_def}
+            return ({node.static_type}*){body_ret};
         }}"""
         else:
-            code = f"""{node.static_type}* {node.func_id.name}({params_c_code}){{{body_def}
-            return {body_ret};
+            code = f"""{node.static_type}* {node.func_id.name}({params_c_code}){{\n{body_def}
+            return ({node.static_type}*){body_ret};
         }}"""
 
         params_name_c_code = ""
@@ -268,6 +268,9 @@ typedef struct {
 
     @visitor.when(FunctionCall)
     def visit(self, node):
+        if node.func_id.name != "name":
+            static_type_of_param_list=node.global_definitions[node.func_id.name].params 
+        
         def_ret_list_params = []
         for param in node.params.param_list:
             construct_params = self.visit(param)
@@ -279,9 +282,9 @@ typedef struct {
                 params_def_code += param_def_code[0] + "\n"
 
         params_ret_c_code = ""
-        for param_ret_code in def_ret_list_params:
-            params_ret_c_code += param_ret_code[1] + ","
-
+        for param_ret_code, static_type_param in zip(def_ret_list_params, node.param_types ):
+            params_ret_c_code += "("+static_type_param+"*)"+param_ret_code[1] + ","
+        
         if params_ret_c_code:
             params_ret_c_code = params_ret_c_code[:-1]
 
@@ -535,10 +538,10 @@ typedef struct {
     def visit(self, node: TypeCall):
         params_c_code = ""
         def_call = ""
-        for param in node.params.param_list:
+        for param, static_param in zip(node.params.param_list, node.param_types):
             def_param, ret_param = self.visit(param)
-            def_call += def_param+"\n"
-            params_c_code += f"""{ret_param},"""
+            def_call += def_param + "\n"
+            params_c_code += f"""({static_param}*){ret_param},"""
         if node.params.param_list:
             params_c_code = params_c_code[:-1]
         def_call += f"""{node.id.name}* {node.name} = new_{node.id.name}({params_c_code});"""
@@ -817,21 +820,20 @@ let p = new Knight("Phil", "Collins") in
     from hulk_semantic_check import semantic_check
     from hulk_lexer import errorList as lexerErrors
     # from code import CODE
-    asd = """type Point(x: Number,y:Number) {
-    x:Object = x;
-    y:Object = y;
-
-    getX():Object => self.x;
-    getY():Object => self.y;
-
-    setX(x:Number) :Object => self.x := x;
-    setY(y:Number):Object => self.y := y;
+    asd = """type Knight inherits Person {
+    name() => "Sir" @@ "CArlos";
 }
-type PolarPoint(phi:Number, rho:Number) inherits Point(rho * sin(phi), rho * cos(phi)) {
-    rho() :Number => sqrt(self.getX() as Number ^ 2 + self.getY() as Number ^ 2);
+type Person(firstname, lastname) {
+    firstname = firstname;
+    lastname = lastname;
+
+    name() => self.firstname @@ self.lastname;
+    hash() : Number {
+        5;
+    }
 }
-{let pt = new Point(3,4) in print("x: " @ pt.getX() @ "; y: " @ pt.getY());
-let pt = new PolarPoint(3,4) in print("rho: " @ pt.rho());}"""
+print((new Knight("A","B")).name());
+"""
     ast, parsingErrors, _b = hulk_parse(
         asd)
     # print()
