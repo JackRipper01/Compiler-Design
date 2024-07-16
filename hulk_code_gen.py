@@ -280,8 +280,6 @@ typedef struct {
 
         params_ret_c_code = ""
         for param_ret_code, static_type_param in zip(def_ret_list_params, node.param_types ):
-            if node.func_id.name in ["range","Range"]:
-                static_type_param="Number" 
             params_ret_c_code += "("+static_type_param+"*)"+param_ret_code[1] + ","
         
         if params_ret_c_code:

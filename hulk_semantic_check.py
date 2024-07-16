@@ -774,7 +774,6 @@ class TypeInfChk:
                         + self.cf.add_line_column(node.func_id.name)
                     )
             node.static_type = func_def.static_type
-        print(node.func_id.name, node.param_types,"->", node.static_type, self.cf.add_line_column(node.func_id.name))
 
     @visitor.when(FunctionDef)
     def visit(self, node: FunctionDef):
@@ -1118,10 +1117,7 @@ class TypeInfChk:
                 if type(node.right) is ID:
                     name = node.right.name + "/private"
                     token = node.right.name
-                    if context_from not in self.type_functions_visited:
-                        self.type_functions_visited[context_from] = set()
-                    if name not in self.type_functions_visited[context_from]:
-                        self.visit(node.global_definitions[context_from].variable_scope[name])
+                    self.visit(node.global_definitions[context_from].variable_scope[node.right.name + "/private"].parent)
                 else:
                     name = method_name_getter(node.right, True)
                     token = node.right.func_id.name
@@ -1130,6 +1126,7 @@ class TypeInfChk:
                             self.type_functions_visited[context_from] = set()
                         if name not in self.type_functions_visited[context_from]:
                             self.visit(node.global_definitions[context_from].variable_scope[name])
+                            self.type_functions_visited[context_from].add(node.global_definitions[context_from].variable_scope[name].func_id.name)
                 if name in context:
                     node.static_type = context[name].static_type
                     if type(node.right) is FunctionCall:
