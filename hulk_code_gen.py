@@ -301,10 +301,12 @@ typedef struct {
         for exp, i in zip(node.exp_list, range(len(node.exp_list))):
             body_def, body_ret = self.visit(exp)
             code += body_def + "\n"
-            if body_ret:
-                code += body_ret + ";\n" 
+            
             if i == len(node.exp_list) - 1:
                 code += f"return ({node.static_type}*){body_ret};\n"
+            elif body_ret:
+                code += body_ret + ";\n"
+                
         if not node.exp_list:
             code += f"return new_Object();\n"
         code += "}"
