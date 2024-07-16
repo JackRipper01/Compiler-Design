@@ -661,8 +661,9 @@ class TypeInfChk:
         self.on_function = False
         self.current = ""  # desarrollar idea
         self.sb = None
-        self.visited_function = set()
         self.cf = None
+        self.visited_functions = set()
+        self.type_functions_visited = {}
 
     @visitor.on("node")
     def visit(self, node):
@@ -739,6 +740,9 @@ class TypeInfChk:
 
     @visitor.when(FunctionCall)
     def visit(self, node: FunctionCall):
+        if node.func_id.name not in self.visited_functions:
+            nmm = method_name_getter(node, False)
+            self.visit(node.global_definitions[nmm])
         name = method_name_getter(node, False)
         func_def : FunctionDef = None
         if self.on_type and self.on_function:
@@ -773,6 +777,7 @@ class TypeInfChk:
 
     @visitor.when(FunctionDef)
     def visit(self, node: FunctionDef):
+        self.visited_functions.add(node.func_id.name)
         for param in node.params.param_list:
             param: ID
             param.static_type = (
@@ -790,7 +795,9 @@ class TypeInfChk:
                 + self.cf.add_line_column(node.func_id.name)
             )
         if expect == "None":
-                node.static_type = node.body.static_type
+            node.static_type = node.body.static_type
+        # if node.static_type == "None":
+        #     node.static_type = "Object"
             
 
     @visitor.when(Let)
@@ -1109,10 +1116,17 @@ class TypeInfChk:
                     
                 if type(node.right) is ID:
                     name = node.right.name + "/private"
-                    token = name
+                    token = node.right.name
+                    self.visit(node.global_definitions[context_from].variable_scope[node.right.name + "/private"].parent)
                 else:
                     name = method_name_getter(node.right, True)
                     token = node.right.func_id.name
+                    if self.on_type:
+                        if context_from not in self.type_functions_visited:
+                            self.type_functions_visited[context_from] = set()
+                        if name not in self.type_functions_visited[context_from]:
+                            self.visit(node.global_definitions[context_from].variable_scope[name])
+                            self.type_functions_visited[context_from].add(node.global_definitions[context_from].variable_scope[name].func_id.name)
                 if name in context:
                     node.static_type = context[name].static_type
                     if type(node.right) is FunctionCall:
