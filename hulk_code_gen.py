@@ -107,7 +107,9 @@ class CodeGen:
 //Concatenate two strings
 char* concatenate_strings(const char* str1, const char* str2) {
     // Calculate the length needed for the concatenated string
-    int length = strlen(str1) + strlen(str2) + 1; // +1 for the null terminator
+    size_t len1 = strlen(str1);
+    size_t len2 = strlen(str2);
+    size_t length = len1 + len2 + 1; // +1 for the null terminator
 
     // Allocate memory for the concatenated string
     char* result = (char*)malloc(length * sizeof(char));
@@ -117,8 +119,8 @@ char* concatenate_strings(const char* str1, const char* str2) {
     }
 
     // Copy the first string and concatenate the second string
-    strcpy(result, str1);
-    strcat(result, str2);
+    memcpy(result, str1, len1);
+    memcpy(result + len1, str2, len2 + 1); // Copy the null terminator as well
 
     return result;
 }
@@ -137,7 +139,7 @@ Object* new_Object() {
     int string_len = strlen("Object");
     obj->type = (char*)malloc((string_len + 1) * sizeof(char));
     strcpy(obj->type, "Object");
-    obj->string = (char*)malloc((string_len+1+21)*sizeof(char));
+    obj->string = (char*)malloc((string_len+1+30)*sizeof(char));
     char memory_address_str[20]; // Assuming a maximum of 20 characters for the address string
     sprintf(memory_address_str, "%p", (void *)obj);
     strcpy(obj->string, concatenate_strings(concatenate_strings("<Object at ", memory_address_str), ">"));
@@ -157,11 +159,11 @@ Boolean* new_Boolean(int value) {
     obj->value = value;
 
     if (value == 1) {
-        obj->string = (char *)malloc((strlen("TRUE")) * sizeof(char));
+        obj->string = (char *)malloc((strlen("TRUE")+1) * sizeof(char));
         
         strcpy(obj->string, "TRUE");
     } else {
-        obj->string = (char *)malloc((strlen("FALSE")) * sizeof(char));
+        obj->string = (char *)malloc((strlen("FALSE")+1) * sizeof(char));
         strcpy(obj->string, "FALSE");
     }
     
@@ -201,7 +203,7 @@ String* new_String(char* value) {
     int value_len = strlen(value);
     obj->value = (char*)malloc((value_len + 1) * sizeof(char));
     strcpy(obj->value, value);
-    obj->string = (char *)malloc(7 * sizeof(char));
+    obj->string = (char *)malloc((value_len+1) * sizeof(char));
     strcpy(obj->string,obj->value);
     return obj;
 }
@@ -301,6 +303,8 @@ typedef struct {
         for exp, i in zip(node.exp_list, range(len(node.exp_list))):
             body_def, body_ret = self.visit(exp)
             code += body_def + "\n"
+            if body_ret:
+                code += body_ret + ";\n" 
             if i == len(node.exp_list) - 1:
                 code += f"return ({node.static_type}*){body_ret};\n"
         if not node.exp_list:
@@ -522,7 +526,7 @@ typedef struct {
         self.types_constructor += f"""int string_len = strlen("{node.static_type}");
         obj -> type = (char*)malloc((string_len + 1) * sizeof(char));
         strcpy(obj -> type, "{node.static_type}");"""
-        self.types_constructor += f"""obj->string = (char *)malloc((string_len + 1+21) * sizeof(char));"""
+        self.types_constructor += f"""obj->string = (char *)malloc((string_len + 1+30) * sizeof(char));"""
         self.types_constructor += f"""char memory_address_str[20];
         sprintf(memory_address_str, "%p", (void *)obj);
         strcpy(obj -> string, concatenate_strings(concatenate_strings("<{node.static_type} at ", memory_address_str), ">"));"""
@@ -819,19 +823,8 @@ let p = new Knight("Phil", "Collins") in
     from hulk_semantic_check import semantic_check
     from hulk_lexer import errorList as lexerErrors
     # from code import CODE
-    asd = """type Knight inherits Person {
-    name() => "Sir" @@ "CArlos";
-}
-type Person(firstname, lastname) {
-    firstname = firstname;
-    lastname = lastname;
-
-    name() => self.firstname @@ self.lastname;
-    hash() : Number {
-        5;
-    }
-}
-print((new Knight("A","B")).name());
+    asd = """
+print("asd" @@ "asdasdsadasdsadasdashgdsuyfdsgyfugsdvgfsvdfgsgfvgfvfsdfgsvdfvdsgfdshgfdsvgfvdsvfgdsfvgsfsgdsfh"  );
 """
     ast, parsingErrors, _b = hulk_parse(
         asd)
