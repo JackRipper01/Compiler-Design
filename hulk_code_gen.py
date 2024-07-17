@@ -53,9 +53,8 @@ class CodeGen:
         self.types_function_definitions = ""
         self.types_constructor = ""
         self.function_definitions = ""
-        self.types_headers=""
+        self.types_headers = ""
         self.types_functions_and_constructor_headers = ""
-        
 
     @visitor.on("node")
     def visit(self, node):
@@ -108,7 +107,8 @@ class CodeGen:
             f.write("# include <time.h>\n#include <sys/time.h>\n\n")
             f.write(
                 """
-
+unsigned long int memory_usage = 0;
+unsigned long int memory_limit = 1 * (16 * 1024 * 1024) / 8;
 //Concatenate two strings
 char* concatenate_strings(const char* str1, const char* str2) {
     // Calculate the length needed for the concatenated string
@@ -117,7 +117,12 @@ char* concatenate_strings(const char* str1, const char* str2) {
     size_t length = len1 + len2 + 1; // +1 for the null terminator
 
     // Allocate memory for the concatenated string
-    char* result = (char*)malloc(length * sizeof(char));
+    memory_usage = memory_usage+(length * sizeof(char));
+    if (memory_usage > memory_limit) {
+        printf("STACK OVERFLOW");
+        exit(-1);
+    }
+        char* result = (char*)malloc(length * sizeof(char));
     if (result == NULL) {
         printf("Memory allocation failed");
         exit(-1); // Exit if memory allocation fails
@@ -140,11 +145,26 @@ typedef struct {
        char* string;   
 }Object;
 Object* new_Object() {
-    Object* obj = (Object*)malloc(sizeof(Object));    
+    memory_usage = memory_usage+(sizeof(Object));    
+    if (memory_usage > memory_limit) {
+        printf("STACK OVERFLOW");
+        exit(-1);
+    }
+        Object* obj = (Object*)malloc(sizeof(Object));    
     int string_len = strlen("Object");
-    obj->type = (char*)malloc((string_len + 1) * sizeof(char));
+    memory_usage = memory_usage+((string_len + 1) * sizeof(char));
+    if (memory_usage > memory_limit) {
+        printf("STACK OVERFLOW");
+        exit(-1);
+    }
+        obj->type = (char*)malloc((string_len + 1) * sizeof(char));
     strcpy(obj->type, "Object");
-    obj->string = (char*)malloc((string_len+1+30)*sizeof(char));
+    memory_usage = memory_usage+((string_len+1+30)*sizeof(char));
+    if (memory_usage > memory_limit) {
+        printf("STACK OVERFLOW");
+        exit(-1);
+    }
+        obj->string = (char*)malloc((string_len+1+30)*sizeof(char));
     char memory_address_str[20]; // Assuming a maximum of 20 characters for the address string
     sprintf(memory_address_str, "%p", (void *)obj);
     strcpy(obj->string, concatenate_strings(concatenate_strings("<Object at ", memory_address_str), ">"));
@@ -156,19 +176,39 @@ typedef struct {
     int value;
 } Boolean;
 Boolean* new_Boolean(int value) {
-    Boolean* obj = (Boolean*)malloc(sizeof(Boolean));    
+    memory_usage = memory_usage+(sizeof(Boolean));    
+    if (memory_usage > memory_limit) {
+        printf("STACK OVERFLOW");
+        exit(-1);
+    }
+        Boolean* obj = (Boolean*)malloc(sizeof(Boolean));    
     int string_len = strlen("bool");
-    obj->type = (char*)malloc((string_len + 1) * sizeof(char));
+    memory_usage = memory_usage+((string_len + 1) * sizeof(char));
+    if (memory_usage > memory_limit) {
+        printf("STACK OVERFLOW");
+        exit(-1);
+    }
+        obj->type = (char*)malloc((string_len + 1) * sizeof(char));
     strcpy(obj->type, "bool");
 
     obj->value = value;
 
     if (value == 1) {
-        obj->string = (char *)malloc((strlen("TRUE")+1) * sizeof(char));
+        memory_usage = memory_usage+((strlen("TRUE")+1) * sizeof(char));
+        if (memory_usage > memory_limit) {
+            printf("STACK OVERFLOW");
+            exit(-1);
+        }
+                obj->string = (char *)malloc((strlen("TRUE")+1) * sizeof(char));
         
         strcpy(obj->string, "TRUE");
     } else {
-        obj->string = (char *)malloc((strlen("FALSE")+1) * sizeof(char));
+        memory_usage = memory_usage+((strlen("FALSE")+1) * sizeof(char));
+        if (memory_usage > memory_limit) {
+            printf("STACK OVERFLOW");
+            exit(-1);
+        }
+                obj->string = (char *)malloc((strlen("FALSE")+1) * sizeof(char));
         strcpy(obj->string, "FALSE");
     }
     
@@ -181,16 +221,31 @@ typedef struct {
     float value;
 } Number;
 Number* new_Number(float value) {
-    Number* obj = (Number*)malloc(sizeof(Number));    
+    memory_usage = memory_usage+(sizeof(Number));    
+    if (memory_usage > memory_limit) {
+        printf("STACK OVERFLOW");
+        exit(-1);
+    }
+        Number* obj = (Number*)malloc(sizeof(Number));    
     int string_len = strlen("Number");
-    obj->type = (char*)malloc((string_len + 1) * sizeof(char));
+    memory_usage = memory_usage+((string_len + 1) * sizeof(char));
+    if (memory_usage > memory_limit) {
+        printf("STACK OVERFLOW");
+        exit(-1);
+    }
+        obj->type = (char*)malloc((string_len + 1) * sizeof(char));
     strcpy(obj->type, "Number");
     
     obj->value = value;
     char buff[32];
     sprintf(buff, "%.7f", value);
     int value_len = strlen(buff);
-    obj->string = (char *)malloc((value_len + 1) * sizeof(char));
+    memory_usage = memory_usage+((value_len + 1) * sizeof(char));
+    if (memory_usage > memory_limit) {
+        printf("STACK OVERFLOW");
+        exit(-1);
+    }
+        obj->string = (char *)malloc((value_len + 1) * sizeof(char));
     strcpy(obj->string, buff);
     return obj;
 }
@@ -201,14 +256,34 @@ typedef struct {
     char* value;
 } String;
 String* new_String(char* value) {
-    String* obj = (String*)malloc(sizeof(String));    
+    memory_usage = memory_usage+(sizeof(String));    
+    if (memory_usage > memory_limit) {
+        printf("STACK OVERFLOW");
+        exit(-1);
+    }
+        String* obj = (String*)malloc(sizeof(String));    
     int string_len = strlen("string");
-    obj->type = (char*)malloc((string_len + 1) * sizeof(char));
+    memory_usage = memory_usage+((string_len + 1) * sizeof(char));
+    if (memory_usage > memory_limit) {
+        printf("STACK OVERFLOW");
+        exit(-1);
+    }
+        obj->type = (char*)malloc((string_len + 1) * sizeof(char));
     strcpy(obj->type, "string");
     int value_len = strlen(value);
-    obj->value = (char*)malloc((value_len + 1) * sizeof(char));
+    memory_usage = memory_usage+((value_len + 1) * sizeof(char));
+    if (memory_usage > memory_limit) {
+        printf("STACK OVERFLOW");
+        exit(-1);
+    }
+        obj->value = (char*)malloc((value_len + 1) * sizeof(char));
     strcpy(obj->value, value);
-    obj->string = (char *)malloc((value_len+1) * sizeof(char));
+    memory_usage = memory_usage+((value_len+1) * sizeof(char));
+    if (memory_usage > memory_limit) {
+        printf("STACK OVERFLOW");
+        exit(-1);
+    }
+        obj->string = (char *)malloc((value_len+1) * sizeof(char));
     strcpy(obj->string,obj->value);
     return obj;
 }
@@ -288,9 +363,10 @@ typedef struct {
                 params_def_code += param_def_code[0] + "\n"
 
         params_ret_c_code = ""
-        for param_ret_code, static_type_param in zip(def_ret_list_params, node.param_types ):
-            params_ret_c_code += "("+static_type_param+"*)"+param_ret_code[1] + ","
-        
+        for param_ret_code, static_type_param in zip(def_ret_list_params, node.param_types):
+            params_ret_c_code += "("+static_type_param+"*)" + \
+                param_ret_code[1] + ","
+
         if params_ret_c_code:
             params_ret_c_code = params_ret_c_code[:-1]
 
@@ -308,12 +384,12 @@ typedef struct {
         for exp, i in zip(node.exp_list, range(len(node.exp_list))):
             body_def, body_ret = self.visit(exp)
             code += body_def + "\n"
-            
+
             if i == len(node.exp_list) - 1:
                 code += f"return ({node.static_type}*){body_ret};\n"
             elif body_ret:
                 code += body_ret + ";\n"
-                
+
         if not node.exp_list:
             code += f"return new_Object();\n"
         code += "}"
@@ -383,7 +459,14 @@ typedef struct {
 
         c_code = f"""{node.static_type}* while_{node.instance_id}(){{
             int while_body_executed = 0;
+            memory_usage = memory_usage+(sizeof({node.static_type}));
+            if (memory_usage > memory_limit) {{
+    
+                printf("STACK OVERFLOW");
+                exit(-1);
+            }}
             {node.static_type}* {node.ret_point} = ({node.static_type}*)malloc(sizeof({node.static_type}));
+           
             while(1){{
             """
         c_code += f"{def_condition}"
@@ -440,33 +523,36 @@ typedef struct {
                     continue
                 # luego del for estaran todas las funciones del padre pero con el polimorfismo aplicado
                 own_plus_parent_functions.append(func)
-            
+
             for var in parent_inherited.variables:  # definiendo variables del padre en el struct
-                if var.static_type in node.types_names:#========================================================================check
+                # ========================================================================check
+                if var.static_type in node.types_names:
                     self.types_definitions += f"struct {var.static_type}* {var.name.name};\n"
                 else:
-                    
+
                     self.types_definitions += f"{var.static_type}* {var.name.name};\n"
-                    
+
             # declarando las funciones del padre en el struct pero con el polimorfismo aplicado
             for func in own_plus_parent_functions:
                 self.types_definitions += f"""{func.static_type}* (*{func.func_id.name})(void* self"""
                 self.types_functions_and_constructor_headers += f"""{func.static_type}* (*{func.func_id.name})(void* self"""
-                
+
                 if func.params.param_list:
                     for function_params in func.params.param_list:
-                        if function_params.static_type in node.types_names:#===================================================================check
+                        # ===================================================================check
+                        if function_params.static_type in node.types_names:
                             self.types_definitions += f", struct {function_params.static_type}* {function_params.name}"
                             self.types_functions_and_constructor_headers += f", struct {function_params.static_type}* {function_params.name}"
                         else:
                             self.types_definitions += f", {function_params.static_type}* {function_params.name}"
                             self.types_functions_and_constructor_headers += f", {function_params.static_type}* {function_params.name}"
-                            
+
                 self.types_definitions += ");\n"
                 self.types_functions_and_constructor_headers += ");\n"
 
             for var in node.variables:  # definiendo las variables propias en struct
-                if var.static_type in node.types_names:#========================================================================================check
+                # ========================================================================================check
+                if var.static_type in node.types_names:
                     self.types_definitions += f"struct {var.static_type}* {var.name.name};\n"
                 else:
                     self.types_definitions += f"{var.static_type}* {var.name.name};\n"
@@ -486,7 +572,7 @@ typedef struct {
                 own_plus_parent_functions.append(func)
         else:
             for var in node.variables:
-                                                            # ========================================================================================check
+                # ========================================================================================check
                 if var.static_type in node.types_names:
                     self.types_definitions += f"struct {var.static_type}* {var.name.name};\n"
                 else:
@@ -497,13 +583,14 @@ typedef struct {
                 self.types_functions_and_constructor_headers += f"""{func.static_type}* (*{func.func_id.name})(void* self"""
                 if func.params.param_list:
                     for function_params in func.params.param_list:
-                        if function_params.static_type in node.types_names:#===================================================================check
+                        # ===================================================================check
+                        if function_params.static_type in node.types_names:
                             self.types_definitions += f", struct {function_params.static_type}* {function_params.name}"
                             self.types_functions_and_constructor_headers += f", struct {function_params.static_type}* {function_params.name}"
                         else:
                             self.types_definitions += f", {function_params.static_type}* {function_params.name}"
                             self.types_functions_and_constructor_headers += f", {function_params.static_type}* {function_params.name}"
-                        
+
                 self.types_definitions += ");\n"
                 self.types_functions_and_constructor_headers += ");\n"
 
@@ -512,7 +599,7 @@ typedef struct {
             )  # esto esta correcto ya q si no hay padre own + (parent=0) = own xd,lee el nombre de la lista y entenderas
 
         self.types_definitions += f"}} {node.id.name};\n"
-        
+
         # functions definition
         for func in own_plus_parent_functions:
             def_func, ret_func = self.visit(func)
@@ -525,15 +612,16 @@ typedef struct {
         # constructor definition
         self.types_constructor += f"""{node.static_type}* new_{node.static_type}("""
         self.types_functions_and_constructor_headers += f"""{node.static_type}* new_{node.static_type}("""
-        
+
         for param in node.params.param_list:
             self.types_constructor += f"{param.static_type}* {param.name},"
             self.types_functions_and_constructor_headers += f"{param.static_type}* {param.name},"
         if node.params.param_list:
             self.types_constructor = self.types_constructor[:-1]
-            self.types_functions_and_constructor_headers = self.types_functions_and_constructor_headers[:-1]
+            self.types_functions_and_constructor_headers = self.types_functions_and_constructor_headers[
+                :-1]
         self.types_constructor += f"""){{"""
-        self.types_functions_and_constructor_headers+=");\n"
+        self.types_functions_and_constructor_headers += ");\n"
 
         # TypeCall inherence definition
         ret_type_call_of_parent = ""
@@ -542,9 +630,22 @@ typedef struct {
                 node.inherits)
             ret_type_call_of_parent = ret_type_call_inherits
             self.types_constructor += def_type_call_inherits+"\n"
+            self.types_constructor += f"""memory_usage = memory_usage+(sizeof({node.static_type}));
+            if (memory_usage > memory_limit) {{
+    
+                printf("STACK OVERFLOW");
+                exit(-1);
+            }}"""
             self.types_constructor += f"""{node.static_type}* obj = ({node.static_type}*)malloc(sizeof({node.static_type}));\n"""
 
         else:
+            self.types_constructor += f"""memory_usage = memory_usage+(sizeof({node.static_type}));
+            if (memory_usage > memory_limit) {{
+    
+                printf("STACK OVERFLOW");
+                exit(-1);
+            }}"""
+
             self.types_constructor += f"""{node.static_type}* obj = ({node.static_type}*)malloc(sizeof({node.static_type}));\n"""
 
         parent_variables = []
@@ -567,8 +668,20 @@ typedef struct {
             self.types_constructor += f"""obj->{func.func_id.name} = {node.static_type}_{func.func_id.name};\n"""
 
         self.types_constructor += f"""int string_len = strlen("{node.static_type}");
+        memory_usage = memory_usage+((string_len + 1) * sizeof(char));
+        if (memory_usage > memory_limit) {{
+
+            printf("STACK OVERFLOW");
+            exit(-1);
+        }}
         obj -> type = (char*)malloc((string_len + 1) * sizeof(char));
+       
         strcpy(obj -> type, "{node.static_type}");"""
+        self.types_constructor += f"""memory_usage = memory_usage+((string_len + 1+30) * sizeof(char));
+        if (memory_usage > memory_limit) {{
+            printf("STACK OVERFLOW");
+            exit(-1);
+        }}"""
         self.types_constructor += f"""obj->string = (char *)malloc((string_len + 1+30) * sizeof(char));"""
         self.types_constructor += f"""char memory_address_str[20];
         sprintf(memory_address_str, "%p", (void *)obj);
@@ -602,8 +715,22 @@ typedef struct {
                 size_of_vect = len(node.items.param_list)
         # implement this with an array of pointers in C
         def_vect = f"""{node.static_type}* {node.name}(){{
+                memory_usage = memory_usage+(sizeof({node.static_type}));
+                if (memory_usage > memory_limit) {{
+        
+                    printf("STACK OVERFLOW");
+                    exit(-1);
+                }}
                 {node.static_type}* vector = ({node.static_type}*)malloc(sizeof({node.static_type}));
+                
+                memory_usage = memory_usage+({size_of_vect}*sizeof(void*));
+                if (memory_usage > memory_limit) {{
+        
+                    printf("STACK OVERFLOW");
+                    exit(-1);
+                }}
                 void** array = (void**)malloc({size_of_vect}*sizeof(void*));\n"""
+
         for i in range(size_of_vect):
             def_item, ret_item = self.visit(node.items.param_list[i])
             def_vect += def_item + "\n"
@@ -945,7 +1072,7 @@ let g = new Grid(3, 4),
             *semantic_check_errors,
             sep="\n - ",
         )
-        
+
         if len(semantic_check_errors) == 0:
             print("\nGlobal Expression returned:", typeof(ast.global_exp))
             CodeGen().visit(ast)
