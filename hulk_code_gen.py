@@ -108,6 +108,7 @@ class CodeGen:
             f.write("# include <time.h>\n#include <sys/time.h>\n\n")
             f.write(
                 """
+
 //Concatenate two strings
 char* concatenate_strings(const char* str1, const char* str2) {
     // Calculate the length needed for the concatenated string

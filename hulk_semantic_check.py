@@ -684,6 +684,14 @@ class TypeInfChk:
                 typex : TypeDef
                 typex.static_type = typex.id.name
                 
+                for param in typex.params.param_list:
+                    param: ID
+                    param.static_type = (
+                        param.annotated_type
+                        if param.annotated_type != ""
+                        else "Object"
+                    )
+                
         for function in node.functions:
             function: FunctionDef
             function.static_type = (
