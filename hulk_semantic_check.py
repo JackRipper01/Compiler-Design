@@ -776,8 +776,7 @@ class TypeInfChk:
                         + self.cf.add_line_column(node.func_id.name)
                     )
             node.static_type = func_def.static_type
-        print(node.func_id.name, node.param_types, "->",node.static_type)
-        input("...press_enter...")
+        
 
     @visitor.when(FunctionDef)
     def visit(self, node: FunctionDef):
@@ -1180,13 +1179,6 @@ class TypeInfChk:
             except:
                 self.errors.append("ERROR DE DICCIONARIO"+self.add_line_column(node.op))
             node.static_type = node.right.static_type
-            if type(node.right) is FunctionCall:
-                print(node.right.func_id.name, node.right.param_types, "->",node.right.static_type)
-                input("...press_enter...")
-            # if type(node.left) is ID:
-            #     if type(node.right) is FunctionCall:
-            #         print(node.left.name, node.right.func_id.name,node.right.static_type,"en el func_def:",node.global_definitions[context_from].variable_scope[name].static_type , self.cf.add_line_column(node.op))
-            #         input("press enter")
 
 
 def semantic_check(ast: Program, code):
