@@ -776,6 +776,8 @@ class TypeInfChk:
                         + self.cf.add_line_column(node.func_id.name)
                     )
             node.static_type = func_def.static_type
+        print(node.func_id.name, node.param_types, "->",node.static_type)
+        input("...press_enter...")
 
     @visitor.when(FunctionDef)
     def visit(self, node: FunctionDef):
@@ -1115,33 +1117,35 @@ class TypeInfChk:
                     }
                 else:
                     context = node.global_definitions[context_from].variable_scope.copy()
-                     
+                
                 if type(node.right) is FunctionCall:
                     name = method_name_getter(node.right, True)
                     token = node.right.func_id.name
-                    if context_from not in self.type_functions_visited:
-                        self.type_functions_visited[context_from] = set()
-                    if name not in self.type_functions_visited[context_from]:
-                        method:FunctionDef = node.global_definitions[context_from].variable_scope[name]
-                        self.type_functions_visited[context_from].add(name)
-                        self.on_function = True
-                        method.static_type = (
-                        method.func_id.annotated_type
-                        if method.func_id.annotated_type != ""
-                        else "Object"
-                        )
-                        node.right.static_type = method.static_type
-                        self.on_function = False
-                    
                 else:
                     if context_from != self.current:
                         self.errors.append(f"Error obtaining private member '{node.right.name}' from type '{context_from}' inside type '{self.current}'"+self.cf.add_line_column(node.op))
                     name = node.right.name +"/private"
                     node.right.static_type = node.global_definitions[context_from].variable_scope[name].static_type      
+                    
+
+                    
                         
                 if name in context:
                     node.static_type = context[name].static_type
                     if type(node.right) is FunctionCall:
+                        function_definition:FunctionDef = node.global_definitions[context_from].variable_scope[name]
+                        self.on_function = True
+                        function_definition.static_type = (
+                        function_definition.func_id.annotated_type
+                        if function_definition.func_id.annotated_type != ""
+                        else "Object"
+                        )
+                        for param in function_definition.params.param_list:
+                            param.static_type = (
+                            param.annotated_type
+                            if param.annotated_type != ""
+                            else "Object"
+                            )
                         function: FunctionDef = context[name]
                         for e_param, r_param in zip(
                             function.params.param_list, node.right.params.param_list
@@ -1154,6 +1158,7 @@ class TypeInfChk:
                                     f"Function '{node.right.func_id.name}' param '{e_param.name}' expected '{expect}', but received '{r_param.static_type}'"
                                     + self.cf.add_line_column(node.right.func_id.name)
                                 )
+                        
 
                 else:
                     self.errors.append(
@@ -1175,6 +1180,9 @@ class TypeInfChk:
             except:
                 self.errors.append("ERROR DE DICCIONARIO"+self.add_line_column(node.op))
             node.static_type = node.right.static_type
+            if type(node.right) is FunctionCall:
+                print(node.right.func_id.name, node.right.param_types, "->",node.right.static_type)
+                input("...press_enter...")
             # if type(node.left) is ID:
             #     if type(node.right) is FunctionCall:
             #         print(node.left.name, node.right.func_id.name,node.right.static_type,"en el func_def:",node.global_definitions[context_from].variable_scope[name].static_type , self.cf.add_line_column(node.op))
