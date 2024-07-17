@@ -28,6 +28,7 @@ class Program(Node):
         self.types = list(filter(lambda x: type(x) is TypeDef, functions_types))
         self.protocols = list(filter(lambda x: type(x) is Protocol, functions_types))
         self.global_exp: Node = global_expression
+        self.types_names = [type_def.id.name for type_def in self.types]
 
     @classmethod
     def add_function_name(cls, name):
@@ -200,6 +201,7 @@ class TypeDef(Node):
             self.functions = list(filter(lambda x: type(x) is FunctionDef, members))
         self.params : Params = params
         self.inherits : TypeCall = inherits
+        self.types_names =[]
 
 
 class TypeCall(Node):

@@ -53,6 +53,9 @@ class CodeGen:
         self.types_function_definitions = ""
         self.types_constructor = ""
         self.function_definitions = ""
+        self.types_headers=""
+        self.types_functions_and_constructor_headers = ""
+        
 
     @visitor.on("node")
     def visit(self, node):
@@ -94,6 +97,7 @@ class CodeGen:
                 node.types[i] = node_types_reorder[i][0]
 
             for type in node.types:
+                type.types_names = node.types_names
                 self.visit(type)[0]
 
         with open("./out.c", "w") as f:
@@ -215,9 +219,11 @@ typedef struct {
     int len;
 } Vector;\n\n""")
             f.write("//TYPE HEADERS\n")
+            f.write(self.types_headers+"\n")
             f.write(self.types_definitions+"\n")
             f.write("//FUNCTION HEADERS\n")
             f.write(self.functions_headers+"\n")
+            f.write(self.types_functions_and_constructor_headers+"\n")
             f.write("//TYPES AND FUNCTION DEFINITIONS\n")
             f.write(self.types_function_definitions+"\n")
             f.write("//TYPE CONSTRUCTORS\n")
@@ -416,7 +422,7 @@ typedef struct {
         own_plus_parent_functions = []
         # struct definition
         self.types_definitions += f"""typedef struct {node.id.name}{{\n"""
-
+        self.types_headers += f"""struct {node.id.name};"""
         self.types_definitions += "\nchar* type;\nchar* string;\n"
         if node.inherits:
             parent_inherited = node.global_definitions[node.inherits.id.name]
@@ -433,48 +439,79 @@ typedef struct {
                     continue
                 # luego del for estaran todas las funciones del padre pero con el polimorfismo aplicado
                 own_plus_parent_functions.append(func)
-
+            
             for var in parent_inherited.variables:  # definiendo variables del padre en el struct
-                self.types_definitions += f"{var.static_type}* {var.name.name};\n"
-
+                if var.static_type in node.types_names:#========================================================================check
+                    self.types_definitions += f"struct {var.static_type}* {var.name.name};\n"
+                else:
+                    
+                    self.types_definitions += f"{var.static_type}* {var.name.name};\n"
+                    
             # declarando las funciones del padre en el struct pero con el polimorfismo aplicado
             for func in own_plus_parent_functions:
                 self.types_definitions += f"""{func.static_type}* (*{func.func_id.name})(void* self"""
+                self.types_functions_and_constructor_headers += f"""{func.static_type}* (*{func.func_id.name})(void* self"""
+                
                 if func.params.param_list:
                     for function_params in func.params.param_list:
-                        self.types_definitions += f", {function_params.static_type}* {function_params.name}"
+                        if function_params.static_type in node.types_names:#===================================================================check
+                            self.types_definitions += f", struct {function_params.static_type}* {function_params.name}"
+                            self.types_functions_and_constructor_headers += f", struct {function_params.static_type}* {function_params.name}"
+                        else:
+                            self.types_definitions += f", {function_params.static_type}* {function_params.name}"
+                            self.types_functions_and_constructor_headers += f", {function_params.static_type}* {function_params.name}"
+                            
                 self.types_definitions += ");\n"
+                self.types_functions_and_constructor_headers += ");\n"
 
             for var in node.variables:  # definiendo las variables propias en struct
-                self.types_definitions += f"{var.static_type}* {var.name.name};\n"
+                if var.static_type in node.types_names:#========================================================================================check
+                    self.types_definitions += f"struct {var.static_type}* {var.name.name};\n"
+                else:
+                    self.types_definitions += f"{var.static_type}* {var.name.name};\n"
 
             for func in node.functions:  # declarando las funciones propias en struct sin incluir la del polimorfismo ya q ya se incluyo junto a las del padre
                 if func.func_id.name in list_func_id_polymorphism:
                     continue
                 self.types_definitions += f"""{func.static_type}* (*{func.func_id.name})(void* self"""
+                self.types_functions_and_constructor_headers += f"""{func.static_type}* (*{func.func_id.name})(void* self"""
                 if func.params.param_list:
                     for function_params in func.params.param_list:
                         self.types_definitions += f", {function_params.static_type}* {function_params.name}"
+                        self.types_functions_and_constructor_headers += f", {function_params.static_type}* {function_params.name}"
                 self.types_definitions += ");\n"
+                self.types_functions_and_constructor_headers += ");\n"
                 # annadiendo las funciones propias sin incluir la del polimorfismo ya q esta incluida en esta lista
                 own_plus_parent_functions.append(func)
         else:
             for var in node.variables:
-                self.types_definitions += f"{var.static_type}* {var.name.name};\n"
+                                                            # ========================================================================================check
+                if var.static_type in node.types_names:
+                    self.types_definitions += f"struct {var.static_type}* {var.name.name};\n"
+                else:
+                    self.types_definitions += f"{var.static_type}* {var.name.name};\n"
 
             for func in node.functions:
                 self.types_definitions += f"""{func.static_type}* (*{func.func_id.name})(void* self"""
+                self.types_functions_and_constructor_headers += f"""{func.static_type}* (*{func.func_id.name})(void* self"""
                 if func.params.param_list:
                     for function_params in func.params.param_list:
-                        self.types_definitions += f", {function_params.static_type}* {function_params.name}"
+                        if function_params.static_type in node.types_names:#===================================================================check
+                            self.types_definitions += f", struct {function_params.static_type}* {function_params.name}"
+                            self.types_functions_and_constructor_headers += f", struct {function_params.static_type}* {function_params.name}"
+                        else:
+                            self.types_definitions += f", {function_params.static_type}* {function_params.name}"
+                            self.types_functions_and_constructor_headers += f", {function_params.static_type}* {function_params.name}"
+                        
                 self.types_definitions += ");\n"
+                self.types_functions_and_constructor_headers += ");\n"
 
             own_plus_parent_functions = (
                 node.functions
             )  # esto esta correcto ya q si no hay padre own + (parent=0) = own xd,lee el nombre de la lista y entenderas
 
         self.types_definitions += f"}} {node.id.name};\n"
-
+        
         # functions definition
         for func in own_plus_parent_functions:
             def_func, ret_func = self.visit(func)
@@ -486,11 +523,16 @@ typedef struct {
 
         # constructor definition
         self.types_constructor += f"""{node.static_type}* new_{node.static_type}("""
+        self.types_functions_and_constructor_headers += f"""{node.static_type}* new_{node.static_type}("""
+        
         for param in node.params.param_list:
             self.types_constructor += f"{param.static_type}* {param.name},"
+            self.types_functions_and_constructor_headers += f"{param.static_type}* {param.name},"
         if node.params.param_list:
             self.types_constructor = self.types_constructor[:-1]
+            self.types_functions_and_constructor_headers = self.types_functions_and_constructor_headers[:-1]
         self.types_constructor += f"""){{"""
+        self.types_functions_and_constructor_headers+=");\n"
 
         # TypeCall inherence definition
         ret_type_call_of_parent = ""
@@ -824,8 +866,51 @@ let p = new Knight("Phil", "Collins") in
     from hulk_semantic_check import semantic_check
     from hulk_lexer import errorList as lexerErrors
     # from code import CODE
-    asd = """function cal(x):String => x @@ "asd";
-    print(cal(5));
+    asd = """
+    type Grid(rows: Number, cols: Number)
+{
+    rows= rows;
+    cols= cols;
+
+    CountPathsRecursive(target: Position, current: Position): Number
+    {
+        // Base case: if we have reached the target position, return 1
+        if (current.Equals(target))
+        {
+            1;
+        }else{}
+
+        // Base case: if we have gone out of bounds, return 0
+        if(current.getRow() >= self.rows | current.getCol() >= self.cols)
+        {
+            0;
+        }else{}
+
+        // Recursive case: count the number of paths from the current position to the target
+        self.CountPathsRecursive(target, new Position(current.getRow() + 1, current.getCol())) + self.CountPathsRecursive(target, new Position(current.getRow(), current.getCol() + 1));
+    }
+    CountPaths(pos: Position): Number
+    {
+        self.CountPathsRecursive(pos, new Position(0, 0));
+    }
+}
+type Position(Row: Number, Col: Number)
+{
+    Row=Row;
+    Col=Col;
+
+    getRow(): Number=> self.Row;
+    getCol(): Number=> self.Col;
+
+    Equals(other: Position) : Boolean => self.Row == other.getRow() & self.Col == other.getCol();
+}
+
+let g = new Grid(3, 4),
+    target = new Position(2,3),
+    numPaths= g.CountPaths(target) in 
+    print("Number of paths to reach" @@ target.getRow() @","@@ target.getCol()@@ "is:" @@ "numPaths");
+
+
 """
     ast, parsingErrors, _b = hulk_parse(
         asd)
@@ -859,6 +944,7 @@ let p = new Knight("Phil", "Collins") in
             *semantic_check_errors,
             sep="\n - ",
         )
-        print("\nGlobal Expression returned:", typeof(ast.global_exp))
+        
         if len(semantic_check_errors) == 0:
+            print("\nGlobal Expression returned:", typeof(ast.global_exp))
             CodeGen().visit(ast)
