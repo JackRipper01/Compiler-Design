@@ -741,9 +741,10 @@ return new_{node.static_type}(!({child_ret}->value));
         node.ret_point = "ret_point_print_" + str(node.instance_id)
         code = f"""{node.static_type}* print_{node.instance_id}() {{
 {child_def}\n"""
-        code += f"""printf("%s\\n",{child_ret}->string);\n"""
+        code += f""" {node.value.static_type}* print_variable{node.instance_id} = {child_ret};
+        printf("%s\\n",print_variable{node.instance_id}->string);\n"""
 
-        code += f"""return ({node.static_type}*){child_ret};
+        code += f"""return ({node.static_type}*)print_variable{node.instance_id};
 }}"""
         code += f"""{node.static_type}* {node.ret_point} = print_{node.instance_id}();
 """
@@ -823,8 +824,8 @@ let p = new Knight("Phil", "Collins") in
     from hulk_semantic_check import semantic_check
     from hulk_lexer import errorList as lexerErrors
     # from code import CODE
-    asd = """
-print("asd" @@ "asdasdsadasdsadasdashgdsuyfdsgyfugsdvgfsvdfgsgfvgfvfsdfgsvdfvdsgfdshgfdsvgfvdsvfgdsfvgsfsgdsfh"  );
+    asd = """function cal(x):String => x @@ "asd";
+    print(cal(5));
 """
     ast, parsingErrors, _b = hulk_parse(
         asd)
