@@ -27,9 +27,7 @@ type Vehicle(make: String, model: String, year: Number)
 
     Start(): Object {};
     Stop(): Object {};
-    Process(): Object {
-        print("Process en Vehicle.");
-    };
+    Process(): Object {};
 
     LogInfo() => print("Vehicle:" @@ self.getYear() @@ self.getMake() @@ self.getModel());
 }
@@ -55,7 +53,7 @@ type Car(make: String, model: String, year: Number, isConvertible: Boolean, door
 
     LogInfo()
     {
-        print("Car:" @@ self.year @@ self.make @@ self.model @ ", Convertible:" @@ self.isConvertible @ ", Doors:" @@ self.doors);
+        print("Car:" @@ self.year @@ self.make @@ self.model );// @@ "Convertible:" @@ self.isConvertible @ ", Doors:" @@ self.doors);
     }
 
     Process()

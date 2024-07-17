@@ -200,6 +200,14 @@ class ScopeBuilder:
             node.global_definitions[child].variable_scope = node.variable_scope
             self.current = child
             self.visit(node.global_definitions[child])
+            
+        for method in node.functions:
+            method: FunctionDef
+            method.static_type = (
+                method.func_id.annotated_type
+                if method.func_id.annotated_type != ""
+                else "Object"
+            )
 
     @visitor.when(FunctionDef)
     def visit(self, node: FunctionDef):
@@ -671,6 +679,11 @@ class TypeInfChk:
 
     @visitor.when(Program)
     def visit(self, node: Program):
+        if node.types:
+            for typex in node.types:
+                typex : TypeDef
+                typex.static_type = typex.id.name
+                
         for function in node.functions:
             function: FunctionDef
             function.static_type = (
@@ -678,7 +691,7 @@ class TypeInfChk:
                 if function.func_id.annotated_type != ""
                 else "Object"
             )
-
+            
         self.on_type = True
         for type_str in node.hierarchy_tree["Object"].children:
             if not type_str in ["Number", "String", "Boolean", "Vector"]:
@@ -699,7 +712,6 @@ class TypeInfChk:
 
     @visitor.when(TypeDef)
     def visit(self, node: TypeDef):
-        node.static_type = node.id.name
         for param in node.params.param_list:
             param: ID
             param.static_type = param.annotated_type if param.annotated_type != "" else "Object"
@@ -708,16 +720,6 @@ class TypeInfChk:
         
         if node.inherits:
             self.visit(node.inherits)
-
-        self.on_function = True
-        for method in node.functions:
-            method: FunctionDef
-            method.static_type = (
-                method.func_id.annotated_type
-                if method.func_id.annotated_type != ""
-                else "Object"
-            )
-        self.on_function = False
 
         for assign in node.variables:
             assign: Assign
@@ -1113,20 +1115,30 @@ class TypeInfChk:
                     }
                 else:
                     context = node.global_definitions[context_from].variable_scope.copy()
-                    
-                if type(node.right) is ID:
-                    name = node.right.name + "/private"
-                    token = node.right.name
-                    self.visit(node.global_definitions[context_from].variable_scope[node.right.name + "/private"].parent)
-                else:
+                     
+                if type(node.right) is FunctionCall:
                     name = method_name_getter(node.right, True)
                     token = node.right.func_id.name
-                    if self.on_type:
-                        if context_from not in self.type_functions_visited:
-                            self.type_functions_visited[context_from] = set()
-                        if name not in self.type_functions_visited[context_from]:
-                            self.visit(node.global_definitions[context_from].variable_scope[name])
-                            self.type_functions_visited[context_from].add(node.global_definitions[context_from].variable_scope[name].func_id.name)
+                    if context_from not in self.type_functions_visited:
+                        self.type_functions_visited[context_from] = set()
+                    if name not in self.type_functions_visited[context_from]:
+                        method:FunctionDef = node.global_definitions[context_from].variable_scope[name]
+                        self.type_functions_visited[context_from].add(name)
+                        self.on_function = True
+                        method.static_type = (
+                        method.func_id.annotated_type
+                        if method.func_id.annotated_type != ""
+                        else "Object"
+                        )
+                        node.right.static_type = method.static_type
+                        self.on_function = False
+                    
+                else:
+                    if context_from != self.current:
+                        self.errors.append(f"Error obtaining private member '{node.right.name}' from type '{context_from}' inside type '{self.current}'"+self.cf.add_line_column(node.op))
+                    name = node.right.name +"/private"
+                    node.right.static_type = node.global_definitions[context_from].variable_scope[name].static_type      
+                        
                 if name in context:
                     node.static_type = context[name].static_type
                     if type(node.right) is FunctionCall:
@@ -1158,6 +1170,15 @@ class TypeInfChk:
                     f"Cannot obtain member '{name}' from type '{context_from}'"
                     + self.cf.add_line_column(node.op)
                 )
+            try:
+                node.right.static_type = node.global_definitions[context_from].variable_scope[name].static_type  
+            except:
+                self.errors.append("ERROR DE DICCIONARIO"+self.add_line_column(node.op))
+            node.static_type = node.right.static_type
+            # if type(node.left) is ID:
+            #     if type(node.right) is FunctionCall:
+            #         print(node.left.name, node.right.func_id.name,node.right.static_type,"en el func_def:",node.global_definitions[context_from].variable_scope[name].static_type , self.cf.add_line_column(node.op))
+            #         input("press enter")
 
 
 def semantic_check(ast: Program, code):

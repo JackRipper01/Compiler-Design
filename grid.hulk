@@ -1,0 +1,45 @@
+type Grid(rows: Number, cols: Number)
+{
+    rows= rows;
+    cols= cols;
+
+    CountPathsRecursive(target: Position, current: Position): Number
+    {
+        // Base case: if we have reached the target position, return 1
+        if (current.Equals(target))
+        {
+            1;
+        }else{}
+
+        // Base case: if we have gone out of bounds, return 0
+        if(current.getRow() >= self.rows | current.getCol() >= self.cols)
+        {
+            0;
+        }else{}
+
+        // Recursive case: count the number of paths from the current position to the target
+        self.CountPathsRecursive(target, new Position(current.getRow() + 1, current.getCol())) + self.CountPathsRecursive(target, new Position(current.getRow(), current.getCol() + 1));
+    }
+    CountPaths(pos: Position): Number
+    {
+        self.CountPathsRecursive(pos, new Position(0, 0));
+    }
+
+    
+}
+type Position(Row: Number, Col: Number)
+{
+    Row=Row;
+    Col=Col;
+
+    getRow(): Number=> self.Row;
+    getCol(): Number=> self.Col;
+
+    Equals(other: Position) : Boolean => self.Row == other.getRow() & self.Col == other.getCol();
+}
+
+let g = new Grid(3, 4),
+    target = new Position(2,3),
+    numPaths= g.CountPaths(target) in 
+    print("Number of paths to reach" @@ target.getRow() @","@@ target.getCol()@@ "is:" @@ "numPaths");
+
