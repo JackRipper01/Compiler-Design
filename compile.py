@@ -7,10 +7,12 @@ import sys
 from misc import typeof
 import io
 
-if len(sys.argv)<=1:
-    raise Exception("no input file entered")
+# if len(sys.argv)<=1:
+#     raise Exception("no input file entered")
 
-CODE = io.open(sys.argv[1]).read()
+# CODE = io.open(sys.argv[1]).read()
+
+CODE = io.open("grid.hulk").read()
 
 ast, parsingErrors, nodes = hulk_parse(CODE, create_graph=False)
 
